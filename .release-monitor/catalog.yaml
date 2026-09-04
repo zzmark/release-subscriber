@@ -1,0 +1,15 @@
+schema_version: 1
+
+software:
+  - slug: vaultwarden
+    status: active
+    config: software/vaultwarden.yaml
+  - slug: logto
+    status: planned
+    config: software/logto.yaml
+  - slug: paseo
+    status: planned
+    config: software/paseo.yaml
+  - slug: hyperdx
+    status: planned
+    config: software/hyperdx.yaml

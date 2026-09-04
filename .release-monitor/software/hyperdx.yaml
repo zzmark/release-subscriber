@@ -1,0 +1,59 @@
+schema_version: 1
+
+software:
+  slug: hyperdx
+  display_name: HyperDX
+  status: planned
+  output_directory: hyperdx
+
+source:
+  type: github_release
+  repository: hyperdxio/hyperdx
+  releases_url: https://github.com/hyperdxio/hyperdx/releases
+  documentation_url: null
+
+selection:
+  minimum_version: 2.32.0
+  minimum_inclusive: true
+  version_source: app
+  include_drafts: false
+  include_prereleases: false
+
+processing:
+  release_unit: app
+  multi_package_release: true
+  primary_package: app
+  ignored_packages:
+    - cli
+    - hdx-eval
+  aggregate_packages: all_other_packages_in_same_release_cycle
+  output_version: app_package_version
+
+changelog:
+  mode: concatenate_package_sections
+  app_section_first: true
+  remaining_section_order: upstream
+  section_boundary: separate_heading_and_paragraph
+  preserve_original_text: true
+  translation_must_preserve_section_structure: true
+
+summary:
+  focus: app
+  include_aggregated_package_changes: true
+  prioritize_app_changes: true
+
+notes:
+  - 只有同一发布周期中包含 app 版本的 Release 才能形成 HyperDX 版本报告。
+  - 版本目录名称取 app 包版本号。
+  - 完全忽略 cli 与 hdx-eval 的更新内容。
+  - app 段落置于首位；同周期其余包的 Changelog 各自成段并拼接到后面。
+  - 聚合后的全部内容共同作为该 app 版本的更新信息。
+
+history:
+  initial_backfill_status: pending
+  existing_versions_are_immutable: true
+  metadata_verification_status: pending
+
+theme:
+  strategy: pending
+  accent: null

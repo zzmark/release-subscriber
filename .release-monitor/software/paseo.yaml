@@ -1,0 +1,37 @@
+schema_version: 1
+
+software:
+  slug: paseo
+  display_name: Paseo
+  status: planned
+  output_directory: paseo
+
+source:
+  type: github_release
+  repository: getpaseo/paseo
+  releases_url: https://github.com/getpaseo/paseo/releases
+  documentation_url: null
+
+selection:
+  minimum_version: 0.6.0
+  minimum_inclusive: true
+  include_drafts: false
+  include_prereleases: false
+  exclude_tags_matching:
+    - '(?i)beta'
+
+processing:
+  release_unit: github_release
+  changelog_mode: preserve_upstream_release_body
+
+notes:
+  - Beta 版本不得生成版本目录或进入报告。
+
+history:
+  initial_backfill_status: pending
+  existing_versions_are_immutable: true
+  metadata_verification_status: pending
+
+theme:
+  strategy: pending
+  accent: null

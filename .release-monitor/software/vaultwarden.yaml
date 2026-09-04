@@ -1,0 +1,31 @@
+schema_version: 1
+
+software:
+  slug: vaultwarden
+  display_name: Vaultwarden
+  status: active
+  output_directory: vaultwarden
+
+source:
+  type: github_release
+  repository: dani-garcia/vaultwarden
+  releases_url: https://github.com/dani-garcia/vaultwarden/releases
+  documentation_url: https://github.com/dani-garcia/vaultwarden/wiki
+
+selection:
+  minimum_version: 1.37.0
+  minimum_inclusive: true
+  include_drafts: false
+  include_prereleases: false
+
+processing:
+  release_unit: github_release
+  changelog_mode: preserve_upstream_release_body
+
+history:
+  initial_backfill_status: completed
+  existing_versions_are_immutable: true
+
+theme:
+  strategy: pending
+  accent: null
