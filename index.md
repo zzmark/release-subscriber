@@ -7,11 +7,11 @@ hero:
   tagline: 汇总官方 Changelog、简体中文翻译与结构化更新说明。
   actions:
     - theme: brand
-      text: 查看 Vaultwarden
-      link: /vaultwarden/
+      text: 查看最新 Logto
+      link: /logto/1.43.0/
     - theme: alt
-      text: 最新版本 1.37.2
-      link: /vaultwarden/1.37.2/
+      text: 查看最新 HyperDX
+      link: /hyperdx/2.37.0/
 
 features:
   - title: 更新总结
@@ -21,3 +21,12 @@ features:
   - title: 可追溯来源
     details: 每个版本均提供官方 Release、文档及完整变更对比链接。
 ---
+
+## 已监控软件
+
+| 软件 | 最新收录版本 | 版本资料 |
+| --- | --- | --- |
+| Vaultwarden | 1.37.2 | [查看](./vaultwarden/) |
+| Logto | 1.43.0 | [查看](./logto/) |
+| Paseo | 0.7.2 | [查看](./paseo/) |
+| HyperDX | 2.37.0 | [查看](./hyperdx/) |

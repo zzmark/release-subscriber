@@ -43,12 +43,27 @@ export default defineConfig({
     nav: [
       { text: '首页', link: '/' },
       { text: 'Vaultwarden', link: '/vaultwarden/' },
+      { text: 'Logto', link: '/logto/' },
+      { text: 'Paseo', link: '/paseo/' },
+      { text: 'HyperDX', link: '/hyperdx/' },
       { text: 'GitHub', link: repository }
     ],
     sidebar: {
       '/vaultwarden/': [
         { text: 'Vaultwarden', link: '/vaultwarden/' },
         ...releaseItems('vaultwarden')
+      ],
+      '/logto/': [
+        { text: 'Logto', link: '/logto/' },
+        ...releaseItems('logto')
+      ],
+      '/paseo/': [
+        { text: 'Paseo', link: '/paseo/' },
+        ...releaseItems('paseo')
+      ],
+      '/hyperdx/': [
+        { text: 'HyperDX', link: '/hyperdx/' },
+        ...releaseItems('hyperdx')
       ]
     },
     search: {

@@ -5,11 +5,11 @@ software:
     status: active
     config: software/vaultwarden.yaml
   - slug: logto
-    status: planned
+    status: active
     config: software/logto.yaml
   - slug: paseo
-    status: planned
+    status: active
     config: software/paseo.yaml
   - slug: hyperdx
-    status: planned
+    status: active
     config: software/hyperdx.yaml

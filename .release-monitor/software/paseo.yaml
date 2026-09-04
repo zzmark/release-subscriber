@@ -3,14 +3,14 @@ schema_version: 1
 software:
   slug: paseo
   display_name: Paseo
-  status: planned
+  status: active
   output_directory: paseo
 
 source:
   type: github_release
   repository: getpaseo/paseo
   releases_url: https://github.com/getpaseo/paseo/releases
-  documentation_url: null
+  documentation_url: https://paseo.sh/
 
 selection:
   minimum_version: 0.6.0
@@ -28,9 +28,9 @@ notes:
   - Beta 版本不得生成版本目录或进入报告。
 
 history:
-  initial_backfill_status: pending
+  initial_backfill_status: completed
   existing_versions_are_immutable: true
-  metadata_verification_status: pending
+  metadata_verification_status: completed
 
 theme:
   strategy: pending

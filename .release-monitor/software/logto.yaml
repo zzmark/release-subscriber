@@ -3,14 +3,14 @@ schema_version: 1
 software:
   slug: logto
   display_name: Logto
-  status: planned
+  status: active
   output_directory: logto
 
 source:
   type: github_release
   repository: logto-io/logto
   releases_url: https://github.com/logto-io/logto/releases
-  documentation_url: null
+  documentation_url: https://docs.logto.io/
 
 selection:
   minimum_version: 1.36.0
@@ -23,9 +23,9 @@ processing:
   changelog_mode: preserve_upstream_release_body
 
 history:
-  initial_backfill_status: pending
+  initial_backfill_status: completed
   existing_versions_are_immutable: true
-  metadata_verification_status: pending
+  metadata_verification_status: completed
 
 theme:
   strategy: pending

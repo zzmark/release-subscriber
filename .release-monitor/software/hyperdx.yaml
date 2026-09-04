@@ -3,14 +3,14 @@ schema_version: 1
 software:
   slug: hyperdx
   display_name: HyperDX
-  status: planned
+  status: active
   output_directory: hyperdx
 
 source:
   type: github_release
   repository: hyperdxio/hyperdx
   releases_url: https://github.com/hyperdxio/hyperdx/releases
-  documentation_url: null
+  documentation_url: https://www.hyperdx.io/docs/
 
 selection:
   minimum_version: 2.32.0
@@ -50,9 +50,9 @@ notes:
   - 聚合后的全部内容共同作为该 app 版本的更新信息。
 
 history:
-  initial_backfill_status: pending
+  initial_backfill_status: completed
   existing_versions_are_immutable: true
-  metadata_verification_status: pending
+  metadata_verification_status: completed
 
 theme:
   strategy: pending
