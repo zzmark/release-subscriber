@@ -1,8 +1,16 @@
-> ## Vaultwarden 1.37.1
->
-> **发布时间：** 2026-07-29
->
-> [版本地址](https://github.com/dani-garcia/vaultwarden/releases/tag/1.37.1) · [官方文档](https://github.com/dani-garcia/vaultwarden/wiki) · [changelog.md](./changelog.md) · [zh](./changelog.zh.md)
+---
+title: Vaultwarden 1.37.1 更新总结
+description: Vaultwarden 1.37.1 的中文更新总结、原始 Changelog 与简体中文翻译。
+---
+
+<ReleaseCard
+  software="Vaultwarden"
+  version="1.37.1"
+  date="2026-07-29"
+  repository-url="https://github.com/dani-garcia/vaultwarden"
+  docs-url="https://github.com/dani-garcia/vaultwarden/wiki"
+  release-url="https://github.com/dani-garcia/vaultwarden/releases/tag/1.37.1"
+/>
 
 ## 概览
 
