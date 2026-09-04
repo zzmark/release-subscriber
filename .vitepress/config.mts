@@ -11,7 +11,7 @@ function compareVersionsDescending(a: string, b: string): number {
 function releaseItems(software: string): DefaultTheme.SidebarItem[] {
   const directory = resolve(process.cwd(), software)
   const versions = readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && /^\d+\.\d+\.\d+(?:[-+].+)?$/.test(entry.name))
+    .filter((entry) => entry.isDirectory() && /^\d+\.\d+(?:\.\d+)?(?:[-+].+)?$/.test(entry.name))
     .map((entry) => entry.name)
     .sort(compareVersionsDescending)
 
@@ -46,6 +46,7 @@ export default defineConfig({
       { text: 'Logto', link: '/logto/' },
       { text: 'Paseo', link: '/paseo/' },
       { text: 'HyperDX', link: '/hyperdx/' },
+      { text: 'ClickHouse', link: '/clickhouse/' },
       { text: 'GitHub', link: repository }
     ],
     sidebar: {
@@ -64,6 +65,10 @@ export default defineConfig({
       '/hyperdx/': [
         { text: 'HyperDX', link: '/hyperdx/' },
         ...releaseItems('hyperdx')
+      ],
+      '/clickhouse/': [
+        { text: 'ClickHouse', link: '/clickhouse/' },
+        ...releaseItems('clickhouse')
       ]
     },
     search: {

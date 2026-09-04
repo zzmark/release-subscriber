@@ -50,6 +50,16 @@
   font-size: 0.65rem;
 }
 
+.release-card__badge {
+  padding: 0.22rem 0.48rem;
+  border: 1px solid color-mix(in srgb, var(--release-accent) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--release-accent) 12%, transparent);
+  color: var(--release-accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+}
+
 .vp-doc .release-card h1 {
   margin: 0;
   border: 0;

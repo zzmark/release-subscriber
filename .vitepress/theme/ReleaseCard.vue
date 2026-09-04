@@ -7,8 +7,14 @@ withDefaults(defineProps<{
   docsUrl: string
   releaseUrl: string
   accent?: string
+  releaseLabel?: string
+  presentationUrl?: string
+  presentationZhUrl?: string
 }>(), {
-  accent: '#2878d0'
+  accent: '#2878d0',
+  releaseLabel: '',
+  presentationUrl: '',
+  presentationZhUrl: ''
 })
 </script>
 
@@ -18,6 +24,7 @@ withDefaults(defineProps<{
       <span class="release-card__eyebrow">
         <span class="release-card__mark" aria-hidden="true">◆</span>
         Release Summary
+        <span v-if="releaseLabel" class="release-card__badge">{{ releaseLabel }}</span>
       </span>
       <h1>{{ software }} <span>v{{ version }}</span></h1>
     </div>
@@ -39,6 +46,8 @@ withDefaults(defineProps<{
       <a :href="releaseUrl" target="_blank" rel="noreferrer">版本页面 ↗</a>
       <a href="./changelog">原始 Changelog</a>
       <a href="./changelog.zh">中文 Changelog</a>
+      <a v-if="presentationUrl" :href="presentationUrl" target="_blank" rel="noreferrer">原始演示 ↗</a>
+      <a v-if="presentationZhUrl" :href="presentationZhUrl" target="_blank" rel="noreferrer">中文演示 ↗</a>
     </nav>
   </section>
 </template>
