@@ -9,7 +9,11 @@
 - Release Card 按版本月份切换春、夏、秋、冬主题色。
 - 中文 Release 演示保留原演示的页序、布局、图片、代码和链接，并以网页幻灯片形式在线浏览。
 
-首次历史回填完成后，版本列表将在这里生成。
+## 已收录版本
+
+| 版本 | 类型 | 发布时间 | 更新总结 | 原始 Changelog | 中文 Changelog | Release 演示 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 22.3 | LTS | 2022-03-17 | [查看](./22.3/) | [English](./22.3/changelog.md) | [简体中文](./22.3/changelog.zh.md) | [原始](https://presentations.clickhouse.com/2022-release-22.3/) · <a href="./22.3/presentation.zh/index.html">中文</a> |
 
 ## 上游资源
 

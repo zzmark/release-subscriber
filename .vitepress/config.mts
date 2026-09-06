@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs'
+import { cpSync, existsSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { defineConfig, type DefaultTheme } from 'vitepress'
 
@@ -35,6 +35,21 @@ export default defineConfig({
   lastUpdated: true,
   sitemap: {
     hostname: 'https://zzmark.github.io/release-subscriber/'
+  },
+  buildEnd() {
+    const clickhouseDirectory = resolve(process.cwd(), 'clickhouse')
+    const outputDirectory = resolve(process.cwd(), '.vitepress/dist/clickhouse')
+
+    for (const entry of readdirSync(clickhouseDirectory, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+
+      const presentationDirectory = resolve(clickhouseDirectory, entry.name, 'presentation.zh')
+      if (!existsSync(resolve(presentationDirectory, 'index.html'))) continue
+
+      cpSync(presentationDirectory, resolve(outputDirectory, entry.name, 'presentation.zh'), {
+        recursive: true
+      })
+    }
   },
   head: [
     ['meta', { name: 'theme-color', content: '#3451b2' }]
