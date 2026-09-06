@@ -13,6 +13,7 @@
 
 | 版本 | 类型 | 发布时间 | 更新总结 | 原始 Changelog | 中文 Changelog | Release 演示 |
 | --- | --- | --- | --- | --- | --- | --- |
+| 26.3 | LTS | 2026-03-26 | [查看](./26.3/) | [English](./26.3/changelog.md) | [简体中文](./26.3/changelog.zh.md) | [原始](https://presentations.clickhouse.com/2026-release-26.3/) · <a href="./26.3/presentation.zh/index.html">中文</a> |
 | 22.3 | LTS | 2022-03-17 | [查看](./22.3/) | [English](./22.3/changelog.md) | [简体中文](./22.3/changelog.zh.md) | [原始](https://presentations.clickhouse.com/2022-release-22.3/) · <a href="./22.3/presentation.zh/index.html">中文</a> |
 
 ## 上游资源

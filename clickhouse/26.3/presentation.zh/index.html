@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse 26.3 LTS 发布会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://presentations.clickhouse.com/2026-release-26.3/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse 26.3 LTS 发布会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://presentations.clickhouse.com/2026-release-26.3/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+        .cell { font-family: Monospace; width: 1.5em; height: 1.5em; display: inline-block; border: 3px solid white; background-color: lightblue; text-align: center; line-height: 1.3em; }
+        .cell-num { font-family: Monospace; width: 1.5em; height: 1.5em; display: inline-block; border: 3px solid white; background-color: lightgreen; text-align: center; line-height: 1.3em; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse 26.3 LTS 发布会</h1>
+        <p>作者：Alexey Milovidov，2026-03-26。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://presentations.clickhouse.com/2026-release-26.3/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 25px; line-height: 110%; font-size: 56pt; color: #FF8; text-align: center;">ClickHouse 发布版本<br/>26.3 LTS</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 26.3 LTS 发布版本</h2>
+<p>1.（40 分钟）ClickHouse 26.3 LTS 新特性。</p>
+<p>2.（15 分钟）嘉宾分享。</p>
+<p>3.（5 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.3/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">26.3 LTS 发布版本</span></h2>
+<p><span class="hilite">ClickHouse 长期支持版本。</span></p>
+<p><span class="hilite">— 27 项新功能 🌷</span></p>
+<p><span class="hilite">— 40 项性能优化 🐇</span></p>
+<p><span class="hilite">— 202 项错误修复 🐝</span></p>
+</section>
+<!--
+
+小而美
+
+自然排序
+JSONExtract 支持 JSON
+JSON 的 has 函数
+table_readonly
+美化 EXPLAIN
+caseFoldUTF8, caseFoldUTF8,
+normalizeUTF8NFKCCasefold
+max_skip_unavailable_shards_num and max_skip_unavailable_shards_ratio
+无括号函数
+NOT 优先级、SOME、带括号的表连接表达式
+unicodeWord tokenizer
+output_format_trim_fixed_string
+toDaysInMonth
+
+性能
+
+更快的格式自动检测
+Iceberg 元数据预取
+ANTI、SEMI、FULL JOIN 重排序
+S3Queue 避免列出整个目录
+TTL 可使用纵向合并
+子列读取
+
+重点功能
+
+物化 CTE
+分片 Map
+WASM
+Polyglot
+默认启用异步插入
+ALP 编解码器
+JSON 延迟类型提示
+
+数据湖
+
+数据湖性能
+Parquet 元数据缓存
+
+嘉宾分享
+
+延伸阅读
+
+AI 正在重塑数据库市场
+ClickHouse 中的地理空间分析
+智能体数据栈 ClickStack
+ClickHouse 已为数据湖做好准备
+在 ClickHouse 中构建高性能全文搜索
+AI 可观测性笔记本
+chDB 4.0
+
+-->
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.3/pictures/back3.jpg); background-size: cover;">
+<h2 style="color: black;"><span>小而美的新功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>自然排序</h2>
+
+<p>新增 <b style="color: green;">naturalSortKey</b> 函数，可按人类直觉进行排序：</p>
+
+<table><tr><td style="width: 50%">
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT name FROM files
+ORDER BY name
+
+file1.txt
+<span style="color: red;">file10.txt
+file100.txt</span>
+file2.txt
+file20.txt
+</code></p>
+</td><td style="width: 50%">
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT name FROM files
+ORDER BY <b style="color: green;">naturalSortKey</b>(name)
+
+file1.txt
+file2.txt
+file10.txt
+file20.txt
+file100.txt
+</code></p>
+</td></tr></table>
+
+<p>可在查询的任意位置作为函数使用，例如用于 <b>arraySort</b>。演示。</p>
+
+<!--
+
+SELECT * FROM url('https://clickhouse.com/data/version_date.tsv') ORDER BY c1
+SELECT * FROM url('https://clickhouse.com/data/version_date.tsv') ORDER BY naturalSortKey(c1)
+SELECT * FROM url('https://clickhouse.com/data/version_date.tsv') ORDER BY c1 COLLATE 'en@colNumeric=yes'
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Nazarii Piontko。</p>
+</section>
+
+<section class="slide">
+<h2>JSONExtract 支持 JSON 类型</h2>
+
+<p><code style="font-size: 16pt; line-height: 1.5;"><span style="color: gray;">-- native JSON data type:</span>
+WITH '{"ClickHouse":{"version":"26.3"}}'::<b>JSON</b> AS s
+SELECT s.ClickHouse.version;
+<span style="color: gray;">-- String:</span>
+WITH '{"ClickHouse":{"version":"26.3"}}' AS s
+SELECT JSONExtractString(s, 'ClickHouse', 'version')
+
+<span style="color: gray;">-- Since 26.3:</span>
+WITH '{"ClickHouse":{"version":"26.3"}}'::<b>JSON</b> AS s
+SELECT JSONExtractString(s, 'ClickHouse', 'version')
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Fisnik Kastrati。</p>
+</section>
+
+<section class="slide">
+<h2>JSON 的 <b>has</b> 函数</h2>
+
+<p>检查 JSON 列中是否存在指定路径，用法与 Map 类似：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM events
+WHERE <b style="color: green;">has</b>(data, 'metrics.latency')
+</code></p>
+
+<p>&mdash; 工作方式与 <b>Map</b> 类型的 <b>has</b> 类似。
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：DQ。</p>
+</section>
+
+<section class="slide">
+<h2>只读 MergeTree 表</h2>
+
+<p>新增 MergeTree 设置 <b style="color: green;">table_readonly</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE my_table (...)
+SETTINGS <b style="color: green;">table_readonly</b> = 1;
+
+-- ALTER TABLE my_table MODIFY SETTING <b style="color: green;">table_readonly</b> = 1;
+
+INSERT INTO my_table VALUES (1, 2, 3);
+<span style="color: gray;">-- Exception: Table is in readonly mode.</span>
+</code></p>
+
+<p>适用场景：归档或“封存”的表。</p>
+<p>只读表不会运行后台线程。</p>
+
+<!--
+
+CREATE TABLE my_table (x UInt64, y String, z Float64) ENGINE = MergeTree ORDER BY x;
+INSERT INTO my_table VALUES (1, 'hello', 3.14);
+ALTER TABLE my_table MODIFY SETTING table_readonly = 1;
+INSERT INTO my_table VALUES (2, 'world', 2.72); -- Exception: Table is in readonly mode.
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Mathuranath Metivier。</p>
+</section>
+
+<section class="slide">
+<h2>美化 EXPLAIN 输出</h2>
+
+<p style="margin-top: -1em;"><b>EXPLAIN</b> 新增选项：<b style="color: green;">pretty=1</b> 和 <b style="color: green;">compact=1</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">play-eu :) EXPLAIN pretty=1, compact=1
+SELECT URL, count() FROM hits WHERE URL LIKE '%google%'
+GROUP BY URL ORDER BY count() DESC LIMIT 10;
+
+┌─explain───────────────────────────────────────────────────────────────┐
+│ Limit (preliminary LIMIT)                                             │
+│ └──Sorting (Sorting for ORDER BY)                                     │
+│    └──Aggregating                                                     │
+│       └──Filter ((WHERE + Change column names to column identifiers)) │
+│          └──ReadFromMergeTree (default.hits)                          │
+└───────────────────────────────────────────────────────────────────────┘
+</code></p>
+
+<p>&mdash; <b>pretty=1</b> &mdash; 以树状缩进格式输出。
+<br/>&mdash; <b>compact=1</b> &mdash; 折叠 Expression 步骤。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Kirill Kopnev。</p>
+</section>
+
+<section class="slide">
+<h2>更多 Unicode 函数</h2>
+
+<p style="margin-top: -1em; color: gray; font-size: 14pt;">现已有 normalizeUTF8NFC、normalizeUTF8NFD、normalizeUTF8NFKC、normalizeUTF8NFKD。</p>
+
+<p><b style="color: green;">caseFoldUTF8</b> &mdash; Unicode 大小写折叠
+<br/><b style="color: green;">removeDiacriticsUTF8</b> &mdash; 移除附加符号
+<br/><b style="color: green;">normalizeUTF8NFKCCasefold</b> &mdash; NFKC 规范化与大小写折叠</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b>caseFoldUTF8</b>('Straße') = <b>caseFoldUTF8</b>('STRASSE')
+<span style="color: gray;">-- 1</span>
+
+SELECT <b>removeDiacriticsUTF8</b>('crème brûlée')
+<span style="color: gray;">-- creme brulee</span>
+
+SELECT <b>normalizeUTF8NFKCCasefold</b>('ﬁle')
+<span style="color: gray;">-- file</span>
+</code></p>
+
+<!--
+
+SELECT caseFoldUTF8('Straße'), caseFoldUTF8('STRASSE'), caseFoldUTF8('Straße') = caseFoldUTF8('STRASSE');
+SELECT removeDiacriticsUTF8('crème brûlée');
+SELECT normalizeUTF8NFKCCasefold('ﬁle');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：George Larionov。</p>
+</section>
+
+<section class="slide">
+<h2>限制跳过不可用分片</h2>
+
+<p>允许跳过不可用分片时，可限制被跳过分片的数量：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET skip_unavailable_shards = 1;
+SET <b style="color: green;">max_skip_unavailable_shards_num</b> = 5;
+SET <b style="color: green;">max_skip_unavailable_shards_ratio</b> = 0.1;
+</code></p>
+
+<p>适用于超大规模集群、可观测性数据集，
+<br/>以及跨地域联合集群的聚合场景。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>SQL 兼容性</h2>
+
+<p style="margin-top: -1em;">部分函数现在可以省略括号：</p>
+<p style="margin-top: -0.5em;"><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">NOW</b>, <b style="color: green;">CURRENT_DATE</b>, <b style="color: green;">CURRENT_TIMESTAMP</b>;
+</code></p>
+
+<p><b>NOT 运算符的优先级</b>现已符合 SQL 标准：</p>
+<p style="margin-top: -0.5em;"><code style="font-size: 14pt; line-height: 1.25;">NOT x IS NULL <span style="color: gray;">-- now parsed as NOT (x IS NULL)</span>
+</code></p>
+
+<p><b>SOME</b> 关键字（ANY 的别名）：</p>
+<p style="margin-top: -0.5em;"><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM t WHERE x = <b style="color: green;">SOME</b> (SELECT y FROM u)
+</code></p>
+
+<p><b>带括号的表连接表达式：</b></p>
+<p style="margin-top: -0.5em;"><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM <b style="color: green;">(</b>t1 CROSS JOIN t2<b style="color: green;">)</b> JOIN t3 ON ...
+</code></p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Aly Kafoury、Alexey Milovidov、Artem Kytkin。</p>
+</section>
+
+<section class="slide">
+<h2>更多小功能</h2>
+
+<p>新增设置 <b>output_format_trim_fixed_string</b>
+<br/>&mdash; 在文本输出中移除 FixedString 末尾的空字节。</p>
+<p><code style="font-size: 14pt;">:) SELECT toFixedString('abc', 10) FORMAT TSV
+
+<span style="color: gray;">abc\0\0\0\0\0\0\0</span>
+
+:) SELECT toFixedString('abc', 10) FORMAT TSV
+   SETTINGS <b style="color: green;">output_format_trim_fixed_string</b> = 1;
+
+<span style="color: gray;">abc</span>
+</code></p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：NeedmeFordev。</p>
+
+<p><code style="font-size: 14pt;">:) SELECT <b style="color: green;">toDaysInMonth</b>(now())
+
+<span style="color: gray;">31</span>
+</code></p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vitaly Baranov。</p>
+
+<!--
+
+SELECT toFixedString('abc', 10) SETTINGS output_format_trim_fixed_string = 1;
+SELECT toDaysInMonth(toDate('2026-02-15')), toDaysInMonth(toDate('2026-03-15'));
+
+-->
+
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.3/pictures/back4.jpg); background-size: cover;">
+<h2><span style="color: black;" class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>TTL DELETE 支持纵向合并</h2>
+
+<p>后台合并可使用以下算法之一：
+<br/>&mdash; <b>横向</b>：读取包含所有列的数据块并进行合并；
+<br/>&mdash; <b>纵向</b>：先合并排序键列，再逐个读取并合并其他列；
+</p>
+
+<p>对宽表而言，<b>纵向</b>合并占用的<b style="color: green;">内存更少</b>、处理<b style="color: green;">更快</b>，
+<br/>因此通常是首选。</p>
+
+<p>但部分合并类型和操作此前并不支持<b>纵向</b>合并。</p>
+
+<p>从 <b style="color: green;">26.3</b> 起，<b>TTL DELETE</b> 操作也可使用纵向合并！</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：murphy-4o。</p>
+</section>
+
+<section class="slide">
+<h2>ANTI、SEMI、FULL JOIN 重排序</h2>
+
+<p>优化器现在可以交换 <b>ANTI</b>、<b>SEMI</b> 和 <b>FULL</b> JOIN 的两侧，
+<br/>并依据统计信息作出选择：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM large_table
+<b style="color: green;">LEFT ANTI JOIN</b> small_table USING (id)
+</code></p>
+
+<p>&mdash; 此前只有 INNER 和 LEFT/RIGHT JOIN 支持重排序。
+<br/>&mdash; 现在优化器可为所有 JOIN 类型自动选择更优的一侧。</p>
+
+<p style="color: gray">在 26.3 中，此功能要求为表启用统计信息。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Hechem Selmi。</p>
+</section>
+
+<section class="slide">
+<h2>更高效的 S3Queue 更新</h2>
+
+<p><b style="color: red;">26.2</b>：S3Queue 会列出前缀下的所有条目，以查找新文件</p>
+<p><b style="color: green;">26.3</b>：在 ordered 模式下，S3Queue 使用 StartAfter 参数</p>
+
+<p>&mdash; 避免重复列出完整的前缀历史。
+<br/>&mdash; 减少 ListObjects API 调用。
+<br/>&mdash; 对历史较长的队列，可显著降低<b style="color: green;">成本</b>和<b style="color: green;">延迟</b>。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Venkata Vineel。</p>
+</section>
+
+<section class="slide">
+<h2>改进子列读取</h2>
+
+<p>更精确的大小计算，让大型 JSON 对象在只读取少量子列时，
+<br/>内存用量最多可降至原来的 <b style="color: green;">1/8</b>。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.3/pictures/back5.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">值得关注的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>物化 CTE 🧪</h2>
+
+<p>CTE（WITH 子句中的子查询）现在可以<b style="color: green;">只计算一次</b>，
+<br/>并将结果存入临时表：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET enable_materialized_cte = 1;
+
+WITH <b>top_users</b> AS <b style="color: green;">MATERIALIZED</b> (
+  SELECT user_id, count() AS cnt
+  FROM events GROUP BY user_id
+  ORDER BY cnt DESC LIMIT 1000)
+SELECT * FROM <b>top_users</b>
+INNER JOIN (SELECT user_id FROM <b>top_users</b> WHERE ...) ...
+</code></p>
+
+<!--
+
+SET enable_materialized_cte = 1;
+
+WITH town_type_prices AS -- MATERIALIZED
+    (
+        SELECT
+            town,
+            type,
+            toYear(date) AS year,
+            median(price) AS median_price
+        FROM uk_price_paid
+        WHERE (year >= 2013) AND (type != 'other')
+        GROUP BY
+            town,
+            type,
+            year
+        HAVING count() >= 10
+    )
+SELECT
+    now.town,
+    now.type AS rising_type,
+    other_now.type AS falling_type,
+    formatReadableQuantity(then.median_price) AS rising_price_2013,
+    formatReadableQuantity(now.median_price) AS rising_price_2023,
+    formatReadableQuantity(other_then.median_price) AS falling_price_2013,
+    formatReadableQuantity(other_now.median_price) AS falling_price_2023,
+    round(((now.median_price / then.median_price) - 1) * 100) AS rising_growth_pct,
+    round(((other_now.median_price / other_then.median_price) - 1) * 100) AS falling_growth_pct
+FROM town_type_prices AS now
+INNER JOIN town_type_prices AS then ON (now.town = then.town) AND (now.type = then.type) AND (then.year = 2013)
+INNER JOIN town_type_prices AS other_now ON (now.town = other_now.town) AND (now.type < other_now.type) AND (now.year = other_now.year)
+INNER JOIN town_type_prices AS other_then ON (other_now.town = other_then.town) AND (other_now.type = other_then.type) AND (other_then.year = 2013)
+WHERE (now.year = 2023) AND (then.median_price < other_then.median_price) AND (now.median_price > other_now.median_price)
+ORDER BY (now.median_price / other_now.median_price) - (then.median_price / other_then.median_price) DESC
+LIMIT 20;
+
+-->
+
+<p>演示</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Dmitry Novik。</p>
+</section>
+
+<section class="slide">
+<h2>分片 Map</h2>
+
+<p>对 <b>Map</b> 列进行分桶序列化：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE tab (id UInt64, m Map(String, UInt64))
+ENGINE = MergeTree ORDER BY id
+SETTINGS
+    <b style="color: green;">map_serialization_version</b> = 'with_buckets',
+    max_buckets_in_map = 32;
+</code></p>
+
+<p>&mdash; 根据 Map 大小，单键查找速度可提升 <b style="color: green;">2&ndash;49 倍</b>。
+<br/>&mdash; 使用 <b>map_serialization_version_for_zero_level_parts = 'basic'</b>
+<br/>&emsp; 可使插入速度保持接近基线。</p>
+
+<!--
+
+SET optimize_functions_to_subcolumns = 0;
+SELECT sum(ProfileEvents['LogTrace']) FROM query_log_sharded;
+SET optimize_functions_to_subcolumns = 1;
+SELECT sum(ProfileEvents['LogTrace']) FROM query_log_sharded;
+
+-->
+<p>演示</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>WebAssembly UDF 🧪</h2>
+
+<p>使用 <b style="color: green;">WebAssembly</b> 创建用户自定义函数：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -2em;">INSERT INTO system.<b style="color: green;">webassembly_modules</b> (name, code) SELECT 'collatz', '...';
+
+CREATE FUNCTION <b style="color: green;">collatz_steps</b> LANGUAGE WASM
+ARGUMENTS (n UInt32) RETURNS UInt32
+FROM 'collatz' :: 'steps';
+
+SELECT groupArray(<b style="color: green;">collatz_steps</b>(number::UInt32)) FROM numbers(1, 100);
+</code></p>
+
+<p>&mdash; 可使用任何能编译为 WASM 的语言编写 UDF：
+<br/>&emsp; Rust, C, C++, Go, Zig, ...
+<br/>&mdash; 通过 Wasmtime 在沙箱中执行。
+<br/>&mdash; <span style="color: gray;">实验性功能。</span></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vladimir Cherkasov、Alexey Smirnov、Vasily Chekalkin。</p>
+</section>
+
+<section class="slide">
+<h2>WebAssembly UDF 🧪</h2>
+
+<p>Rust crate：<b>clickhouse-wasm-udf</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -2em;">use clickhouse_wasm_udf_bindgen::clickhouse_udf;
+
+#[clickhouse_udf]
+pub fn some_udf(data: String) -> HashMap&lt;String, String> {
+    // Your implementation here
+}</code></p>
+
+<p>控制运行时复杂度：<br/>
+&mdash; webassembly_udf_max_fuel<br/>
+&mdash; webassembly_udf_max_memory<br/>
+&mdash; webassembly_udf_max_input_block_size<br/>
+&mdash; webassembly_udf_max_instances
+</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vladimir Cherkasov、Alexey Smirnov、Vasily Chekalkin。</p>
+</section>
+
+<section class="slide">
+<h2>WebAssembly UDF 🧪</h2>
+
+<p>示例项目：</p>
+
+<p><b>chgeos</b>：为 ClickHouse 提供兼容 PostGIS 的空间函数，
+<br/>以基于 GEOS 3.12+ 的 WebAssembly UDF 模块交付。</p>
+
+<p><a href="https://github.com/bacek/chgeos">https://github.com/bacek/chgeos</a></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Vasily Chekalkin。</p>
+</section>
+
+
+<section class="slide">
+<h2>多方言 SQL 🧪</h2>
+
+<p>通过 polyglot 库支持 <b>31</b> 种外部 SQL 方言：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SET dialect = 'polyglot', <b style="color: green;">polyglot_dialect</b> = 'snowflake';
+
+:) SELECT <b>IFF</b>(1 > 0, 'yes', 'no');
+</code></p>
+
+<p style="font-size: 14pt">Athena, BigQuery, CockroachDB, Databricks, Doris, Dremio, Drill, Druid, DuckDB, Dune, Exasol, Fabric, Hive, Materialize, MySQL, Oracle, PostgreSQL, Presto, Redshift, RisingWave, SingleStore, Snowflake, Solr, Spark, SQLite, StarRocks, Tableau, Teradata, TiDB, Trino, TSQL</p>
+
+<p><a href="https://github.com/tobilg/polyglot">https://github.com/tobilg/polyglot</a></p>
+
+<p>同时也为 <b>polyglot</b> 贡献了完整的 ClickHouse 方言支持。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>默认启用异步插入</h2>
+
+<p>从 <b>26.3 LTS</b> 起，<b style="color: green;">默认启用异步插入</b>。</p>
+
+<p>&mdash; ClickHouse 会自动批处理所有小批量插入。
+<br/>&mdash; 大多数用户无需调整配置。
+<br/>&mdash; 减少频繁小批量插入所创建的数据片段数量。</p>
+
+<p>新增统一的去重机制，同时覆盖常规插入和异步插入，
+包括涉及物化视图的插入。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Sema Checherinda。</p>
+</section>
+
+<section class="slide">
+<h2>ALP 编解码器 🧪</h2>
+
+<p>新增用于浮点数据的 <b style="color: green;">ALP</b> 压缩编解码器：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE metrics (
+    timestamp DateTime,
+    value Float64 CODEC(<b style="color: green;">ALP</b>, ZSTD)
+) ENGINE = MergeTree ORDER BY timestamp;
+</code></p>
+
+<p><b>ALP</b>（Adaptive Lossless floating-Point compression，自适应无损浮点压缩）：
+<br/>&mdash; 利用真实场景浮点数据的结构特征。
+<br/>&mdash; 在许多工作负载中比 Gorilla 具有更高的压缩率。
+</p>
+
+<!--
+
+SET allow_experimental_codecs = 1;
+
+CREATE TABLE metrics (ts DateTime, value Float64 CODEC(ALP, ZSTD))
+ENGINE = MergeTree ORDER BY ts;
+
+INSERT INTO metrics SELECT now() + number, sin(number) * 100 FROM numbers(10000);
+
+SELECT count() FROM metrics;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Nazarii Piontko。</p>
+</section>
+
+<section class="slide">
+<h2>JSON 延迟类型提示 🧪</h2>
+
+<p>即时添加或修改 <b>JSON 类型提示</b>，
+<br/>无需重写数据：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET allow_experimental_json_lazy_type_hints = 1;
+
+ALTER TABLE events
+    MODIFY COLUMN data <b style="color: green;">JSON(metrics.count UInt64)</b>;
+</code></p>
+
+<p>&mdash; 仅修改元数据，<b>瞬间</b>完成。
+<br/>&mdash; 查询旧数据片段时应用类型提示。
+<br/>&mdash; 在 INSERT 和后台合并期间将其物化。
+</p>
+
+<!--
+
+CREATE TABLE test_json (data JSON) ENGINE = MergeTree ORDER BY tuple();
+INSERT INTO test_json VALUES ('{"a": 1, "b": "hello"}');
+
+SET allow_experimental_json_lazy_type_hints = 1;
+ALTER TABLE test_json MODIFY COLUMN data JSON(a UInt64);
+SELECT data.a FROM test_json;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：tanner-bruce。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.3/pictures/back6.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">数据湖</span></h2>
+</section>
+
+<section class="slide">
+<h2>数据湖性能</h2>
+
+<img src="https://presentations.clickhouse.com/2026-release-26.3/pictures/datalakes.png" style="width: 50%; float: right; margin-top: -2em; margin-right: -3em; padding-left: 2em;">
+
+<p>在多核计算机上读取少量文件时，数据湖读取速度现在可<b style="color: green;">提升数十倍</b>。</p>
+<p>适用于 Iceberg、Delta Lake、Hudi 以及所有对象存储读取。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>Parquet 元数据缓存</h2>
+
+<p>新增用于 <b style="color: green;">Parquet 元数据</b>（footer）的 SLRU 缓存：</p>
+
+<p>&mdash; 常规查询的读取量最多可降低 2 倍。
+<br/>&mdash; 对同一批 Parquet 文件反复查询时尤其有效。</p>
+
+<p><code>SET <b>use_parquet_metadata_cache</b>;</code></p>
+<p>默认启用。</p>
+<p>通过 etag 跟踪文件变更，保证一致性。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Grant Holly。</p>
+</section>
+
+<section class="slide">
+<h2>Iceberg 元数据预取</h2>
+
+<p>Iceberg 表现在支持<b>异步元数据预取</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE my_iceberg (...)
+ENGINE = IcebergS3(...)
+SETTINGS <b style="color: green;">iceberg_metadata_async_prefetch_period_ms</b> = 60000;
+
+SELECT ... FROM my_iceberg
+SETTINGS <b style="color: green;">iceberg_metadata_staleness_ms</b> = 30000;
+</code></p>
+
+<p>&mdash; 定期预填充元数据缓存。
+<br/>&mdash; 如果缓存元数据足够新，SELECT 查询会直接使用，
+<br/>&emsp;从而避免调用 Iceberg catalog。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Arsen Muk。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.3/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">嘉宾分享</span></h2>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.3/pictures/wing.jpg); background-size: cover;">
+<h2>线下活动</h2>
+<p style="line-height: 1.25; margin-top: -1em;">
+<br/><span class="hilite">&mdash; 🇺🇸 西雅图：可观测性聚会，3 月 26 日</span>
+<br/><span class="hilite">&mdash; 🇮🇹 米兰：ClickHouse × Apache Kafka × AWS，3 月 26 日</span>
+<br/><span class="hilite">&mdash; 🇨🇳 深圳聚会，3 月 28 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 旧金山：炉边对谈，3 月 31 日</span>
+<br/><span class="hilite">&mdash; 🇳🇱 阿姆斯特丹：午餐学习会，3 月 31 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 西雅图：创业峰会，4 月 1 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 旧金山：Iceberg 峰会，4 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇳🇱 阿姆斯特丹：培训，4 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 旧金山：AI 演示之夜，4 月 9 日</span>
+<br/><span class="hilite">&mdash; 🇹🇼 台北：开源聚会，4 月 16 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 拉斯维加斯：Google Cloud Next，4 月 22 日</span>
+</p>
+</section>
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://presentations.clickhouse.com/2026-release-26.3/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5; margin-right: -5em;">
+&mdash; <b>AI 正在重塑数据库市场</b>
+<br/>&mdash; ClickHouse 中的地理空间分析
+<br/>&mdash; 智能体数据栈 ClickStack
+<br/>&mdash; ClickHouse 已为数据湖做好准备
+<br/>&mdash; 在 ClickHouse 中构建高性能全文搜索
+<br/>&mdash; AI 可观测性笔记本
+<br/>&mdash; chDB 4.0
+</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.3/pictures/back8.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问答</h2>
+</section>
+
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/_bY0ucNB1lQ" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
