@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse 26.4 版本发布会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://presentations.clickhouse.com/2026-release-26.4/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse 26.4 版本发布会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://presentations.clickhouse.com/2026-release-26.4/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+        .cell { font-family: Monospace; width: 1.5em; height: 1.5em; display: inline-block; border: 3px solid white; background-color: lightblue; text-align: center; line-height: 1.3em; }
+        .cell-num { font-family: Monospace; width: 1.5em; height: 1.5em; display: inline-block; border: 3px solid white; background-color: lightgreen; text-align: center; line-height: 1.3em; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse 26.4 版本发布会</h1>
+        <p>作者：Alexey Milovidov，2026-04-30。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 25px; line-height: 110%; font-size: 56pt; color: #FF8; text-align: center;">ClickHouse 版本<br/>26.4</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 26.4 版本</h2>
+<p>1.（50 分钟）ClickHouse 26.4 新特性。</p>
+<p>2.（10 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">26.4 版本</span></h2>
+<p><span class="hilite">ClickHouse「春季」版本。</span></p>
+<p><span class="hilite">— 39 项新功能 🌷</span></p>
+<p><span class="hilite">— 45 项性能优化 🐇</span></p>
+<p><span class="hilite">— 238 项缺陷修复 🐝</span></p>
+</section>
+<!--
+
+Small
+
+stem
+INSERT squashing
+pretty EXPLAIN
+input_format_column_name_matching_mode
+arrayAutocorrelation
+arrayTranspose
+obfuscateQuery
+highlight
+Quotas by normalized query hash
+hasPhrase/matchPhrase
+Web UI improvements: parameterized queries, TOTALS, multi-query, icons, ...
+
+SQL compatibility
+
+NATURAL JOIN
+OVERLAY
+SET TIME ZONE
+VALUES
+PostgreSQL-compatible units to the `EXTRACT`
+INTERVAL combined syntax
+
+
+Performance
+
+indices on JSON columns + JSONAllValues
+Statistics by default
+LIKE can use text index
+Distributed index analysis
+Regexps with alternatives can use indices
+Faster hash join on small int ranges
+Faster parsing of floats
+Faster COUNT DISTINCT
+
+Main
+
+Spilling to disk for JOINs
+Arrow Flight SQL
+AI functions
+
+Data Lakes
+
+Bonus
+
+Agentic coding at ClickHouse
+clickhousectl
+OTel.FYI
+PostgresBench
+
+
+Reading
+
+Agentic coding at ClickHouse
+ClickHouse at FOSDEM 2026
+ClickHouse at Google Next
+Do you need Elasticsearch?
+pg_clickhouse update
+Google Axion
+
+-->
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/back3.jpg); background-size: cover;">
+<h2 style="color: black;"><span class="hilite">小巧而实用的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2><b>stem</b> 函数</h2>
+
+<p><b style="color: green;">stem</b> 函数现已脱离<b>实验性</b>阶段，
+<br/>并可处理所有类字符串类型的整列数据：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">stem</b>('searching', 'en')
+<span style="color: gray;">-- 'search'</span>
+
+SELECT <b style="color: green;">stem</b>(['running', 'jumps', 'flying'], 'en')
+<span style="color: gray;">-- ['run', 'jump', 'fli']</span>
+</code></p>
+
+<p>支持 <b>String</b>、<b>FixedString</b>、<b>Array([Fixed]String)</b>、
+<br/><b>Nullable</b>、<b>LowCardinality</b> 和 <b>Const</b> 参数。</p>
+
+<p>适合在全文搜索前对词元进行规范化。</p>
+
+<!-- Demo:
+
+SELECT stem('information', 'en');
+SELECT stem('information', 'finnish');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Jimmy Aguilar Mena。</p>
+</section>
+
+<section class="slide">
+<h2>更智能的 INSERT 块合并</h2>
+
+<p>兼容性设置 <b style="color: green;">use_strict_insert_block_limits</b> 下，
+<br/><b>min/max_insert_block_size_rows/bytes</b> 采用新行为：</p>
+
+<p>&mdash; 将插入块合并为更接近 <b>max_insert_block_size_*</b> 的数据块；
+<br/>&mdash; 减少频繁小批量插入产生的小数据部件；
+<br/>&mdash; 降低写放大，减少后台合并。</p>
+
+<p>为保证兼容性，默认仍保留旧行为。</p>
+
+<!-- Demo:
+
+SET use_strict_insert_block_limits = 1;
+SET max_insert_block_size = 100000, min_insert_block_size_rows = 50000;
+CREATE TABLE squash (x UInt64) ENGINE = MergeTree ORDER BY x;
+INSERT INTO squash SELECT number FROM numbers(1000000);
+SELECT count() AS parts FROM system.parts WHERE table = 'squash' AND active;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Kirill Kopnev。</p>
+</section>
+
+<section class="slide">
+<h2>更美观的 EXPLAIN</h2>
+
+<p style="margin-top: -1em;"><b style="color: green;">EXPLAIN PLAN pretty=1</b> 现在以更易读的形式输出表达式，
+<br/>展示顶层输出列和每一步的输出列，
+<br/>并为 JOIN 标注估算行数和执行位置。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">EXPLAIN PLAN pretty=1
+SELECT URL, count() FROM hits
+WHERE URL LIKE '%google%'
+GROUP BY URL ORDER BY count() DESC LIMIT 10;
+</code></p>
+
+<p>&mdash; 输出更直观，便于理解查询计划。
+<br/>&mdash; 对包含多个 JOIN 和聚合的计划尤其有用。</p>
+
+<!-- Demo:
+
+EXPLAIN pretty = 0, actions = 1, compact = 1
+SELECT
+    URL,
+    count()
+FROM url('https://datasets.clickhouse.com/hits/tsv/hits_v1.tsv.xz', TSV, 'URL String, EventTime DateTime')
+WHERE URL LIKE '%google%'
+GROUP BY URL
+ORDER BY count() DESC
+LIMIT 10
+
+EXPLAIN pretty = 1, actions = 1, compact = 1
+SELECT
+    URL,
+    count()
+FROM url('https://datasets.clickhouse.com/hits/tsv/hits_v1.tsv.xz', TSV, 'URL String, EventTime DateTime')
+WHERE URL LIKE '%google%'
+GROUP BY URL
+ORDER BY count() DESC
+LIMIT 10
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Kirill Kopnev。</p>
+</section>
+
+<section class="slide">
+<h2>不区分大小写的列名匹配</h2>
+
+<p>针对输入格式：</p>
+<p>新增设置 <b style="color: green;">input_format_column_name_matching_mode</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET <b style="color: green;">input_format_column_name_matching_mode</b> = 'ignore_case';
+
+INSERT INTO t (UserID, Country)
+FROM INFILE 'data.csv' FORMAT CSVWithNames;
+<span style="color: gray;">-- Matches userid, USERID, UserID, ... in the CSV header.</span>
+</code></p>
+
+<p>模式：<b>match_case</b>（默认）、<b>ignore_case</b>、<b>auto</b>。</p>
+
+<p>从异构来源摄取 CSV、TSV 或 Parquet 文件时非常实用。</p>
+
+<!-- Demo:
+
+-- echo 'USERID,country\n1,DE\n2,US' > /tmp/test.csv
+CREATE TABLE t (UserID UInt64, Country String) ENGINE = Memory;
+INSERT INTO t SELECT * FROM file('/tmp/test.csv', CSVWithNames)
+SETTINGS input_format_column_name_matching_mode = 'ignore_case';
+SELECT * FROM t;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：manerone。</p>
+</section>
+
+<section class="slide">
+<h2>arrayAutocorrelation</h2>
+
+<p>计算数值数组在各个滞后量下的归一化自相关：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">arrayAutocorrelation</b>([1, 2, 3, 4, 5, 4, 3, 2, 1])
+<span style="color: gray;">-- [1, 0.625, 0.166..., -0.25, ...]</span>
+
+SELECT <b style="color: green;">arrayAutocorrelation</b>(values, 10) FROM metrics
+</code></p>
+
+<p>&mdash; 支持整数、浮点数和 Decimal 数组类型。
+<br/>&mdash; 可选的 <b>max_lag</b> 参数用于控制结果长度。
+<br/>&mdash; 适合时间序列分析和季节性检测。</p>
+
+<!-- Demo:
+
+SELECT arrayAutocorrelation([1, 2, 3, 4, 5, 4, 3, 2, 1]);
+SELECT arrayAutocorrelation([1.0, 2.0, 3.0, 4.0, 5.0], 3);
+SELECT arrayAutocorrelation(arrayMap(i -> sin(i / 10.), range(100)), 20);
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Wenyu Chen。</p>
+</section>
+
+<section class="slide">
+<h2>arrayTranspose</h2>
+
+<p>转置二维数组（矩阵）：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">arrayTranspose</b>([[1, 2, 3], [4, 5, 6]])
+<span style="color: gray;">-- [[1, 4], [2, 5], [3, 6]]</span>
+</code></p>
+
+<p>可方便地在行优先与列优先数组之间转换，
+<br/>处理 <b>groupArray</b> 结果，以及为机器学习流水线准备数据。</p>
+
+<!-- Demo:
+
+SELECT arrayTranspose([[1, 2, 3], [4, 5, 6]]);
+SELECT arrayTranspose([['a', 'b'], ['c', 'd'], ['e', 'f']]);
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 4em;">开发者：Vitaly Baranov。</p>
+</section>
+
+<section class="slide">
+<h2>obfuscateQuery</h2>
+
+<p>新增 SQL 函数，返回查询的混淆形式 &mdash;
+<br/>替换标识符和字面量，同时保留查询结构：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">obfuscateQuery</b>(
+  'SELECT name, count() FROM users WHERE age > 18 GROUP BY name')</code></p>
+
+<p>&mdash; 与 <b>clickhouse-format --obfuscate</b> 工具采用相同逻辑，<br/>&emsp;现在也能以函数形式调用。
+<br/>&mdash; 便于公开分享查询，同时避免泄露 Schema 细节。
+<br/>&mdash; 可与 <b>normalizedQueryHash</b> 配合进行查询分析。</p>
+
+<!-- Demo:
+
+SELECT obfuscateQuery($$
+SELECT check_start_time, check_name, test_name, report_url
+FROM checks
+WHERE 1
+    AND check_start_time >= now() - INTERVAL 24 HOUR
+    AND (head_ref = 'master' AND startsWith(head_repo, 'ClickHouse/'))
+    AND test_status != 'SKIPPED'
+    AND (test_status LIKE 'F%' OR test_status LIKE 'E%')
+    AND check_status != 'success'
+    AND check_name NOT LIKE 'libFuzzer%'
+    AND check_name != 'ClickHouse Keeper Jepsen'
+    AND check_name NOT ILIKE '%experimental%'
+ORDER BY check_start_time DESC
+$$)
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Xuewei Wang。</p>
+</section>
+
+<section class="slide">
+<h2>highlight</h2>
+
+<p>用 HTML 标签包裹搜索词的匹配项：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">highlight</b>('ClickHouse is fast', ['fast', 'click'])
+<span style="color: gray;">-- &lt;em&gt;Click&lt;/em&gt;House is &lt;em&gt;fast&lt;/em&gt;</span>
+
+SELECT <b style="color: green;">highlight</b>(text, ['error', 'warn'], '&lt;mark&gt;', '&lt;/mark&gt;')
+</code></p>
+
+<p>&mdash; ASCII 不区分大小写匹配。
+<br/>&mdash; 自动合并重叠的匹配项。
+<br/>&mdash; 支持自定义开始/结束标签。</p>
+
+<p>可与文本索引良好配合，用于构建搜索界面。</p>
+
+<!-- Demo:
+
+SELECT highlight('ClickHouse is fast', ['fast', 'click']);
+SELECT highlight('error: timeout. another error here', ['error', 'timeout']);
+SELECT highlight('error: timeout', ['error'], '<mark>', '</mark>');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Peng。</p>
+</section>
+
+<section class="slide">
+<h2>按规范化查询哈希实施配额</h2>
+
+<p>防止失控的查询模式冲击公共端点：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE QUOTA q1
+KEYED BY <b style="color: green;">normalized_query_hash</b>
+FOR INTERVAL 1 minute MAX queries = 100, read_bytes = '100G';
+
+CREATE QUOTA q2
+FOR INTERVAL 1 minute MAX <b style="color: green;">queries_per_normalized_hash</b> = 100;
+</code></p>
+
+<p>&mdash; <b>NORMALIZED_QUERY_HASH</b>：为每种独特查询形态设置独立配额。
+<br/>&mdash; <b>QUERIES_PER_NORMALIZED_HASH</b>：限制任一查询模式
+<br/>&emsp;在一个时间区间内的执行次数。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>hasPhrase / matchPhrase</h2>
+
+<p>短语搜索 &mdash; 匹配连续的词元序列：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM logs
+WHERE <b style="color: green;">hasPhrase</b>(message, 'connection refused')
+</code></p>
+
+<p>&mdash; 词元必须按顺序连续出现。
+<br/>&mdash; 默认使用暴力匹配。
+<br/>&mdash; 列上的文本索引可加速短语搜索：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE logs (..., message String,
+  INDEX msg_idx message TYPE <b>text</b>(tokenizer = 'ngrams') GRANULARITY 1)
+</code></p>
+
+<!-- Demo:
+
+SELECT hasPhrase('connection refused on port 5432', 'connection refused');
+SELECT hasPhrase('timeout error happened', 'connection refused');
+
+CREATE TABLE docs (id UInt32, text String,
+  INDEX idx text TYPE text(tokenizer='ngrams') GRANULARITY 1)
+ENGINE = MergeTree ORDER BY id;
+INSERT INTO docs VALUES (1, 'connection refused on port 5432'),
+  (2, 'timeout error'), (3, 'connection accepted');
+SELECT * FROM docs WHERE hasPhrase(text, 'connection refused');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Elmi Ahmadov。</p>
+</section>
+
+<section class="slide">
+<h2>Web UI 改进</h2>
+
+<p>内置的 <b>play.html</b> 在 26.4 中获得了多项改进：</p>
+
+<p>&mdash; <b style="color: green;">参数化查询</b>：为 <code style="display: inline; font-size: 14pt;">{name:Type}</code> 占位符显示输入框。
+<br/>&mdash; <b style="color: green;">多查询模式</b>：一次并行运行多条查询。
+<br/>&mdash; <b style="color: green;">TOTALS 行</b>：渲染为表格页脚。
+<br/>&mdash; 表格侧边栏按引擎显示不同的<b style="color: green;">图标</b>。
+<br/>&mdash; 限制单元格高度，点击后可在查看器中浏览完整内容。</p>
+
+<!--
+
+SELECT count() FROM github_events;
+SELECT count() FROM github_events WHERE actor_login = {name:String};
+SELECT repo_name, count(), min(created_at), max(created_at) FROM github_events WHERE actor_login = {name:String} AND repo_name NOT ILIKE '%ClickHouse%' GROUP BY repo_name WITH TOTALS ORDER BY count() DESC LIMIT 20;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">SQL 兼容性</span></h2>
+</section>
+
+<section class="slide">
+<h2>NATURAL JOIN</h2>
+
+<p>按所有同名列执行连接，并在结果中对这些列去重：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM customers
+<b style="color: green;">NATURAL JOIN</b> orders
+<span style="color: gray;">-- joins on every column with the same name in both tables</span>
+</code></p>
+
+<p>&mdash; 自动按名称匹配列。
+<br/>&mdash; 共享列在输出中只出现一次。
+<br/>&mdash; ClickHouse 现已支持这一标准 SQL 语法。</p>
+
+<!-- Demo:
+
+CREATE TABLE customers (id UInt32, name String) ENGINE = MergeTree ORDER BY id;
+CREATE TABLE orders (id UInt32, name String, amount UInt32) ENGINE = MergeTree ORDER BY id;
+INSERT INTO customers VALUES (1, 'Alice'), (2, 'Bob');
+INSERT INTO orders VALUES (1, 'Alice', 100), (2, 'Bob', 250), (3, 'Carol', 50);
+SELECT * FROM customers NATURAL JOIN orders;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 4em;">开发者：Peter Nguyen。</p>
+</section>
+
+<section class="slide">
+<h2>OVERLAY 语法</h2>
+
+<p>使用 <b>PLACING</b> / <b>FROM</b> / <b>FOR</b> 关键字的 SQL 标准 <b>OVERLAY</b> 语法：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">OVERLAY</b>('Hello world' <b style="color: green;">PLACING</b> 'SQL' <b style="color: green;">FROM</b> 7 <b style="color: green;">FOR</b> 5)
+<span style="color: gray;">-- 'Hello SQL'</span>
+</code></p>
+
+<p>&mdash; <b>overlay</b> 函数此前已经存在。
+<br/>&mdash; 本次加入 SQL:2003 中基于关键字的语法糖。
+<br/>&mdash; 可直接兼容 PostgreSQL 等其他引擎。</p>
+
+<!-- Demo:
+
+SELECT OVERLAY('Hello world' PLACING 'SQL' FROM 7 FOR 5);
+SELECT OVERLAY('2026-01-01' PLACING '04-30' FROM 6 FOR 5);
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 4em;">开发者：Desel72。</p>
+</section>
+
+<section class="slide">
+<h2>SET TIME ZONE</h2>
+
+<p><b>SET session_timezone</b> 的 SQL 标准别名：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><b style="color: green;">SET TIME ZONE</b> 'Europe/Amsterdam';
+
+SELECT now();
+<span style="color: gray;">-- now reported in Amsterdam time</span>
+</code></p>
+
+<p>可直接兼容 PostgreSQL 的会话设置。</p>
+
+<!-- Demo:
+
+SET TIME ZONE 'Europe/Amsterdam';
+SELECT now();
+SET TIME ZONE 'America/Los_Angeles';
+SELECT now();
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 6em;">开发者：phulv94。</p>
+</section>
+
+<section class="slide">
+<h2>将 VALUES 用作表表达式</h2>
+
+<p>26.3:</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM <b>VALUES</b>((1, 'a'), (2, 'b'), (3, 'c'))
+</code></p>
+
+<p>26.4：兼容 PostgreSQL 的“标准”语法：</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM (<b style="color: green;">VALUES</b> (1, 'a'), (2, 'b'), (3, 'c'))
+</code></p>
+
+<p>&mdash; 无需 CSV 或外部数据源即可方便地使用临时数据。
+<br/>&mdash; 可作为普通子查询使用，并支持 JOIN、过滤等操作。</p>
+
+<!-- Demo:
+
+SELECT * FROM (VALUES (1, 'a'), (2, 'b'), (3, 'c')) AS t(id, val) ORDER BY id;
+
+WITH ratings AS (SELECT * FROM (VALUES ('A', 5), ('B', 3), ('A', 4)) AS r(grade, score))
+SELECT grade, avg(score) FROM ratings GROUP BY grade;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Desel72。</p>
+</section>
+
+<section class="slide">
+<h2>EXTRACT &mdash; PostgreSQL 时间单位</h2>
+
+<p><b>EXTRACT</b> 运算符现在支持 PostgreSQL 风格的时间单位：</p>
+
+<p style="font-size: 14pt; line-height: 1.4;"><b style="color: green;">EPOCH</b>, <b style="color: green;">DOW</b>, <b style="color: green;">DOY</b>, <b style="color: green;">ISODOW</b>, <b style="color: green;">ISOYEAR</b>, <b style="color: green;">WEEK</b>, <b style="color: green;">CENTURY</b>, <b style="color: green;">DECADE</b>, <b style="color: green;">MILLENNIUM</b></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT
+  EXTRACT(<b>EPOCH</b>     FROM now())   AS epoch,
+  EXTRACT(<b>DOW</b>       FROM today()) AS day_of_week,
+  EXTRACT(<b>WEEK</b>      FROM today()) AS iso_week,
+  EXTRACT(<b>CENTURY</b>   FROM today()) AS century;
+</code></p>
+
+<p>另外，<b>EXTRACT(WEEK FROM date)</b> 不再抛出异常 &mdash;
+<br/>现在会按预期返回 ISO 周数。</p>
+
+<!-- Demo:
+
+SELECT
+  EXTRACT(EPOCH     FROM now())   AS epoch,
+  EXTRACT(DOW       FROM today()) AS day_of_week,
+  EXTRACT(DOY       FROM today()) AS day_of_year,
+  EXTRACT(WEEK      FROM today()) AS iso_week,
+  EXTRACT(CENTURY   FROM today()) AS century,
+  EXTRACT(MILLENNIUM FROM today()) AS millennium;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>复合 INTERVAL 字面量</h2>
+
+<p>使用 <b>TO</b> 范围限定符的 SQL 标准时间间隔：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT now() + <b style="color: green;">INTERVAL '1:30' HOUR TO MINUTE</b>;
+SELECT now() + <b style="color: green;">INTERVAL '5 12:30:00' DAY TO SECOND</b>;
+SELECT <b style="color: green;">INTERVAL '2-6' YEAR TO MONTH</b>;
+</code></p>
+
+<p>&mdash; 内部会拆解为多个单一单位时间间隔之和。
+<br/>&mdash; PostgreSQL、Oracle 和 DB2 用户对此语法会很熟悉。</p>
+
+<!-- Demo:
+
+SELECT now() + INTERVAL '1:30' HOUR TO MINUTE;
+SELECT now() + INTERVAL '5 12:30:00' DAY TO SECOND;
+SELECT INTERVAL '2-6' YEAR TO MONTH;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 4em;">开发者：Desel72。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/back5.jpg); background-size: cover;">
+<h2><span style="color: black;" class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>JSON 列上的索引</h2>
+
+<p>MergeTree 跳数索引现在可通过 <b style="color: green;">JSONAllPaths</b>
+<br/>作用于一组 <b>JSON 路径</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">ALTER TABLE events
+ADD INDEX paths_idx <b style="color: green;">JSONAllPaths</b>(data)
+TYPE <b>bloom_filter</b> GRANULARITY 1;
+</code></p>
+
+<p>&mdash; 支持的类型：<b>bloom_filter</b>、<b>tokenbf_v1</b>、<b>ngrambf_v1</b> 和 <b>text</b>（倒排索引）。
+<br/>&mdash; 若数据粒度中不存在查询所过滤的 JSON 路径，即可跳过该粒度。</p>
+
+<!-- Demo:
+
+CREATE TABLE events (data JSON,
+  INDEX paths_idx JSONAllPaths(data) TYPE bloom_filter GRANULARITY 1)
+ENGINE = MergeTree ORDER BY tuple();
+INSERT INTO events VALUES ('{"a": 1}'), ('{"b": 2}'), ('{"c": 3}');
+SELECT JSONAllPaths(data) FROM events;
+SELECT count() FROM events WHERE has(JSONAllPaths(data), 'a');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 4em;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>JSONAllValues + 文本索引</h2>
+
+<p>新增函数 <b style="color: green;">JSONAllValues</b>，以 <b>Array(String)</b>
+<br/>形式返回 JSON 列中的每一个叶子值：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">JSONAllValues</b>(data) FROM events
+<span style="color: gray;">-- ['42', 'click', '2026-04-30', ...]</span>
+</code></p>
+
+<p>在其上建立文本索引后，针对 JSON 子列的过滤条件
+<br/>会自动使用该索引：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">ALTER TABLE events ADD INDEX vals
+  <b>JSONAllValues</b>(data) TYPE <b>text</b>(tokenizer='ngrams') GRANULARITY 1;
+
+SELECT * FROM events WHERE data.event_type = 'click';
+<span style="color: gray;">-- The text index is used to skip granules.</span>
+</code></p>
+
+<!-- Demo:
+
+CREATE TABLE j (data JSON) ENGINE = MergeTree ORDER BY tuple();
+INSERT INTO j VALUES ('{"event":"click","user":42}'),
+                    ('{"event":"view","page":"/home"}');
+SELECT JSONAllValues(data) FROM j;
+SELECT JSONAllPaths(data) FROM j;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Anton Popov。</p>
+</section>
+
+<section class="slide">
+<h2>默认启用统计信息</h2>
+
+<p>从 26.4 开始，新表会<b style="color: green;">默认启用</b>基础统计信息：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><b>auto_statistics_types</b> = '<b style="color: green;">minmax, uniq</b>'
+<b>materialize_statistics_on_insert</b> = false
+</code></p>
+
+<p>&mdash; 为每个适用的列创建 <b>minmax</b> 和 <b>uniq</b> 统计信息。
+<br/>&mdash; 在后台合并期间构建，<b>不会增加插入开销</b>。
+<br/>&mdash; 优化器可将其用于谓词选择率估算、JOIN 重排序，
+<br/>&emsp;以及新的基于 min/max 的数据部件裁剪优化。</p>
+
+<!-- Demo:
+
+CREATE TABLE t (x UInt64, y Float64) ENGINE = MergeTree ORDER BY x;
+INSERT INTO t VALUES (1, 1.5), (2, 2.5), (3, 3.5);
+SELECT name, type, statistics FROM system.columns WHERE table = 't';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Han Fei。</p>
+</section>
+
+<section class="slide">
+<h2>LIKE 可使用文本索引</h2>
+
+<p><b>LIKE</b> 查询现在可由文本索引加速：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">ALTER TABLE logs
+ADD INDEX msg_idx message TYPE <b>text</b>(tokenizer='ngrams') GRANULARITY 1;
+
+SELECT * FROM logs
+WHERE message <b style="color: green;">LIKE</b> '%timeout%error%';
+<span style="color: gray;">-- Granules without both terms are skipped.</span>
+</code></p>
+
+<p>&mdash; 适用于能够从 LIKE 表达式中提取的子字符串模式。
+<br/>&mdash; 此外，文本索引现已<b>正式可用（GA）</b>，不再需要兼容性标志。</p>
+
+<!-- Demo:
+
+CREATE TABLE logs (id UInt32, message String,
+  INDEX msg_idx message TYPE text(tokenizer='ngrams') GRANULARITY 1)
+ENGINE = MergeTree ORDER BY id;
+INSERT INTO logs VALUES (1, 'connection timeout error'),
+  (2, 'server started'), (3, 'fatal error out of memory');
+SELECT * FROM logs WHERE message LIKE '%error%';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Elmi Ahmadov。</p>
+</section>
+
+<section class="slide">
+<h2>分布式索引分析</h2>
+
+<p>对于包含大量分片的超大集群，发起节点可在读取数据前
+<br/><b>跨整个集群</b>执行主索引分析。</p>
+
+<p>26.4 带来两项改进：</p>
+
+<p>&mdash; 在<b style="color: green;">分区裁剪之后</b>执行索引分析，
+<br/>&emsp;使具有大量分区的重型集群能更快跳过无关分片。
+<br/>&mdash; 修复谓词包含 <b>IN</b> 子查询时的<b style="color: green;">二次方级膨胀</b>。</p>
+
+<p>效果：在超大规模部署中降低高选择性查询的延迟。</p>
+
+<!-- Demo (cluster only — requires a Distributed table over many shards):
+
+SET distributed_index_analysis_min_indexes_size_to_activate = '100Mi';
+SELECT count() FROM big_distributed
+WHERE event_date BETWEEN today() - 1 AND today() AND user_id IN (SELECT id FROM filter_table);
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Azat Khuzhin、Anton Popov。</p>
+</section>
+
+<section class="slide">
+<h2>含分支的正则表达式可使用索引</h2>
+
+<p>主键裁剪现在能够识别
+<br/>具有共同字面前缀的正则表达式分支：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM events
+WHERE match(id, '^(abc-1|abc-2|abc-3)');
+<span style="color: gray;">-- The common prefix 'abc-' is used for primary key pruning.</span>
+</code></p>
+
+<p>&mdash; 检测 <b>(...|...|...)</b> 中共享的字面前缀。
+<br/>&mdash; 不存在共享前缀时回退为不执行裁剪。</p>
+
+<!-- Demo:
+
+CREATE TABLE pk_test (id String) ENGINE = MergeTree ORDER BY id;
+INSERT INTO pk_test VALUES ('abc-1'), ('abc-2'), ('abc-3'), ('xyz-1'), ('def-1');
+EXPLAIN indexes = 1 SELECT * FROM pk_test WHERE match(id, '^(abc-1|abc-2)');
+-- The Condition shows: (id in ['abc-', 'abc.')) — prefix-based pruning.
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 4em;">开发者：Yash。</p>
+</section>
+
+<section class="slide">
+<h2>更快的 Float &harr; String 转换</h2>
+
+<p>26.4 重写了 Float 到 String 转换的热点路径：</p>
+
+<p>&mdash; 以 <b style="color: green;">zmij</b> 取代 <b>dragonbox</b>，Float &rarr; String 提速 <b>1.5&ndash;3 倍</b>。
+<br/>&mdash; 扩展 <b>itoa</b> 快速路径，对较大的整数值浮点数
+<br/>&emsp;采用与 dragonbox 兼容的舍入方式。
+<br/>&mdash; <b>Int128</b>/<b>UInt128</b> &rarr; String：以展开内层循环的 Barrett 约减
+<br/>&emsp;取代软件除法。</p>
+
+<p>大型聚合以及导出为文本格式时，性能提升尤为明显。</p>
+
+<!-- Demo (transparent — just runs faster):
+
+SELECT toString(toFloat64(number) * 0.123456) FROM numbers(10000000) FORMAT Null;
+SELECT toString(toInt128(number) * 1234567890123456789) FROM numbers(10000000) FORMAT Null;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Raúl Marín。</p>
+</section>
+
+<section class="slide">
+<h2>更快的 COUNT DISTINCT</h2>
+
+<p>重写了 <b>uniqExact</b>（由 <b>COUNT(DISTINCT)</b> 使用）
+<br/>的并行合并：</p>
+
+<p>&mdash; 使用<b style="color: green;">批量并行合并</b>，取代各线程的顺序合并。
+<br/>&mdash; 避免为较小的中间状态创建多余线程。
+<br/>&mdash; 在多核机器上显著加速高基数的 <b>COUNT(DISTINCT)</b>。</p>
+
+<!-- Demo:
+
+SELECT uniqExact(number) FROM numbers_mt(100000000);
+SELECT count(DISTINCT number % 10000000) FROM numbers_mt(100000000);
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Jiebin Sun。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/back6.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">一些</span><br/><span class="hilite">有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>JOIN 溢写到磁盘 🧪</h2>
+
+<p>哈希连接和并行哈希连接在达到内存限制时，
+<br/>现在会<b style="color: green;">自动溢写到磁盘</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET <b style="color: green;">max_bytes_before_external_join</b> = '4G';
+
+SELECT *
+FROM orders LEFT JOIN customers USING (customer_id)
+<span style="color: gray;">-- Once the hash side exceeds 4 GB, join converts to grace hash join.</span>
+</code></p>
+
+<p>&mdash; 透明回退，查询和结果均保持不变。
+<br/>&mdash; 运行时转换为 <b>grace hash join</b>。
+<br/>&mdash; 大型 JOIN 不再因<b>超出内存限制</b>而失败。</p>
+
+<!-- Demo:
+
+SET max_bytes_before_external_join = '64Mi';
+SELECT count() FROM
+  (SELECT number AS id, randomString(100) AS s FROM numbers(2000000)) AS a
+  JOIN (SELECT number AS id FROM numbers(2000000)) AS b USING (id);
+
+-- Watch the spilled bytes in system.query_log:
+SELECT ProfileEvents['ExternalJoinWritePart'] AS spilled_parts,
+       ProfileEvents['ExternalJoinTotalBytes'] AS spilled_bytes
+FROM system.query_log WHERE type = 'QueryFinish' ORDER BY event_time DESC LIMIT 1;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：János Benjamin Antal。</p>
+</section>
+
+<section class="slide">
+<h2>Arrow Flight SQL</h2>
+
+<p>ClickHouse 现在可通过 <b style="color: green;">Arrow Flight SQL</b> 提供查询服务，
+<br/>它是 Apache Arrow 的高吞吐列式 gRPC 协议。</p>
+
+<p>将其配置为独立监听器：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: gray;">$ cat config.d/arrow.yaml</span>
+
+arrowflight_port: 9005
+</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">import pyarrow.flight as flight
+client = flight.FlightClient("grpc://localhost:9005")
+ticket = flight.Ticket(b"SELECT * FROM system.numbers LIMIT 10")
+reader = client.do_get(ticket)
+print(reader.read_all())
+</code></p>
+
+<!-- Demo (server only):
+
+# In config.xml:  <arrowflight_port>9005</arrowflight_port>
+# Connect from Python:
+import pyarrow.flight as flight
+client = flight.FlightClient("grpc://localhost:9005")
+ticket = flight.Ticket(b"SELECT * FROM system.numbers LIMIT 10")
+reader = client.do_get(ticket)
+print(reader.read_all())
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Yakov Olkhovskiy。</p>
+</section>
+
+<section class="slide">
+<h2>AI 函数 🧪</h2>
+
+<p>直接从 SQL 调用 LLM 端点（OpenAI、Anthropic）：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">aiGenerate</b>('Summarize this in one line: ' || review)
+FROM product_reviews LIMIT 10;
+</code></p>
+
+<p>在此基础上构建的高阶辅助函数：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">aiClassify</b>(text, ['bug', 'feature', 'question']) FROM tickets;
+SELECT <b style="color: green;">aiExtract</b>(article, 'people, organizations, dates') FROM news;
+SELECT <b style="color: green;">aiTranslate</b>(message, 'English') FROM logs;
+</code></p>
+
+<p>&mdash; 提供商在服务端配置，密钥绝不会泄露到客户端。</p>
+
+<!-- Demo (requires AI provider configured server-side):
+
+SET allow_experimental_ai_functions = 1;
+SELECT aiGenerate('Write a one-line SQL joke');
+SELECT aiClassify('Cannot connect to database',
+                  ['bug', 'feature_request', 'question', 'docs']);
+SELECT aiExtract('Anthropic was founded in 2021 by Dario Amodei in San Francisco.',
+                 'people, organizations, dates, locations');
+SELECT aiTranslate('Bonjour, comment allez-vous?', 'English');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：George Larionov。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/back7.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">数据湖</span></h2>
+</section>
+
+<section class="slide">
+<h2>Iceberg：移除孤立文件 🧪</h2>
+
+<p>删除未被任何有效快照引用的文件，从而回收空间：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><b>ALTER TABLE</b> my_iceberg
+<b style="color: green;">EXECUTE remove_orphan_files</b>;
+</code></p>
+
+<p>&mdash; 遍历快照图，确定仍在使用的数据文件集合。
+<br/>&mdash; 从对象存储中移除其余文件。
+<br/>&mdash; 与此前发布的 <b>EXECUTE expire_snapshots(...)</b> 配套使用。</p>
+
+<p>二者结合后，ClickHouse 能够原地完整维护 Iceberg 表。</p>
+
+<!-- Demo (needs an Iceberg table on object storage):
+
+ALTER TABLE my_iceberg EXECUTE remove_orphan_files;
+ALTER TABLE my_iceberg EXECUTE expire_snapshots('2026-04-01 00:00:00');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：murphy-4o。</p>
+</section>
+
+<section class="slide">
+<h2>Delta Lake 虚拟列裁剪</h2>
+
+<p>Delta Lake 现在可使用<b>虚拟列</b>上的谓词裁剪数据文件：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM my_delta
+WHERE <b style="color: green;">_partition</b> = 'country=DE/year=2026';
+<span style="color: gray;">-- Only files in matching partitions are scanned.</span>
+</code></p>
+
+<p>&mdash; 减少打开的文件数量和对象存储请求次数。
+<br/>&mdash; 原理与分区裁剪相同，但通过虚拟列应用。</p>
+
+<!-- Demo (needs a partitioned Delta Lake table):
+
+SELECT * FROM deltaLake('s3://bucket/path/', ...) WHERE _partition = 'country=DE/year=2026';
+EXPLAIN indexes = 1
+SELECT * FROM deltaLake('s3://bucket/path/', ...) WHERE _partition = 'country=DE/year=2026';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 4em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2>Iceberg：Unity Catalog 与路径改进</h2>
+
+<p>针对 Iceberg 写入的一系列修复和改进：</p>
+
+<p>&mdash; 更好地支持写入 <b style="color: green;">Unity Catalog</b>。
+<br/>&mdash; 更清晰地区分<b>存储路径与元数据路径</b>的抽象。
+<br/>&mdash; 表现在会将位置记录为 URL 或绝对路径。
+<br/>&mdash; 以兼容 Spark 的方式处理 <b>version-hint.txt</b>。
+<br/>&mdash; 位置删除不再依赖路径推断启发式规则。
+<br/>&mdash; 加入 Azure 与 Local Catalog 的跨引擎互操作测试。</p>
+
+<p>此外重新设计 Catalog 插入接口，使设置更加清晰，
+<br/>旧的 <b>storage_*</b> 选项现已弃用。</p>
+
+<!-- Demo (needs a Unity Catalog endpoint):
+
+CREATE DATABASE unity ENGINE = DataLakeCatalog('https://...unity-catalog/api/2.1/unity-catalog')
+  SETTINGS catalog_type = 'unity', warehouse = 'my_warehouse';
+USE unity;
+INSERT INTO my_iceberg_table SELECT ... ;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Daniil Ivanik、Konstantin Vedernikov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/back8.jpg); background-size: cover;">
+<h2><span class="hilite">彩蛋</span></h2>
+</section>
+
+<section class="slide">
+<h2>clickhousectl</h2>
+
+<p>全新的 <b style="color: green;">clickhousectl</b> CLI，
+<br/>用一个工具同时管理本地 ClickHouse <b>和</b> ClickHouse Cloud：</p>
+
+<p>&mdash; 安装和管理本地 ClickHouse 实例。
+<br/>&mdash; 在本地服务器和 Cloud 服务上运行查询。
+<br/>&mdash; 管理 Cloud 组织、服务和 API 密钥。
+<br/>&mdash; 通过可安装的 <b>skills</b> 与 AI 编程智能体集成。</p>
+
+<p>已用于基准测试博文：
+<br/><a href="https://clickhouse.com/blog/comparing-clickhouse-versions-with-clickhousectl">使用 clickhousectl 对比 ClickHouse 版本</a></p>
+
+<p><a href="https://github.com/ClickHouse/clickhousectl">https://github.com/ClickHouse/clickhousectl</a></p>
+</section>
+
+<section class="slide">
+<h2>OTel.FYI</h2>
+
+<p>面向 OpenTelemetry Collector 生态的新文档站点：</p>
+
+<p><a href="https://otel.fyi/">https://otel.fyi/</a></p>
+
+<p>&mdash; 根据 <b>opentelemetry-collector-contrib</b> 自动生成。
+<br/>&mdash; 浏览接收器、导出器、处理器、连接器和扩展。
+<br/>&mdash; <b style="color: green;">MCP 服务器</b> &mdash; 可在 IDE 中通过
+<br/>&emsp; Claude / Cursor / Windsurf 查询 OTel 组件文档。</p>
+
+<p>这是一个小巧专注的工具，让 OTel Collector 更易发现和使用。</p>
+</section>
+
+<section class="slide">
+<h2>PostgresBench</h2>
+
+<p>使用 <b>pgbench</b> 测试 Postgres 兼容型 DBMS 的开放基准：</p>
+
+<p><a href="https://github.com/ClickHouse/postgresbench">https://github.com/ClickHouse/postgresbench</a></p>
+
+<p>&mdash; 行业标准的<b>类 TPC-B</b> 工作负载。
+<br/>&mdash; 跨服务比较吞吐量、延迟和稳定性。
+<br/>&mdash; 涵盖 AWS RDS、Aurora、Neon 等服务的结果。</p>
+
+<p>用于对事务型 Postgres 兼容引擎进行可复现、透明的比较，
+<br/>秉承 ClickBench 对分析型工作负载进行测试的理念。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/agentic.svg); background-size: cover;"></section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/wing.jpg); background-size: cover;">
+<h2>线下活动</h2>
+<p style="line-height: 1.25; margin-top: -1em;">
+<br/><span class="hilite">&mdash; 🇺🇸 波士顿 Meetup，5 月 5 日</span>
+<br/><span class="hilite">&mdash; 🇸🇬 AWS 新加坡峰会，5 月 6 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 德里/古尔冈 Meetup，5 月 9 日</span>
+<br/><span class="hilite">&mdash; 🇧🇷 圣保罗：实时分析培训，5 月 12 日</span>
+<br/><span class="hilite">&mdash; 🇦🇺 AWS 悉尼峰会，5 月 13 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 班加罗尔：数据工程峰会，5 月 14 日</span>
+<br/><span class="hilite">&mdash; 🇬🇧 伦敦：实时分析培训，5 月 19 日</span>
+<br/><span class="hilite">&mdash; 🇰🇷 AWS 首尔峰会，5 月 20 日</span>
+<br/><span class="hilite">&mdash; 🇯🇵 东京：Findy VPoE 峰会，5 月 22 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 旧金山：开放日，5 月 26 日</span>
+<br/><span class="hilite">&mdash; 🇯🇵 东京：AI 工程峰会，6 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇸🇬 新加坡 SuperAI，6 月 10 日</span>
+</p>
+</section>
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<a href="https://clickhouse.com/blog/agentic-coding"><img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://presentations.clickhouse.com/2026-release-26.4/pictures/qr_agentic.png" alt="QR: clickhouse.com/blog/agentic-coding"/></a>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5; margin-right: -5em;">
+&mdash; <b>ClickHouse 的智能体编程实践</b>
+<br/>&mdash; ClickHouse 亮相 FOSDEM 2026
+<br/>&mdash; ClickHouse 亮相 Google Cloud Next '26
+<br/>&mdash; 日志分析还需要 Elasticsearch 吗？
+<br/>&mdash; pg_clickhouse 新进展
+<br/>&mdash; Google Axion 处理器上的 ClickHouse Cloud
+<br/>&mdash; 使用 clickhousectl 对比 ClickHouse 版本
+</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.4/pictures/back9.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问答</h2>
+</section>
+
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/9lSVy7k2EoI" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
