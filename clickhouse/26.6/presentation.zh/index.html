@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse 26.6 版本发布会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://presentations.clickhouse.com/2026-release-26.6/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse 26.6 版本发布会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://presentations.clickhouse.com/2026-release-26.6/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+        .cell { font-family: Monospace; width: 1.5em; height: 1.5em; display: inline-block; border: 3px solid white; background-color: lightblue; text-align: center; line-height: 1.3em; }
+        .cell-num { font-family: Monospace; width: 1.5em; height: 1.5em; display: inline-block; border: 3px solid white; background-color: lightgreen; text-align: center; line-height: 1.3em; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse 26.6 版本发布会</h1>
+        <p>作者：Alexey Milovidov，2026-06-25。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 15px; line-height: 110%; font-size: 56pt; color: #FF0; text-align: center;">ClickHouse 26.6 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 26.6 版本</h2>
+<p>1.（50 分钟）ClickHouse 26.6 新特性。</p>
+<p>2.（10 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">26.6 版本</span></h2>
+<p><span class="hilite">ClickHouse「十周年」版本。</span></p>
+<p><span class="hilite">— 56 项新功能 🌞</span></p>
+<p><span class="hilite">— 79 项性能优化 🏖️</span></p>
+<p><span class="hilite">— 366 项错误修复 🍦</span></p>
+</section>
+<!--
+
+Small And Nice
+
+ALTER TABLE ... ADD ENUM VALUES
+Number formatting: precision controls
+Cascading refreshable materialized views
+Control over projections materialization
+IP prefix bits for quotas
+
+Usability
+
+Documentation in every system table
+system.documentation
+help in CLI
+New system tables: constraints, basic statistics
+AI coding agent detection
+clickhouse-local becomes a server
+Schema page
+PNG output format
+
+SQL Compatibility
+
+date_part and EXTRACT extensions
+LOCALTIME / LOCALTIMESTAMP / SESSION_USER
+min_by / max_by / REGEXP_SUBSTR
+expr OP SOME / ALL (array)
+Column selection by pattern: * LIKE / * ILIKE
+ESCAPE in LIKE
+
+Geospatial
+
+GeoJSON input format
+Mapbox Vector Tiles (MVT)
+h3PolygonToCellsWithContainment
+
+Performance
+
+Keeper 2x faster
+Simple SELECT 50% faster
+Lightweight primary key index analysis
+ipnsort / driftsort
+Sharded aggregation
+LIMIT BY optimizations
+JOIN optimizations
+
+Main
+
+Continuous queries (STREAM)
+Multi-stage distributed query execution
+Memory reservations
+Hypothetical indexes + EXPLAIN WHATIF
+aiEmbed
+quantization functions
+
+Bonus - CostBench
+Meetups
+Reading Corner
+
+-->
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back3.jpg); background-size: cover;">
+<h2 style="color: black;"><span class="hilite">小而美的功能</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>ALTER TABLE &hellip; ADD ENUM VALUES</h2>
+
+<p>追加新的 <b>Enum</b> 值，无需重新输入所有现有值：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE events (x <b>Enum8</b>('a' = 1, 'b' = 2)) ...;
+
+<span style="color: gray;">-- Before: ALTER ... MODIFY COLUMN x Enum8('a'=1,'b'=2,'c'=3,'d'=4)</span>
+
+ALTER TABLE events MODIFY COLUMN x <b style="color: green;">ADD ENUM VALUES('c' = 3, 'd' = 4)</b>;
+<span style="color: gray;">-- x is now Enum8('a' = 1, 'b' = 2, 'c' = 3, 'd' = 4)</span>
+</code></p>
+
+<p>&mdash; 纯元数据变更：即时完成，无需重写数据。
+<br/>&mdash; 不会再误漏已有值。</p>
+
+<!-- Demo:
+
+CREATE TABLE events (x Enum8('a' = 1, 'b' = 2)) ENGINE = MergeTree ORDER BY tuple();
+ALTER TABLE events MODIFY COLUMN x ADD ENUM VALUES('c' = 3, 'd' = 4);
+SHOW CREATE TABLE events FORMAT TSVRaw;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Ilya Golshtein。</p>
+</section>
+
+<section class="slide">
+<h2>数值格式控制</h2>
+
+<p>控制文本输出的精度参数和小数点：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">formatReadableSize</b>(1234567890, <b>4</b>);
+<span style="color: gray;">-- 1.1498 GiB   (default precision is 2: 1.15 GiB)</span>
+
+SELECT 1/3 <b style="color: green;">SETTINGS output_format_float_precision = 4</b>;
+<span style="color: gray;">-- 0.3333</span>
+
+SELECT 5.0 <b style="color: green;">SETTINGS output_format_always_write_decimal_point&hellip; = 1</b>;
+<span style="color: gray;">-- 5.   (keep the decimal point even for whole numbers)</span>
+</code></p>
+
+<p>&mdash; <b>formatReadableSize</b> / <b>formatReadableQuantity</b> / <b>formatReadableDecimalSize</b> 接受可选的精度参数。</p>
+
+<!-- Demo:
+
+SELECT formatReadableSize(1234567890), formatReadableSize(1234567890, 4);
+SELECT 1/3 SETTINGS output_format_float_precision = 4;
+SELECT 5.0 SETTINGS output_format_always_write_decimal_point_in_float_and_decimal = 1;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Antonio Filipovic、phulv94、Ilya Yatsishin。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">级联可刷新物化视图</h2>
+
+<p style="margin-top: -0.5em;">可刷新物化视图现在可由<b>另一个</b> RMV 的刷新触发：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE MATERIALIZED VIEW base
+<b style="color: green;">REFRESH EVERY 1 HOUR</b> ENGINE = MergeTree ORDER BY day AS &hellip;;</span>
+
+CREATE MATERIALIZED VIEW rollup
+<b style="color: green;">REFRESH DEPENDS ON base</b> ENGINE = &hellip; AS
+SELECT day, sum(x) FROM base GROUP BY day;
+</code></p>
+
+<!-- Demo (Atomic database, on a server or local with an Atomic db):
+
+CREATE DATABASE r ENGINE = Atomic;
+CREATE TABLE r.src (x UInt32) ENGINE = MergeTree ORDER BY x;
+CREATE MATERIALIZED VIEW r.base REFRESH EVERY 1 HOUR ENGINE = MergeTree ORDER BY x AS SELECT x FROM r.src;
+CREATE MATERIALIZED VIEW r.child REFRESH DEPENDS ON r.base ENGINE = MergeTree ORDER BY x AS SELECT x FROM r.base;
+SELECT view, status, next_refresh_time FROM system.view_refreshes ORDER BY view;
+-- base:  Running                  (next_refresh_time set)
+-- child: WaitingForDependencies   (next_refresh_time NULL — no clock of its own)
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.2em;">开发者：Michael Kolupaev。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">控制 projection 物化</h2>
+
+<p style="margin-top: -0.5em;">两个新的 <b>MergeTree</b> 设置将 projection 构建与 <b>INSERT</b> 解耦：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE ...
+SETTINGS <b style="color: green;">materialize_projections_on_insert</b> = 0;
+<span style="color: gray;">-- INSERTs skip building projection parts → faster ingestion</span>
+
+CREATE TABLE ...
+SETTINGS <b style="color: green;">materialize_projections_on_merge</b> = 1;
+<span style="color: gray;">-- a merge rebuilds a projection missing from all its source parts</span>
+</code></p>
+
+<p>&mdash; 包含大量 projection 的表可更快写入；
+<br/>&emsp; projection 改在合并期间构建。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1.5em;">开发者：Christoph Wurm。</p>
+</section>
+
+<section class="slide">
+<h2>IP 前缀配额</h2>
+
+<p>以<b>子网</b>而非单个地址作为配额键：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE QUOTA q <b style="color: green;">KEYED BY ip_address IPV4_PREFIX_BITS 24</b>
+  FOR INTERVAL 1 hour MAX queries = 1000;
+<span style="color: gray;">-- every client in a /24 shares one quota bucket</span>
+
+CREATE QUOTA q6 KEYED BY ip_address <b style="color: green;">IPV6_PREFIX_BITS 64</b> &hellip;;
+</code></p>
+
+<p>&mdash; 一次对整个网络范围实施速率限制。
+<br/>&mdash; 可配合 <b>IP_ADDRESS</b> 和 <b>FORWARDED_IP_ADDRESS</b> 键使用。
+<br/>&mdash; 对 IPv6 尤其有用。
+</p>
+
+<!-- Demo:
+
+CREATE QUOTA q KEYED BY ip_address IPV4_PREFIX_BITS 24 FOR INTERVAL 1 hour MAX queries = 1000;
+SHOW CREATE QUOTA q;
+-- CREATE QUOTA q KEYED BY ip_address IPV4_PREFIX_BITS 24 FOR INTERVAL 1 hour MAX queries = 1000
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1.5em;">开发者：Aditya Chopra。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">易用性</span></h2>
+</section>
+
+<section class="slide">
+<h2>CLI 中的 help</h2>
+
+<p>在 clickhouse-client / clickhouse-local 中输入 <b style="color: green;">help &lt;name&gt;</b>，
+<br/>即可直接在终端阅读由 <b>system.documentation</b> 提供的文档：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) <b style="color: green;">help</b> MergeTree
+</code></p>
+
+<p>&mdash; 也支持 <b>/help</b>、<b>man</b>、<b>/man</b>，可处理歧义和拼写错误。
+<br/>&mdash; 在终端渲染 Markdown，并对 SQL 进行语法高亮。</p>
+
+<p>演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">每张系统表都内嵌文档</h2>
+
+<p>用于描述系统的系统表现在也能描述自身，新增
+<br/><b>description</b>、<b>syntax</b>、<b>examples</b>、<b>introduced_in</b> 和 <b>related</b> 列：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">SELECT name, introduced_in
+FROM <b style="color: green;">system.table_engines</b> WHERE name ILIKE '%kafka%';
+
+SELECT name, description FROM <b style="color: green;">system.data_type_families</b>;
+</code></p>
+
+<p style="margin-top: 0.2em;">现在具备自描述文档：<b>table_engines</b>、<b>database_engines</b>、<b>data_type_families</b>、<b>formats</b>、<b>aggregate_function_combinators</b>、<b>dictionary_layouts</b>、
+<b>dictionary_sources</b>, <b>data_skipping_index_types</b>, <b>disk_types</b>.</p>
+
+<!-- Demo:
+
+SELECT name, introduced_in, substring(description, 1, 80) FROM system.table_engines WHERE name = 'MergeTree' FORMAT Vertical;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>system.documentation</h2>
+
+<p>将完整参考手册作为一张表内置在服务器中：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT type, count() FROM <b style="color: green;">system.documentation</b> GROUP BY type;
+</code></p>
+
+<table style="font-size: 13pt; width: 72%; margin-top: 0.3em;">
+<tr><th>type</th><th>count</th></tr>
+<tr><td>函数</td><td>1592</td></tr>
+<tr><td>设置</td><td>1548</td></tr>
+<tr><td>服务器设置 / MergeTree 设置</td><td>412 / 316</td></tr>
+<tr><td>聚合函数、数据类型、格式等</td><td>&hellip;</td></tr>
+</table>
+
+<p style="margin-top: 0.3em;">&mdash; 与网站相同的文档，可查询、可搜索，也可离线使用。
+<br/>&mdash; 便于与工具集成。</p>
+
+<!-- Demo:
+
+SELECT type, count() AS c FROM system.documentation GROUP BY type ORDER BY c DESC LIMIT 6;
+SELECT description FROM system.documentation WHERE name = 'bitCount' AND type = 'Function' FORMAT TSVRaw;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>新增系统表</h2>
+
+<p style="margin-top: -0.3em;">更多 ClickHouse 内部信息现在可通过表查看：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT table, name, type, expression FROM <b style="color: green;">system.constraints</b>;
+</code></p>
+
+<p>&mdash; <b>system.constraints</b>：每张表的 CHECK / ASSUME 约束。
+<br/>&mdash; <b>system.iceberg_files</b>：查看 Iceberg 表中的文件。</p>
+
+<p>Keeper 相关表（在 clickhouse-keeper 上可用）：
+<br/>&mdash; <b>system.keeper_snapshots</b>
+<br/>&mdash; <b>system.keeper_changelogs</b>
+<br/>&mdash; <b>system.keeper_cluster</b>.
+</p>
+
+<!-- Demo:
+
+CREATE TABLE accounts (id UInt32, balance Int64, CONSTRAINT non_negative CHECK balance >= 0) ENGINE = MergeTree ORDER BY id;
+SELECT table, name, type, expression FROM system.constraints WHERE database = currentDatabase() FORMAT Vertical;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pedro Ferreira、Miсhael Stetsyuk、Han Fei。</p>
+</section>
+
+<section class="slide">
+<h2>哪个 AI 代理正在查询你？</h2>
+
+<p>ClickHouse 现在会从环境中检测启动客户端的 AI 编码代理，
+<br/>并将结果记录到新的 <b style="color: green;">client_agent</b> 列：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT query_id, <b style="color: green;">client_agent</b>, interface FROM system.processes;
+</code></p>
+
+<table style="font-size: 14pt; width: 80%;">
+<tr><th>query_id</th><th>client_agent</th><th>interface</th></tr>
+<tr><td>ai_demo</td><td><b style="color: green;">claude-code</b></td><td>1</td></tr>
+</table>
+
+<p style="margin-top: 0.5em;">&mdash; 可识别 Claude Code、Cursor、Codex、Gemini CLI、Goose 等。
+<br/>&mdash; 也会记录在 <b>system.query_log</b> 和 <b>system.query_thread_log</b> 中。
+</p>
+
+<!-- Demo:
+
+CLAUDECODE=1 clickhouse client -q "SELECT sleep(3) FROM numbers(4) SETTINGS function_sleep_max_microseconds_per_block=20000000" --query_id ai_demo &
+SELECT query_id, client_agent, interface FROM system.processes WHERE query_id = 'ai_demo';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>将 clickhouse-local 转为服务器</h2>
+
+<p><b>clickhouse-local</b> 现在可以随时开始监听连接：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">clickhouse-local
+:) <b style="color: green;">SYSTEM START LISTEN TCP</b>;
+:) <b style="color: green;">SYSTEM START LISTEN HTTP</b>;
+<span style="color: gray;">-- now other clients can connect to your local session</span>
+</code></p>
+
+<p>&mdash; 将临时分析会话变成可共享的 endpoint。
+<br/>&mdash; 使用 <b>SYSTEM STOP LISTEN</b> 再次关闭监听。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>Schema 可视化</h2>
+
+<p>新增内置 Web UI，可绘制数据库依赖关系图：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">http://localhost:8123<b style="color: green;">/schema</b></code></p>
+
+<p style="margin-top: 0.5em;">&mdash; 展示表、物化视图、可刷新物化视图、字典、
+<br/>&emsp;分布式表、普通视图，以及它们之间的关系。
+<br/>&mdash; 一眼看清数据从摄取到汇总的流向。
+<br/>&mdash; 直接内置在服务器中。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Nikita Mikhaylov。</p>
+</section>
+
+<section class="slide">
+<h2>PNG 输出格式</h2>
+
+<p>将查询结果<b>渲染为图像</b>。每行对应一个像素（<b>r</b>、<b>g</b>、<b>b</b> 或 <b>v</b>），
+<br/>像素坐标（<b>x</b>、<b>y</b>）可隐式生成或显式定义：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.2;">WITH number DIV 1024 AS y, number MOD 1024 AS x,
+  L2Norm((x - 512, y - 512)) / 512 AS radius, 60 AS stripe_size,
+  round((atan2(x - 512, y - 512) / pi() * 180 + exp(radius) * 90)
+    / stripe_size) * stripe_size AS alpha,
+  radius &lt;= 1 ? abs(1 - (radius - 0.5) * (radius - 0.5) * 4) : 0 AS a,
+  colorOKLCHToSRGB((0.7, 0.15, alpha)) AS rgb
+SELECT rgb.1::UInt8 AS r, rgb.2::UInt8 AS g, rgb.3::UInt8 AS b, a
+FROM numbers(1048576) <b style="color: green;">FORMAT PNG</b>
+SETTINGS output_format_image_terminal_mode = 'kitty'</code></p>
+
+<p style="margin-top: 0.3em; margin-right: 26%;">&mdash; Web UI 会直接显示图像。
+<br/>&mdash; 适合生成热力图、迷你图和程序化艺术。</p>
+
+<!-- Demo (rendered server-side over HTTP, viewed in the browser / Web UI):
+
+WITH number / 1000 AS a, cos(a * 1.111) AS fx, sin(a * 1.112) AS fy, 511 * sin(a * 5) AS radius, round(512 + fx * radius)::UInt16 AS x, round(512 + fy * radius)::UInt16 AS y, number / 1000 AS hue, colorOKLCHToSRGB((0.5, 0.15, hue)) AS rgb SELECT x, y, rgb.1::UInt8 AS r, rgb.2::UInt8 AS g, rgb.3::UInt8 AS b FROM numbers(1000000) FORMAT PNG;
+
+WITH RECURSIVE 1400 AS width, 800 AS height, 256 AS max_iterations,
+    pixels AS (
+    SELECT
+        arrayJoin(range(width)) AS x,
+        arrayJoin(range(height)) AS y,
+        -2.5 + (x * 3.5 / (width - 1)) AS cx,
+        -1.0 + (y * 2.0 / (height - 1)) AS cy
+    ),
+    mandelbrot_iterations AS (
+    SELECT x, y, cx, cy, 0.0 AS zx, 0.0 AS zy, 0 AS iteration
+    FROM pixels
+
+    UNION ALL
+
+    SELECT
+        x, y, cx, cy,
+        zx * zx - zy * zy + cx,
+        2.0 * zx * zy + cy,
+        iteration + 1
+    FROM mandelbrot_iterations
+    WHERE iteration < max_iterations
+        AND (zx * zx + zy * zy) <= 4.0
+    ),
+max(iteration) AS it,
+log2(0 + it) / 8 AS v
+SELECT v < 0.25 ? least(v, 0.25) * 4 : 0 AS b, least(greatest(v, 0.25) - 0.25, 0.5) * 2 AS r, (greatest(v, 0.75) - 0.75) * 4 AS g
+FROM mandelbrot_iterations GROUP BY x, y ORDER BY y, x
+FORMAT PNG SETTINGS output_format_image_width = 1400, output_format_image_height = 800
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Maksim Dergousov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">SQL 兼容性</span></h2>
+</section>
+
+<section class="slide">
+<h2>date_part 与 EXTRACT</h2>
+
+<p><b style="color: green;">date_part('unit', expr)</b>
+<br/>&mdash; PostgreSQL 风格的 <b>EXTRACT(unit FROM expr)</b> 简写：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">date_part</b>('year', toDateTime('2026-06-25 10:30:00'));  <span style="color: gray;">-- 2026</span>
+SELECT <b style="color: green;">date_part</b>('doy', toDate('2026-06-25'));   <span style="color: gray;">-- 176 (day of year)</span>
+SELECT <b style="color: green;">date_part</b>('dow', toDate('2026-06-25'));   <span style="color: gray;">-- 4   (day of week)</span>
+</code></p>
+
+<p>&mdash; 支持 PostgreSQL 的全部扩展单位：<b>epoch</b>、<b>dow</b>、<b>doy</b>、<b>isodow</b>、<b>isoyear</b>、<b>century</b>、<b>decade</b>、<b>millennium</b>。
+<br/>&mdash; 还支持 <b>EXTRACT(TIMEZONE_HOUR / TIMEZONE_MINUTE FROM dt)</b>
+<br/>&emsp;和 <b>EXTRACT(&hellip; FROM INTERVAL n &hellip;)</b>。</p>
+
+<!-- Demo:
+
+SELECT date_part('year', toDateTime('2026-06-25 10:30:00')) AS y, date_part('doy', toDate('2026-06-25')) AS doy, date_part('dow', toDate('2026-06-25')) AS dow;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov、Vinayak Joshi。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">其他函数与名称</h2>
+
+<p>新增更多 SQL 标准和 PostgreSQL 写法：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">LOCALTIMESTAMP</b>;   <span style="color: gray;">-- now()  → DateTime</span>
+SELECT <b style="color: green;">LOCALTIME</b>;        <span style="color: gray;">-- current time of day → Time</span>
+SELECT <b style="color: green;">SESSION_USER</b>;     <span style="color: gray;">-- alias of currentUser()</span>
+</code></p>
+
+<p>&mdash; 这些是保留字常量，无需括号。
+<br/>&mdash; 让更多迁移查询和 BI 工具生成的 SQL 直接可用。</p>
+
+<!-- Demo:
+
+SELECT LOCALTIMESTAMP, toTypeName(LOCALTIMESTAMP), toTypeName(LOCALTIME);
+SELECT currentUser() AS cu, SESSION_USER AS su;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Thomas Cabral、Takumi Hara。</p>
+</section>
+
+<section class="slide">
+<h2>更多兼容性别名</h2>
+
+<p style="margin-top: -1em;"><b>min_by</b> / <b>max_by</b>：面向 PostgreSQL、BigQuery 的 argMin、argMax 别名：</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">min_by</b>(user, score), <b style="color: green;">max_by</b>(user, score) FROM t;
+<span style="color: gray;">-- aliases of argMin / argMax</span>
+</code></p>
+
+<p><b>REGEXP_SUBSTR</b>：面向 Oracle/MySQL/Snowflake 的 regexpExtract 别名：</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">REGEXP_SUBSTR</b>('order 12345 shipped', '[0-9]+');
+<span style="color: gray;">-- 12345</span>
+</code></p>
+
+<p><span style="color: gray;">“这些别名很蠢，真正的工程师都使用 ClickHouse 原始名称。”—— Changelog</span></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">ALTER TABLE MODIFY COLUMN x UInt32 <b style="color: green">NULL</b>; <span style="color: gray;">-- same as Nullable(UInt32)</span></code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Joey Yu、Alexey Milovidov、Takumi Hara。</p>
+</section>
+
+<section class="slide">
+<h2>数组的 SOME / ALL</h2>
+
+<p>右侧使用数组字面量的 PostgreSQL 数组量词：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT 3 <b style="color: green;">= SOME</b>([1, 2, 3]);    <span style="color: gray;">-- 1  → rewritten to has(...)</span>
+SELECT 5 <b style="color: green;">&gt; ALL</b>([1, 2, 3]);     <span style="color: gray;">-- 1  → arrayAll lambda</span>
+SELECT 2 <b style="color: green;">&lt;&gt; ALL</b>([1, 3, 5]);    <span style="color: gray;">-- 1</span>
+</code></p>
+
+<p><b>ANY</b> / <b>SOME</b> / <b>ALL</b> 的子查询形式仍会降级为 <b>IN</b> / <b>NOT IN</b>。</p>
+
+<!-- Demo:
+
+SELECT 3 = SOME([1,2,3]) AS some_eq, 5 > ALL([1,2,3]) AS gt_all, 2 != ALL([1,3,5]) AS ne_all;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>按名称模式选择列</h2>
+
+<p>使用 <b style="color: green;">* LIKE</b> 和 <b style="color: green;">* ILIKE</b> 选择列，无需逐一列出：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">* ILIKE '%user%'</b> FROM events;
+<span style="color: gray;">-- user_id, user_name, ... (case-insensitive)</span>
+
+SELECT t.<b style="color: green;">* ILIKE '%id'</b>, count() FROM t GROUP BY ALL;
+<span style="color: gray;">-- qualified form works too</span>
+</code></p>
+
+<p>类似 <b>* MATCH 'regexp'</b> 和 <b>COLUMNS('regexp')</b>，
+<br/>但使用 SQL 风格 LIKE 模式，而不是正则表达式。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Yue Ni。</p>
+</section>
+
+<section class="slide">
+<h2>LIKE 中的 ESCAPE</h2>
+
+<p>定义自定义转义字符，使 <b>%</b> 和 <b>_</b> 可作为字面字符：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT '50% off' <b style="color: green;">LIKE</b> '50!% off' <b style="color: green;">ESCAPE '!'</b>;
+<span style="color: gray;">-- 1   (the !% matches a literal percent sign)</span>
+
+SELECT 'a_b' <b style="color: green;">LIKE</b> 'a!_b' <b style="color: green;">ESCAPE '!'</b>;
+<span style="color: gray;">-- 1   (the !_ matches a literal underscore)</span>
+</code></p>
+
+<p>&mdash; SQL 标准语法，PostgreSQL、MySQL 等也支持。</p>
+
+<!-- Demo:
+
+SELECT '50% off' LIKE '50!% off' ESCAPE '!' AS pct, 'a_b' LIKE 'a!_b' ESCAPE '!' AS underscore;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Ilya Yatsishin。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back7.jpg); background-size: cover;">
+<h2 style="color: black;"><span class="hilite">地理空间</span></h2>
+</section>
+
+<section class="slide">
+<h2>GeoJSON 输入格式</h2>
+
+<p>读取 GeoJSON <b>FeatureCollection</b>，每个 feature 对应一行：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT id, properties.name, toTypeName(geometry)
+FROM file('places.geojson', <b style="color: green;">GeoJSON</b>);
+</code></p>
+
+<table style="font-size: 14pt; width: 90%;">
+<tr><th>id</th><th>properties.name</th><th>geometry</th></tr>
+<tr><td>1</td><td>London</td><td>Geometry (Point)</td></tr>
+<tr><td>2</td><td>square</td><td>Geometry (Polygon)</td></tr>
+</table>
+
+<p style="margin-top: 0.5em;">&mdash; 列：<b>id</b> String、<b>geometry</b> Geometry、<b>properties</b> Nullable(JSON)。
+<br/>&mdash; 原生支持 Point、LineString、MultiLineString、Polygon 和 MultiPolygon。</p>
+
+<!-- Demo: places.geojson is a standard FeatureCollection
+
+SELECT id, properties.name, toTypeName(geometry) FROM file('/tmp/test.geojson', GeoJSON) FORMAT Vertical;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Mark Needham。</p>
+</section>
+
+<section class="slide">
+<h2>通过 SQL 生成 Mapbox Vector Tiles</h2>
+
+<p>使用新的 <b style="color: green;">MVT</b> 函数直接从 ClickHouse 提供地图瓦片：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: gray;">-- Project lon/lat into a tile's pixel space:</span>
+SELECT <b style="color: green;">MVTEncodeGeom</b>((13.37, 52.52)::Point, 10, 550, 335);
+<span style="color: gray;">-- (124, 3384)</span>
+
+<span style="color: gray;">-- Aggregate a group's geometries into one binary tile:</span>
+SELECT <b style="color: green;">MVTEncode</b>(geom_in_tile_space) FROM ...;
+
+<span style="color: gray;">-- Tile bounding box for the WHERE clause:</span>
+SELECT <b style="color: green;">MVTBoundingBox</b>(12, 1205, 2557);
+</code></p>
+
+<p>&mdash; 支持点、线和多边形几何。
+<br/>&mdash; 也可使用 PostGIS 别名 <b>ST_AsMVTGeom</b> 和 <b>ST_AsMVT</b>。</p>
+
+<!-- Demo:
+
+SELECT MVTEncodeGeom((13.37, 52.52)::Point, 10, 550, 335);
+SELECT MVTBoundingBox(12, 1205, 2557);
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Saarthak Gupta。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back6.jpg); background-size: cover;">
+<h2><span style="color: black;" class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>ClickHouse Keeper 提速 2 倍</h2>
+
+<p>一系列 Keeper 改进使整体速度提升到原来的<b>两倍以上</b>：</p>
+
+<p style="margin-top: 0.5em;">&mdash; 改进请求<b>批处理</b>。
+<br/>&mdash; 以<b>流水线</b>方式向 leader 发送消息。
+<br/>&mdash; 以<b>流水线</b>方式追加日志。
+<br/>&mdash; 将快照 I/O 移至后台线程（<b>nuraft_use_bg_thread_for_snapshot_io</b>）。
+<br/>&mdash; 降低应用接收快照时的峰值内存。</p>
+
+<p>在 keeper-bench 的真实工作负载下：</p>
+<p style="margin-top: 0.6em;"><b>26.5</b>：<b style="color: red;">2899</b> RPS，延迟 <b style="color: red;">41.4</b> ms
+<br/><b>26.6</b>：<b style="color: green;">7230</b> RPS，延迟 <b style="color: green;">18.3</b> ms
+</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Michael Kolupaev、Antonio Andelic、Mikhail Filimonov。</p>
+</section>
+
+<section class="slide">
+<h2>更轻、更快的查询启动</h2>
+
+<p>简单查询的单次查询开销显著降低：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT count() FROM hits;
+<span style="color: gray;">-- parsing + analysis + planning ~50% faster from a single connection</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">更多分析器优化，且均默认启用：</p>
+
+<p style="margin-top: -0.3em;">&mdash; 在分析期间缓存标识符解析结果。
+<br/>&mdash; 快速分析深度嵌套子查询。
+<br/>&mdash; 加快深度嵌套函数调用的解析。
+<br/>&mdash; 加快对变化中访问控制实体的处理。</p>
+
+<p style="margin-top: 0.3em;">对 1200 列表执行深度嵌套的 <b>SELECT *</b>：
+<br/>&emsp;分析耗时 <b>1.46 s &rarr; <b style="color: green;">0.023</b> s</b> &nbsp;（约 64 倍），26.5 对比 26.6。</p>
+
+<!-- Demo / proof:
+
+# 1200-column table, four-level nested SELECT * — pure analysis cost:
+python3 -c "print('CREATE TABLE wide (' + ', '.join(f'c{i} UInt32' for i in range(1200)) + ') ENGINE=Memory;')" > wide.sql
+echo "INSERT INTO wide SELECT * FROM (SELECT $(python3 -c \"print(','.join(['number']*1200))\") FROM numbers(1));" >> wide.sql
+echo "SELECT count() FROM (SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT * FROM wide))));" >> wide.sql
+clickhouse local --time --queries-file wide.sql   # 26.5: 1.464s   26.6: 0.023s
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Raúl Marín、Dmitry Novik、Max Justus Spransy、Azat Khuzhin。</p>
+</section>
+
+<section class="slide">
+<h2>更快的主键分析</h2>
+
+<p>长主键或高基数主键过去会拖慢索引分析。</p>
+<p>现在默认启用 <b style="color: green;">use_lightweight_primary_key_index_analysis</b>：</p>
+
+<p style="margin-top: 0.5em;">&mdash; 对<b>较长</b>的主键，分析时间取决于查询实际用于过滤的列，
+<br/>&emsp;而<b>不再</b>取决于键的长度。
+<br/>&emsp;扩展排序键现在几乎不会增加索引分析成本。
+</p>
+<p>&mdash; 对<b>高基数</b>键，分析仅处理具有选择性的内存前缀，
+<br/>&emsp;无需加载完整键。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Nihal Z. Miaji。</p>
+</section>
+
+<section class="slide">
+<h2>更快的排序</h2>
+
+<p>通用比较排序现在采用 <b style="color: green;">ipnsort</b>
+<br/>和 <b style="color: green;">driftsort</b> 的 C++ 移植实现：</p>
+
+<p style="margin-top: 0.5em;">&mdash; 加快非数值列上的 <b>ORDER BY</b> 和稳定排序。
+<br/>&mdash; 消除输入已反向排序时的最坏情况。
+<br/>&mdash; 使用先进、自适应且经过充分验证的算法。</p>
+
+<p style="margin-top: 0.5em;">单线程对 2000 万个字符串执行 <b>ORDER BY</b>：
+<br/>&emsp;<b>7.1 s &rarr; 5.9 s</b> &nbsp;（约 1.2 倍），26.5 对比 26.6。</p>
+
+<!-- Demo / proof (single thread isolates the comparison sort):
+
+S="SELECT s FROM (SELECT reverse(toString(number)) AS s FROM numbers(20000000)) ORDER BY s FORMAT Null"
+clickhouse local --time --max_threads=1 -q "$S"   # 26.5: 7.14s   26.6: 5.93s
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>更快的 GROUP BY 与 JOIN</h2>
+
+<p style="margin-top: -0.5em;">&mdash; 面向高基数、均匀分布键的<b style="color: green;">分片聚合</b>
+<br/>&emsp;（<b>enable_sharding_aggregator = 1</b>）：对键进行哈希，把行分散到不同线程，
+<br/>&emsp;每个线程聚合互不重叠的子集，<b>无需合并阶段</b>。
+<br/>&mdash; 对字符串键 <b>GROUP BY</b> 执行哈希表<b>预取</b>，速度提高约 8%。
+<br/>&mdash; 合并大型两级聚合状态（如 <b>groupArray</b>）时降低峰值内存。
+<br/>&mdash; 更高效地处理聚合中的 <b>Nullable</b> 列。
+<br/>&mdash; 在 <b>HashJoin</b> 和 <b>Set</b> 中使用紧凑的 <b>keys32</b> / <b>keys64</b> 方法。</p>
+
+<p style="margin-top: 0.5em;"><b style="color: green;">实测</b>：3 亿行高基数 <b>GROUP BY</b>，16 线程：
+<br/>&emsp; <b>enable_sharding_aggregator</b>: <b>2.31 s &rarr; 1.87 s</b>.</p>
+
+<!-- Demo / proof:
+
+A="SELECT k, count() c FROM (SELECT number AS k FROM numbers_mt(300000000)) GROUP BY k FORMAT Null"
+clickhouse local --time --max_threads=16 --enable_sharding_aggregator=0 -q "$A"   # 2.31s
+clickhouse local --time --max_threads=16 --enable_sharding_aggregator=1 -q "$A"   # 1.87s
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Nihal Z. Miaji、Le Zhang、Yuri Fedoseev、Nikita Taranov。</p>
+</section>
+
+<section class="slide">
+<h2>LIMIT BY 的多项优化</h2>
+
+<p><b>LIMIT BY</b> 新增一系列优化，全部默认启用：</p>
+
+<p style="margin-top: 0.3em;">&mdash; 执行 <b>ORDER BY</b> 时，如果 LIMIT BY 键是排序键前缀，
+<br/>&emsp;则在每个并行排序 stream 内执行 <b>LIMIT BY</b>。
+<br/>&mdash; 按主键顺序流式执行 <b>LIMIT N BY cols</b>，每个 stream 只需 O(1) 内存。
+<br/>&mdash; 当分区是键的函数时，按分区并行应用 <b>LIMIT BY</b>。
+<br/>&mdash; 删除冗余或单射键表达式
+<br/>&emsp; (<b>LIMIT 5 BY toString(x)</b> &rarr; <b>LIMIT 5 BY x</b>).</p>
+
+<p style="margin-top: 0.4em;"><b style="color: green;">实测</b>：对 5000 万行 MergeTree 执行 <b>LIMIT 3 BY g</b>（g 位于排序键中）：
+<br/>&emsp;内存 <b>86 MiB &rarr; 22 MiB</b>（约 4 倍），耗时 <b>0.15 s &rarr; 0.09 s</b>。</p>
+
+<!-- Demo / proof (optimize_limit_by_in_order streams in PK order, O(1) memory):
+
+clickhouse local --path db -q "CREATE TABLE t (g UInt32, id UInt64) ENGINE=MergeTree ORDER BY (g,id);
+  INSERT INTO t SELECT number%100000, number FROM numbers(50000000);"
+Q="SELECT g, id FROM t LIMIT 3 BY g FORMAT Null"
+clickhouse local --path db --memory-usage --optimize_limit_by_in_order=0 -q "$Q"   # 86 MiB
+clickhouse local --path db --memory-usage --optimize_limit_by_in_order=1 -q "$Q"   # 22 MiB
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Nihal Z. Miaji。</p>
+</section>
+
+<section class="slide">
+<h2>JOIN 优化</h2>
+
+<p style="margin-top: -0.3em;">JOIN 规划器与运行时新增一批改进，大多默认启用：</p>
+
+<p style="margin-top: 0.3em;">&mdash; 默认启用 <b style="color: green;">enable_join_transitive_predicates</b>，
+<br/>&emsp;可跨 JOIN 下推推导出的谓词，无额外成本地过滤两侧。
+<br/>&mdash; 构建侧 <b>FixedHashMap</b> 同时用作探测侧运行时过滤器。
+<br/>&mdash; JOIN 后接高选择性 <b>LIMIT</b>、<b>TopN</b> 或另一个 JOIN 时，延迟创建 selector / replication index。
+<br/>&mdash; <b>ASOF JOIN</b> 现在可使用 <b>parallel_hash</b>。
+<br/>&mdash; HashJoin 使用紧凑 <b>keys32</b> / <b>keys64</b>，并为单行探测提供快速路径。
+<br/>&mdash; 动态规划连接重排现在支持并行副本。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：A. Gololobov、N. Taranov、H. Selmi、Xiaozhe Yu、G. Maher。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">值得关注的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>持续查询 🧪</h2>
+
+<p style="margin-top: -0.5em;">永不结束的 <b>SELECT</b>，这是迈向流式查询的第一步。
+追加 <b style="color: green;">STREAM</b> 后，查询会随着新行插入持续输出：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET <b style="color: green;">enable_streaming_queries</b> = 1;
+SELECT id, msg FROM live_events <b style="color: green;">STREAM</b>;  <span style="color: gray;">-- blocks, keeps streaming</span>
+</code></p>
+
+<p>应用场景：对事件流执行过滤和实时告警。</p>
+
+<p>使用 cursor 的高级用法：</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT _block_number AS bn, _block_offset AS bo, id, msg
+FROM events <b style="color: green;">STREAM CURSOR {'all': {'block_number': 2, 'block_offset': 0}}</b></code></p>
+
+<!-- Demo:
+
+CREATE TABLE live_events (id UInt64, msg String) ENGINE = MergeTree ORDER BY id
+SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1,
+  add_minmax_index_for_block_number_column = 1, add_minmax_index_for_block_offset_column = 1,
+  part_minmax_index_columns = 'with_block_number_offset';
+
+-- terminal 1:
+clickhouse client --enable_streaming_queries=1 --use_skip_indexes_on_data_read=0 -q "SELECT id, msg FROM live_events STREAM"
+
+-- terminal 2:
+INSERT INTO live_events VALUES (1,'hello'),(2,'world');
+INSERT INTO live_events VALUES (3,'streaming'),(4,'rocks');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Mikhail Artemenko。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">多阶段分布式查询执行 🧪</h2>
+
+<p style="margin-top: -0.5em;">实验性分布式规划器把查询计划拆成由 exchange 连接的多个<b>阶段</b>，
+<br/>并将计划片段发送到 worker 节点：</p>
+
+<p style="margin-top: 0.5em;">&mdash; 支持 <b style="color: green;">scatter</b> / <b style="color: green;">broadcast</b> / <b style="color: green;">gather</b> / <b style="color: green;">shuffle</b> exchange。
+<br/>&mdash; 支持分布式 <b>shuffle</b>、<b>broadcast hash join</b>、shuffle 聚合和分布式排序。
+<br/>&mdash; 阶段间数据通过 TCP 或对象存储中的临时文件流式传输。
+<br/>&mdash; 每台主机可运行多个 worker（<b>stateless_worker_port</b> / <b>streaming_exchange_port</b>）。</p>
+
+<p style="margin-top: 0.5em;">通过新设置 <b>make_distributed_plan</b> 控制。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexander Gololobov。</p>
+</section>
+
+<section class="slide">
+<h2>工作负载内存预留</h2>
+
+<p style="margin-top: -0.5em;">工作负载调度器原本已管理 CPU、I/O 和并发，
+现在也能管理<b>内存</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE RESOURCE memory (MEMORY RESERVATION);
+CREATE WORKLOAD all;
+CREATE WORKLOAD prod IN all SETTINGS <b style="color: green;">max_memory = '100G'</b>;</span>
+CREATE WORKLOAD reports IN all SETTINGS <b style="color: green;">max_memory = '20G'</b>;</span>
+CREATE WORKLOAD vasya IN reports SETTINGS <b style="color: green;">weight = 1</b>;</span>
+CREATE WORKLOAD petya IN reports SETTINGS <b style="color: green;">weight = 2</b>;</span>
+
+<span style="color: gray;">-- route a query to a workload:</span>
+SELECT &hellip; SETTINGS <b style="color: green;">workload = 'prod'</b>;
+
+<span style="color: gray;">-- reserve memory before processing:</span>
+SET reserve_memory = '5G';</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Sergei Trifonov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">假设性索引 + EXPLAIN WHATIF</h2>
+
+<p style="margin-top: -0.5em;">无需实际构建，即可回答“如果有这个跳数索引会怎样？”：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.2;"><b style="color: green;">CREATE HYPOTHETICAL INDEX</b> idx_level ON logs (level) TYPE set(2) GRANULARITY 4;
+
+<b style="color: green;">EXPLAIN WHATIF</b> SELECT count() FROM logs WHERE level = 'error';
+</code></p>
+
+<p><code style="font-size: 12pt; line-height: 1.15;">Baseline (PK + partition + existing indexes):  marks: 612, 19.56 MiB
+With idx_level (set, hypothetical):
+  status:      applicable
+  marks:       200      <span style="color: gray;">(was 612)</span>
+  est_bytes:   6.39 MiB
+  <b style="color: green;">skip_ratio:  67.3%</b>
+Estimation: empirical, sampled 5/5 parts</code></p>
+
+<p style="margin-top: -0.3em;">&mdash; 作用域为当前会话，可在 <b>system.hypothetical_indexes</b> 中查看。
+<br/>基于数据调整索引。</p>
+
+<!-- Demo:
+
+CREATE TABLE logs (id UInt64, level String, msg String) ENGINE = MergeTree ORDER BY id;
+INSERT INTO logs SELECT number, if(number % 100000 = 0, 'error', 'info'), 'm' FROM numbers(5000000);
+CREATE HYPOTHETICAL INDEX idx_level ON logs (level) TYPE set(2) GRANULARITY 4;
+EXPLAIN WHATIF SELECT count() FROM logs WHERE level = 'error';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+<section class="slide">
+<h2>aiEmbed 🧪</h2>
+
+<p>通过 LLM API 在 ClickHouse 内部生成文本嵌入：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">aiEmbed</b>('qwen3-8b', review_text) AS embedding
+FROM reviews
+LIMIT 10;
+<span style="color: gray;">-- Array(Float32) per row, ready for cosineDistance / vector search</span>
+</code></p>
+
+<p>&mdash; 不离开 SQL 即可构建语义搜索或 RAG 流水线。
+<br/>&mdash; 配合新的量化函数构建紧凑向量索引。
+<br/>&mdash; 实验性功能，需要配置嵌入服务提供方和模型。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2.5em;">开发者：George Larionov。</p>
+</section>
+
+<section class="slide">
+<h2>量化函数</h2>
+
+<p style="margin-top: -0.3em;">将嵌入分量压缩到 8 位及以下的标量编解码器：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">quantizeBFloat16ToInt8</b>(1.5::BFloat16);
+<span style="color: gray;">-- 107</span>
+
+SELECT <b style="color: green;">dequantizeInt8ToBFloat16</b>(quantizeBFloat16ToInt8(1.5::BFloat16));
+<span style="color: gray;">-- 1.5   (near-lossless round-trip)</span>
+</code></p>
+
+<p>&mdash; 256 级高斯 Lloyd&ndash;Max 量化器，每个分量占一个字节。
+<br/>&mdash; 通过截断位得到 Int4 / Int2 / 二进制编码，以召回率换取更小体积。
+<br/>&mdash; 将向量索引缩小 4 倍或更多，降低相似度搜索成本。</p>
+
+<!-- Demo:
+
+SELECT quantizeBFloat16ToInt8(1.5::BFloat16);                                       -- 107
+SELECT dequantizeInt8ToBFloat16(quantizeBFloat16ToInt8(1.5::BFloat16));            -- 1.5
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back8.jpg); background-size: cover;">
+<h2><span class="hilite">附加内容</span></h2>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/costbench.png) center / contain no-repeat;">
+<a href="https://clickhouse.com/benchmarks/costbench">https://clickhouse.com/benchmarks/costbench</a>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/openhouse.png) center / contain no-repeat;">
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/wing.jpg); background-size: cover;">
+<h2>线下活动</h2>
+<p style="line-height: 1.2; margin-top: -2.2em; font-size: 19pt;">
+<br/><span class="hilite">&mdash; 🇦🇺 悉尼：Agentic AI Unplugged，6 月 24 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 西雅图 Iceberg Meetup，6 月 25 日</span>
+<br/><span class="hilite">&mdash; 🇲🇾 吉隆坡 Meetup，6 月 26 日</span>
+<br/><span class="hilite">&mdash; 🇰🇷 首尔：ClickHouse + Confluent，6 月 30 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 旧金山：AI Demo Night，7 月 1 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 孟买：Lakes to Queries，7 月 4 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 纽约：AI Builders Night，7 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇩🇪 柏林：WeAreDevelopers，7 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇨🇦 蒙特利尔：OSS Happy Hour，7 月 9 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 班加罗尔：Fast Data at Scale，7 月 11 日</span>
+<br/><span class="hilite">&mdash; 🇦🇺 墨尔本 Meetup，7 月 16 日</span>
+<br/><span class="hilite">&mdash; 🇯🇵 东京：Google Cloud Next，7 月 30 日</span>
+</p>
+</section>
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<a href="https://clickhouse.com/blog/open-source-10"><img style="float: right; width: 20%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://presentations.clickhouse.com/2026-release-26.6/pictures/qr_open_source_10.png" alt="QR: clickhouse.com/blog/open-source-10"/></a>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5; margin-right: -5em;">
+&mdash; 开源十年
+<br/>&mdash; ClickHouse 如何提升 JOIN 性能
+<br/>&mdash; 将 Rust Delta Kernel 集成到 ClickHouse
+<br/>&mdash; 多阶段分布式查询执行简介
+<br/>&mdash; CostBench：数据仓库成本性能的开放基准测试
+<br/>&mdash; 不到一美分的 TPC-H：ClickHouse Cloud
+<br/>&emsp;对比 Snowflake、Databricks、BigQuery 和 Redshift
+<br/>&mdash; 端到端成本性能：Snowflake 对比 ClickHouse Cloud
+<br/>&mdash; 可观测性的未来：数千个代理，而非单一专有 AI
+</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.6/pictures/back9.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问答</h2>
+</section>
+
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/-NmqMH9y4EY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse Theater</a>
+</footer>
+</body>
+</html>
