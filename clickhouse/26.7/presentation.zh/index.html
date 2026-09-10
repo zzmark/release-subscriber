@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse 26.7 发布会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://presentations.clickhouse.com/2026-release-26.7/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse: Release 26.7 Call">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://presentations.clickhouse.com/2026-release-26.7/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+        .zoomable { cursor: zoom-in; }
+        .zoomable.zoomed { position: fixed; left: 0; top: 0; width: 100% !important; height: 100%; object-fit: contain; background: #000; z-index: 50; cursor: zoom-out; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse 26.7 发布会</h1>
+        <p>作者：Alexey Milovidov，2026-07-23。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 15px; line-height: 110%; font-size: 56pt; color: #FF0; text-align: center;">ClickHouse 26.7 发布会</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 26.7 发布会</h2>
+<p>1.（50 分钟）ClickHouse 26.7 新特性。</p>
+<p>2.（10 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">26.7 版本</span></h2>
+<p><span class="hilite">&mdash; 64 项新功能 🌻</span></p>
+<p><span class="hilite">&mdash; 117 项性能优化 ⛱️</span></p>
+<p><span class="hilite">&mdash; 349 项 Bug 修复 🍉</span></p>
+</section>
+<!-- Feature count = 35 New Feature + 27 Experimental Feature + 2 new-feature backward-incompatible
+     changes (DateTime64 extended range #107907; Naive Bayes: new NAIVE_BAYES dictionary layout and
+     3 new functions #108773). Counted from master CHANGELOG.md on 2026-07-23. -->
+<!--
+
+Small And Nice
+
+groupFormat
+-Tuple combinator
+WHERE in projections
+Unification of URL
+eval table function
+
+Data Federation
+
+Remote and RemoteSecure table engines
+mysql, postgresql, sqlite query forwarding
+Wildcards over HTTP index pages
+
+Vector Search
+
+QBit recap (production-ready since 26.2)
+QBit: Int8 quantization — 1 to 8 bits on demand
+QBit: strides — Matryoshka dimensions
+Randomized Hadamard rotations
+Quantization codecs
+
+Text Search
+
+Positions for phrase matching
+
+Geo
+
+Universal Transverse Mercator
+GeoJSON output
+Geometry intersection functions
+
+Data Lakes
+
+Manifest compaction
+OneLake bearer token
+Delta Lake writes in Beta
+
+Web UI
+
+Tabs
+Color coding, pinned columns
+Autocompletion, keyboard navigation, database panel
+Instant reference docs
+
+JOIN Performance
+
+The right table is an index
+Packed row references
+DPsub
+
+Performance
+
+JIT-compiled regexp
+GROUP BY + ORDER BY LIMIT fusion
+DISTINCT and LIMIT BY in order
+Query condition cache: TopK, Parquet
+Faster formats and compression
+ClickHouse is fast on macOS
+SQL Mandelbrot benchmark
+Faster everything
+
+Main
+
+Drivers for UDFs
+DateTime64: years 0 to 9999
+EXPLAIN ANALYZE
+ZXC, SZ3, ALP codecs
+QueryRunner
+
+RayTracer
+
+Bonus
+
+Rows and Columns Summit
+Open House World Tour
+
+Meetups
+Reading Corner
+
+-->
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back3.jpg); background-size: cover;">
+<h2 style="color: black;"><span class="hilite">小而实用的功能</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>groupFormat</h2>
+
+<p>一个聚合函数，使用<b>任意输出格式</b>格式化每个分组中的行，
+<br/>并以字符串返回结果：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT user, <b style="color: green;">groupFormat('Markdown')</b>(action, ts) AS history
+FROM events GROUP BY user;
+<span style="color: gray;">-- a rendered Markdown table per user</span>
+
+SELECT id, <b style="color: green;">groupFormat('JSONEachRow')</b>(*) FROM t GROUP BY id;
+</code></p>
+
+<p>&mdash; 支持所有输出格式：CSV、JSON、Vertical、XML 等。
+<br/>&mdash; 非常适合将分组数据传给 LLM、Webhook 和报表。</p>
+
+<!-- Demo:
+
+CREATE TABLE events (user String, action String, ts DateTime) ENGINE = Memory;
+INSERT INTO events VALUES ('alice','login','2026-07-01 10:00:00'),('alice','click','2026-07-01 10:00:05'),('bob','login','2026-07-01 11:00:00');
+SELECT user, groupFormat('Markdown')(action, ts) AS history FROM events GROUP BY user ORDER BY user FORMAT Vertical;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Yang Hu。</p>
+</section>
+
+<section class="slide">
+<h2>-Tuple 组合器</h2>
+
+<p>一次性对 <b>Tuple</b> 的每个元素应用聚合函数：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">sumTuple</b>((clicks, views, purchases)) FROM events;
+<span style="color: gray;">-- (1234, 56789, 42) — one sum per element</span>
+
+SELECT <b style="color: green;">corrTuple</b>((a1, a2), (b1, b2));
+<span style="color: gray;">-- (corr(a1, b1), corr(a2, b2)) — arguments paired by position</span>
+
+<span style="color: gray;">-- Note: this was already possible</span>
+SELECT COLUMNS('^metric_') <b>APPLY sum</b> FROM table;
+</code></p>
+
+<p>&mdash; 不同于用于数组的 <b>-ForEach</b>，各元素可以具有<b>不同类型</b>。
+<br/>&mdash; 结果会保留元素的<b>名称</b>和类型。</p>
+
+<!-- Demo:
+
+SELECT sumTuple((number, number*2)) FROM numbers(5);                     -- (10,20)
+WITH CAST((number, number*2), 'Tuple(clicks UInt64, views UInt64)') AS m SELECT sumTuple(m), toTypeName(sumTuple(m)) FROM numbers(100) FORMAT Vertical;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1.5em;">开发者：RinChanNOW。</p>
+</section>
+
+<section class="slide">
+<h2>投影中的 WHERE</h2>
+
+<p>投影现在可以<b>仅物化符合谓词的行</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">ALTER TABLE hits ADD PROJECTION errors
+(
+    SELECT ts, status, url <b style="color: green;">WHERE status >= 400</b> ORDER BY status
+);
+
+<span style="color: gray;">-- reads the tiny projection: 4 granules instead of 10M rows</span>
+SELECT count() FROM hits <b>WHERE status >= 400</b>;
+</code></p>
+
+<p>&mdash; 当查询的 <b>WHERE</b> 能够蕴含投影的 <b>WHERE</b> 时，
+<br/>&emsp;优化器会根据成本选择该投影。
+<br/>&mdash; 无需单独建表，即可用数据子集获得<b style="color: green;">更快的执行速度</b>。</p>
+
+<!-- Demo:
+
+CREATE TABLE hits (ts DateTime, status UInt16, url String) ENGINE = MergeTree ORDER BY ts;
+INSERT INTO hits SELECT toDateTime('2026-07-01') + number, 200 + 200 * (number % 100000 = 0), 'url' || toString(number % 1000) FROM numbers(10000000);
+ALTER TABLE hits ADD PROJECTION errors (SELECT ts, status, url WHERE status >= 400 ORDER BY status);
+ALTER TABLE hits MATERIALIZE PROJECTION errors SETTINGS mutations_sync = 1;
+EXPLAIN indexes = 1 SELECT count() FROM hits WHERE status >= 400;
+-- ReadFromMergeTree (errors), Granules: 4/4
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：S Bala Vignesh。</p>
+</section>
+
+<section class="slide">
+<h2>统一 URL 访问</h2>
+
+<p><b>url</b> 表函数与 <b>URL</b> 引擎现在会
+<br/><b>根据 URL scheme</b> 分派到正确的后端：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM url('<b style="color: green;">file://</b>data/hits.csv');       <span style="color: gray;">-- File</span>
+SELECT * FROM url('<b style="color: green;">s3://</b>bucket/data/*.parquet'); <span style="color: gray;">-- S3</span>
+SELECT * FROM url('<b style="color: green;">gs://</b>bucket/table.parquet');  <span style="color: gray;">-- S3 (GCS)</span>
+SELECT * FROM url('<b style="color: green;">az://</b>container/blob.csv');    <span style="color: gray;">-- Azure</span>
+SELECT * FROM url('<b style="color: green;">hdfs://</b>nn:8020/path');        <span style="color: gray;">-- HDFS</span>
+</code></p>
+
+<p>&mdash; 使用一个函数读取所有来源。
+<br/>&mdash; <b>http(s)://</b> 保持原有行为。
+<br/>&mdash; <b>s3</b>、<b>gs</b> 等会使用环境凭据。
+</p>
+
+<!-- Demo:
+
+SELECT * FROM url('file:///tmp/test_url.csv', CSV);
+SELECT count() FROM url('s3://datasets-documentation/hackernews/hacknernews.csv.gz', CSVWithNames);   -- 28737557
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>eval 🧪</h2>
+
+<p style="margin-top: -0.5em;">一个能够<b>根据表达式</b>构造查询字符串并执行的表函数：</p>
+
+<p style="margin-top: -0.3em;"><code style="font-size: 13pt; line-height: 1.25;">SET allow_experimental_eval_table_function = 1;
+
+SELECT * FROM <b style="color: green;">eval</b>(
+    'SELECT number FROM numbers(' || toString(2 + 1) || ')');
+<span style="color: gray;">-- 0, 1, 2</span>
+
+<span style="color: gray;">-- the argument can also be a subquery, not wrapped in a string —</span>
+<span style="color: gray;">-- e.g., generate a query that sums every numeric column of a table:</span>
+SELECT * FROM <b style="color: green;">eval</b>((
+    SELECT 'SELECT '
+        || arrayStringConcat(groupArray('sum(' || name || ')'), ', ')
+        || ' FROM metrics'
+    FROM system.columns WHERE table = 'metrics' AND type LIKE '%Int%'));
+</code></p>
+
+<p style="margin-top: -0.2em;">&mdash; 无需外部脚本即可执行动态 SQL。</p>
+
+<!-- Demo:
+
+SET allow_experimental_eval_table_function = 1;
+
+CREATE TABLE metrics (ts DateTime, cpu UInt32, mem UInt64, disk UInt64, host String) ENGINE = Memory;
+INSERT INTO metrics VALUES ('2026-07-01 00:00:00', 10, 100, 5, 'a'), ('2026-07-01 00:00:01', 20, 200, 7, 'b');
+SELECT * FROM eval((
+    SELECT 'SELECT ' || arrayStringConcat(groupArray('sum(' || name || ')'), ', ') || ' FROM metrics'
+    FROM system.columns WHERE database = currentDatabase() AND table = 'metrics' AND type LIKE '%Int%'
+));
+-- 30, 300, 12
+
+-- a table whose name is computed from the date:
+CREATE TABLE t_2026_07 (x UInt8) ENGINE = Memory; INSERT INTO t_2026_07 VALUES (42);
+SELECT * FROM eval('SELECT x FROM t_' || replaceAll(substring(toString(today()), 1, 7), '-', '_'));
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.2em;">开发者：Yue Ni、Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">数据联邦</span></h2>
+</section>
+
+<section class="slide">
+<h2>Remote 与 RemoteSecure 引擎</h2>
+
+<p style="margin-top: -1em;"><b>remote</b> 表函数现在有了持久化版本：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE events_on_prod
+<b style="color: green;">ENGINE = Remote</b>('prod:9000', default, events);
+<span style="color: gray;">-- no column list needed: the structure is inferred from the remote table</span>
+
+SELECT count() FROM events_on_prod;    <span style="color: gray;">-- reads remotely</span>
+INSERT INTO events_on_prod VALUES &hellip;;  <span style="color: gray;">-- writes remotely</span>
+
+<span style="color: gray;">-- Note: this was already possible:</span>
+CREATE TABLE events_on_prod <b>AS remote</b>('prod:9000', default, events);
+</code></p>
+
+<p>&mdash; 相当于指向另一台服务器上表的永久“符号链接”。
+<br/>&mdash; <b>RemoteSecure</b> 通过 TLS 提供同样的能力。
+<br/>&mdash; 支持集群地址：<b>Remote('host{1..3}:9000', &hellip;)</b>。</p>
+
+<!-- Demo:
+
+CREATE TABLE metrics_remote ENGINE = Remote('localhost:9000', default, metrics_local);
+SHOW CREATE TABLE metrics_remote;   -- columns inferred
+INSERT INTO metrics_remote VALUES ('2026-07-02 00:00:00', 123.0);
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">向外部数据库转发查询</h2>
+
+<p style="margin-top: -0.3em;"><b>mysql</b>、<b>postgresql</b> 和 <b>sqlite</b> 可以接收<b>查询</b>而不是表名，
+<br/>并将查询<b>原样</b>传给外部数据库：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM postgresql('host:5432', 'db', <b style="color: green;">query($$
+    SELECT date_trunc('week', day) AS w, count()
+    FROM pageviews GROUP BY w
+$$)</b>, 'user', 'pass');
+<span style="color: gray;">-- runs inside PostgreSQL, with PostgreSQL functions</span>
+
+SELECT * FROM sqlite('db.sqlite', <b style="color: green;">(SELECT customer, sum(amount)
+    FROM orders GROUP BY customer)</b>);  <span style="color: gray;">-- subquery form</span>
+</code></p>
+
+<p>&mdash; 结果结构根据查询推断，且只读。
+<br/>&mdash; 在远端完成聚合，只传输结果。</p>
+
+<!-- Demo:
+
+SELECT * FROM sqlite('/tmp/demo.sqlite', query('SELECT customer, sum(amount) AS total FROM orders GROUP BY customer'));
+SELECT * FROM postgresql('localhost:5432', 'demo', query('SELECT path, sum(hits) AS total FROM pageviews GROUP BY path ORDER BY total DESC'), 'demo', 'demo');
+SELECT * FROM mysql('127.0.0.1:3306', 'demo', query('SELECT country, count(*) AS n, sum(ltv) AS total FROM customers GROUP BY country'), 'demo', 'demo');
+SELECT * FROM postgresql('localhost:5432', 'demo', query($$SELECT date_trunc('week', day) AS w, count(*) AS c FROM pageviews GROUP BY w ORDER BY w$$), 'demo', 'demo');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Denis Vidiaev、Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>HTTP 索引页通配符 🧪</h2>
+
+<p><b>url</b> 表函数通过<b>抓取索引页</b>展开通配符：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -2em;">SET allow_experimental_url_wildcard_from_index_pages = 1;
+
+SELECT * FROM url(
+  'https://dumps.wikimedia.org/other/pageviews/2026/2026-01/pageviews<b style="color: green;">*</b>.gz');
+<span style="color: gray;">-- lists the HTML/plaintext directory pages, follows matching links</span>
+</code></p>
+
+<p>&mdash; 支持自动生成的目录列表（nginx、S3 网站等）。
+<br/>&mdash; 可限制索引页大小和读取的目录数量。</p>
+
+<!-- Demo (python3 -m http.server 8090 in a dir with data/2026-07-0{1,2,3}/stats.csv):
+
+SET allow_experimental_url_wildcard_from_index_pages = 1;
+SELECT _file, * FROM url('http://localhost:8090/data/*/stats.csv', CSVWithNames) ORDER BY day;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1.5em;">开发者：Yue Ni。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">向量搜索</span></h2>
+</section>
+
+<section class="slide">
+<h2>QBit 改进</h2>
+
+<p>一种用于<b>向量嵌入</b>的数据类型，
+<br/>支持在运行时调整搜索精度。
+<br/><span style="color: gray;">自 26.2 起可用于生产环境：</span></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -1em;">CREATE TABLE vectors (
+    id UInt64, name String, ...
+    vec <b style="color: green;">QBit(BFloat16, 1536)</b>
+) ORDER BY ();</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -1em;">SELECT id, name FROM vectors
+ORDER BY <b style="color: green;">L2DistanceTransposed</b>(vec, target, <b style="color: green;">10</b>)
+LIMIT 10;
+</code></p>
+</section>
+
+<section class="slide">
+<div style="float: right; width: 60%; height: 110%; margin-right: -100px; margin-top: -20px; background: #1a1a18;">
+<img style="width: 100%;" src="https://presentations.clickhouse.com/2026-release-26.7/pictures/qbit.jpg"/>
+</div>
+<h2 style="margin-top: 0em;">QBit</h2>
+
+<p>它采用<b>位切片</b>数据布局：
+<br/>每个数值按位拆分。
+<br/>例如，对 1536 维 BFloat16 向量，
+<br/>会存储 <b style="color: green;">16 个子列</b>，分别包含所有维度的第 1 至第 16 位。</p>
+
+<p>查询时可以指定读取多少个最高有效位。</p>
+
+<p>例如，可以只读取
+<br/>16 位中的 10 位。</p>
+</section>
+
+<section class="slide">
+<h2>QBit：Int8 量化</h2>
+
+<p style="margin-top: -0.5em;"><b>QBit</b> 现在支持 <b>Int8</b>，每次查询都可在运行时选择从二值（1 位）到完整 8 位的量化精度。</p>
+
+<p>它可以存储任意 Int8 编码。新增的 <b>quantizeBFloat16ToInt8</b> 与 <b>dequantizeInt8ToBFloat16</b> 函数可在 Float 和 Int8 之间进行优化转换，尽量降低高斯分布向量坐标的误差。</p>
+
+<p style="margin-top: -0.2em;"><code style="font-size: 13pt; line-height: 1.25;">CREATE TABLE images (id UInt64, emb <b style="color: green;">QBit(Int8, 2048)</b>) &hellip;;
+
+INSERT INTO images SELECT id, <b style="color: green;">quantizeBFloat16ToInt8</b>(embedding * sqrt(2048)) FROM src;
+<span style="color: gray;">-- scale unit-normalized embeddings by sqrt(dim) and convert to Int8</span>
+
+SELECT id FROM images
+ORDER BY <b style="color: green;">cosineDistanceTransposedQuantized</b>(emb, target, <b style="color: green;">4</b>) LIMIT 10;
+<span style="color: gray;">-- reads only the top 4 bit-planes — half the I/O of 8-bit</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>QBit：分组步幅存储</h2>
+
+<p style="margin-top: -0.5em;">可选的 <b>stride</b> 参数将维度分组，每组的每个位平面
+<b>在磁盘上保存为独立数据流</b>：<b style="color: green;">QBit(Int8, 1024, 256)</b>：</p>
+
+<table style="border-collapse: collapse; font-size: 10pt; margin: 0.2em 0; line-height: 1; width: auto; margin-left: 0;">
+<tr><td style="padding: 0 5px;"></td>
+<td style="padding: 0 3px; text-align: center; color: gray;">维度 1&ndash;256</td>
+<td style="padding: 0 3px; text-align: center; color: gray;">257&ndash;512</td>
+<td style="padding: 0 3px; text-align: center; color: gray;">513&ndash;768</td>
+<td style="padding: 0 3px; text-align: center; color: gray;">769&ndash;1024</td></tr>
+<tr><td style="padding: 0 5px; color: gray;">第 1 位（符号）</td><td style="padding: 0; border: 2px solid white; background: #8c4; width: 88px; height: 17px;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2; width: 88px;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2; width: 88px;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2; width: 88px;"></td></tr>
+<tr><td style="padding: 0 5px; color: gray;">第 2 位</td><td style="padding: 0; border: 2px solid white; background: #8c4; height: 17px;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td></tr>
+<tr><td style="padding: 0 5px; color: gray;">第 3 位</td><td style="padding: 0; border: 2px solid white; background: #8c4; height: 17px;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td></tr>
+<tr><td style="padding: 0 5px; color: gray;">第 4 位</td><td style="padding: 0; border: 2px solid white; background: #8c4; height: 17px;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td></tr>
+<tr><td style="padding: 0 5px; color: gray;">第 5&ndash;8 位</td><td style="padding: 0; border: 2px solid white; background: #e2e2e2; height: 28px;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td><td style="padding: 0; border: 2px solid white; background: #e2e2e2;"></td></tr>
+</table>
+
+<p style="margin-top: 0;"><code style="font-size: 12pt; line-height: 1.2;">&hellip; ORDER BY cosineDistanceTransposedQuantized(emb, target, <b style="color: green;">4</b>, <b style="color: green;">256</b>) &hellip;
+<span style="color: gray;">-- 4 bits × first 256 dims: reads the 4 green streams of 32 — 3% of a Float32 column</span>
+</code></p>
+
+<p>可以只读取前 N 个维度，适合 MRL（Matryoshka Representation Learning）嵌入，在速度与召回率之间灵活权衡。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>随机 Hadamard 旋转</h2>
+
+<p>为提高向量搜索质量，可以在量化前对 N 维空间应用<b>随机旋转</b>。</p>
+
+<p>旋转相当于乘以正交矩阵。正交矩阵种类很多，而矩阵乘法的计算成本较高。</p>
+
+<p>Hadamard 矩阵是一类乘法速度更快的正交矩阵，并且足以表示伪随机旋转。</p>
+
+<p>ClickHouse 现在提供伪随机旋转函数：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">randomHadamardTransform</b>(vec);
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2>随机 Hadamard 旋转</h2>
+
+<p>向量量化流水线的基础组件：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">randomHadamardTransform</b>([1., 2., 3., 4.]::Array(Float32));
+<span style="color: gray;">-- [0, 2, 1, -5] — an orthogonal, norm-preserving rotation</span>
+
+SELECT randomHadamardTransform(v, <b style="color: green;">seed</b>);        <span style="color: gray;">-- different rotation</span>
+SELECT randomHadamardTransform(v, seed, <b style="color: green;">256</b>);   <span style="color: gray;">-- truncate to 256 dims</span>
+</code></p>
+
+<p>&mdash; 将信息均匀分散到各维度，先旋转再量化，可减少标量量化损失。
+<br/>&mdash; 截断形式等价于 Johnson&ndash;Lindenstrauss 随机投影。
+<br/>&mdash; 结果具有确定性：相同种子会产生相同旋转。</p>
+
+<!-- Demo:
+
+WITH [1., 2., 3., 4.]::Array(Float32) AS v SELECT randomHadamardTransform(v) AS rotated, round(L2Norm(v), 6) AS norm_before, round(L2Norm(randomHadamardTransform(v)), 6) AS norm_after;
+-- norms are equal: 5.477226
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2>量化编解码器 🧪</h2>
+
+<p style="margin-top: -0.3em;">在全精度向量旁存储紧凑的<b>量化副本</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE vecs (id UInt32,
+    v Array(BFloat16) <b style="color: green;">CODEC(Quantized('rabitq', 384))</b>) &hellip;;
+<span style="color: gray;">-- methods: int8, rabitq (1-bit), turboquant (2-bit), mrl, pq</span>
+
+SET <b style="color: green;">vector_search_use_quantized_codes</b> = 1;
+SELECT id FROM vecs ORDER BY L2Distance(v, [&hellip;]) LIMIT 10;
+</code></p>
+
+<p>&mdash; 无需索引的两阶段暴力搜索：先扫描较小的量化数据流，
+<br/>&emsp;再用全精度对候选项<b>重新评分</b>。
+<br/>&mdash; 第一阶段的 I/O 最多减少 8 倍（1 位编码缩小 16 倍）。</p>
+
+<!-- Demo:
+
+SET allow_experimental_codecs = 1;
+CREATE TABLE qv (id UInt32, v Array(Float32) CODEC(Quantized('rabitq', 384))) ENGINE = MergeTree ORDER BY id;
+INSERT INTO qv SELECT number, arrayMap(x -> (rand(number * 1000 + x) / 4294967296.0 - 0.5) * 2, range(384)) FROM numbers(1000000);
+SET vector_search_use_quantized_codes = 1;
+SELECT id FROM qv ORDER BY L2Distance(v, (SELECT v FROM qv WHERE id = 42)::Array(Float32)) LIMIT 3;
+-- ReadCompressedBytes: 1.54 GB -> 190 MB (single thread)
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Shankar Iyer。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite" style="color: black;">文本搜索</span></h2>
+</section>
+
+<section class="slide">
+<h2>短语匹配的词元位置</h2>
+
+<p>文本索引现在可以存储<b>词元位置</b>，用于精确短语搜索：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE docs (&hellip;, INDEX idx body TYPE text(
+    tokenizer = 'splitByNonAlpha', <b style="color: green;">support_phrase_search = 1</b>))
+&hellip; SETTINGS allow_experimental_text_index_phrase_search = 1;
+
+SELECT count() FROM docs WHERE <b style="color: green;">hasPhrase</b>(body, 'quick brown fox');
+<span style="color: gray;">-- 1 — but hasPhrase(body, 'brown quick fox') = 0: order matters</span>
+</code></p>
+
+<p>&mdash; 短语判断可<b>直接由索引完成</b>：
+<br/>&emsp;测试中从 124 个数据粒度缩减到 1 个，而且完全无需读取列数据。</p>
+
+<!-- Demo:
+
+CREATE TABLE docs (id UInt64, body String, INDEX idx body TYPE text(tokenizer = 'splitByNonAlpha', support_phrase_search = 1) GRANULARITY 1) ENGINE = MergeTree ORDER BY id SETTINGS allow_experimental_text_index_phrase_search = 1;
+INSERT INTO docs SELECT number, arrayStringConcat(arrayMap(x -> ['red','green','blue','fast','slow','fox','dog','cat','runs','sleeps'][(number * 7 + x * 3) % 10 + 1], range(20)), ' ') FROM numbers(1000000);
+INSERT INTO docs VALUES (9999999, 'the quick brown fox jumps over the lazy dog');
+SELECT count() FROM docs WHERE hasPhrase(body, 'quick brown fox');
+EXPLAIN indexes = 1 SELECT count() FROM docs WHERE hasPhrase(body, 'quick brown fox');
+-- Skip index: Granules: 1/124; filter column __text_index_idx_hasPhrase_... (direct read)
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Elmi Ahmadov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">地理空间</span></h2>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">通用横轴墨卡托投影</h2>
+
+<p>在 WGS84 坐标与测量、制图和军事网格所用的
+<br/><b>UTM</b> / <b>MGRS</b> 系统之间转换：</p>
+
+<div style="float: right; width: 41%; margin: 0 -55px 0 12px;">
+<img class="zoomable" style="width: 100%;" src="https://presentations.clickhouse.com/2026-release-26.7/pictures/utm_zones.jpg" alt="世界地图上的 60 个 UTM 经度分区和 C–X 纬度带" onclick="this.classList.toggle('zoomed'); event.stopPropagation();"/>
+<p style="color: gray; font-size: 9pt; text-align: right; margin: 0.2em 0 0 0;">地图：NASA Visible Earth / Wikimedia Commons，公有领域。</p>
+</div>
+
+<p><code style="display: inline-block; font-size: 13pt; line-height: 1.25;">SELECT <b style="color: green;">geoToUTM</b>(4.89, 52.36) AS amsterdam;
+<span style="color: gray;">-- (628700.24, 5802760.82, 31, 'U')</span>
+<span style="color: gray;">--  easting, northing, zone, band</span>
+
+SELECT <b style="color: green;">UTMToGeo</b>(628700.24, 5802760.82, 31, true);
+<span style="color: gray;">-- (4.89, 52.36) — and back</span>
+
+SELECT <b style="color: green;">geoToMGRS</b>(4.89, 52.36);
+<span style="color: gray;">-- '31UFU2870002760'</span>
+SELECT <b style="color: green;">MGRSToGeo</b>('31UFU2870002760');
+<span style="color: gray;">-- (4.89, 52.36)</span>
+</code></p>
+
+<!-- Demo:
+
+SELECT geoToUTM(4.89, 52.36);
+
+WITH geoToUTM(4.89, 52.36) AS utm SELECT utm, UTMToGeo(utm.easting, utm.northing, utm.zone, true) AS back FORMAT Vertical;
+SELECT geoToMGRS(4.89, 52.36) AS mgrs, MGRSToGeo(geoToMGRS(4.89, 52.36)) AS back;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>GeoJSON 输出</h2>
+
+<p>26.6 新增了 GeoJSON 输入，26.7 也支持<b>写出</b> GeoJSON：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">SELECT id, (13.4050, 52.5200)::Point AS geometry, 'Berlin' AS name
+<b style="color: green;">FORMAT GeoJSON</b>
+</code></p>
+
+<p><code style="font-size: 12pt; line-height: 1.25;">{"type":"FeatureCollection","features":[
+  {"type":"Feature","id":1,
+   "geometry":{"type":"Point","coordinates":[13.405,52.52]},
+   "properties":{"name":"Berlin"}}, &hellip;]}
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; 地理列映射为 <b>geometry</b>，<b>id</b> 列映射为要素 ID，
+<br/>&emsp;其余列映射为 <b>properties</b>。
+<br/>&mdash; 查询结果可直接传给 Leaflet、Mapbox、deck.gl 和 QGIS。</p>
+
+<!-- Demo:
+
+SELECT * FROM (SELECT 1 AS id, (13.4050, 52.5200)::Point AS geometry, 'Berlin' AS name UNION ALL SELECT 2, (2.3522, 48.8566)::Point, 'Paris') ORDER BY id FORMAT GeoJSON;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Mark Needham、Nihal Z. Miaji。</p>
+</section>
+
+<section class="slide">
+<h2>几何相交函数</h2>
+
+<p>判断任意类型的两个几何形状是否相交。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">geometryIntersectCartesian</b>(
+    [[(0., 0.), (10., 0.), (10., 10.), (0., 10.)]]::Polygon,
+    [(5., 5.), (15., 15.)]::LineString);       <span style="color: gray;">-- 1</span>
+
+SELECT <b style="color: green;">geometryIntersectSpherical</b>(route, restricted_zone);
+</code></p>
+
+<p>&mdash; 不同于 <b>polygonsIntersect*</b>，这些函数接受<b>任意</b>几何类型：
+<br/>&emsp;Point、LineString、MultiLineString、Ring、Polygon、MultiPolygon，
+<br/>&emsp;也包括通用的 <b>Geometry</b> 类型，且两个参数可以类型不同。</p>
+
+<!-- Demo:
+
+SELECT geometryIntersectCartesian([[(0., 0.), (10., 0.), (10., 10.), (0., 10.)]]::Polygon, [(5., 5.), (15., 15.)]::LineString) AS poly_line, geometryIntersectCartesian((100., 100.)::Point, [[(0., 0.), (10., 0.), (10., 10.), (0., 10.)]]::Polygon) AS point_poly;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back8.jpg); background-size: cover;">
+<h2><span class="hilite">数据湖</span></h2>
+</section>
+
+<section class="slide">
+<h2>Iceberg 清单压缩</h2>
+
+<p>频繁插入会产生大量小型清单文件。
+<br/>ClickHouse 现在可以在不重写数据的情况下<b>压缩元数据</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET allow_experimental_iceberg_compaction = 1;
+
+<b style="color: green;">OPTIMIZE TABLE ice MANIFEST;</b>
+<span style="color: gray;">-- 13 manifests merged into 1; a new 'replace' snapshot is committed</span>
+</code></p>
+
+<p>&mdash; 加快该表后续每次查询的规划速度。
+<br/>&mdash; 当清单列表超过
+<br/>&emsp;<b>iceberg_manifest_min_count_to_compact</b>（默认 30）时触发。
+<br/>&mdash; 数据文件保持不变，时间旅行功能继续有效。</p>
+
+<!-- Demo:
+
+-- IcebergLocal table with 13 single-insert snapshots:
+SET allow_experimental_iceberg_compaction = 1, iceberg_manifest_min_count_to_compact = 5;
+OPTIMIZE TABLE ice MANIFEST;
+-- new snapshot with operation = 'replace'; its manifest list references ONE manifest with existing_files_count = 13
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Smita Kulkarni。</p>
+</section>
+
+<section class="slide">
+<h2>数据湖的其他改进</h2>
+
+<p><b style="color: green;">Delta Lake 写入</b>从实验阶段升级为 Beta：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET allow_experimental_delta_lake_writes = 1;
+INSERT INTO delta_table VALUES (3, 'written'), (4, 'by clickhouse');
+<span style="color: gray;">-- commits a new Delta log version; readable by Spark, Trino, Python</span>
+</code></p>
+
+<p><b style="color: green;">Microsoft OneLake：</b>支持使用 Bearer Token 认证：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE DATABASE onelake ENGINE = DataLakeCatalog('https://onelake.&hellip;')
+SETTINGS catalog_type = 'onelake', <b style="color: green;">onelake_bearer_token</b> = '&hellip;';
+</code></p>
+
+<p>&mdash; 无需共享长期有效的客户端密钥。</p>
+
+<!-- Demo:
+
+SET allow_experimental_delta_lake_writes = 1;
+CREATE TABLE dl (id Int32, msg String) ENGINE = DeltaLakeLocal('/path/to/existing/delta/table/');
+INSERT INTO dl VALUES (3, 'written'), (4, 'by clickhouse');
+-- verified: python deltalake reads version 1 with the new rows
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Kseniia Sumarokova、Asya Shneerson。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back9.jpg); background-size: cover;">
+<h2><span class="hilite">Web UI</span></h2>
+</section>
+
+<section class="slide">
+<h2>Web UI 标签页</h2>
+
+<p>内置 <b>/play</b> UI 现在提供<b style="color: green;">标签页</b>，可同时处理多个查询：</p>
+
+<p style="margin-top: 0.5em;">&mdash; 标签页、标题、参数和小型结果快照会
+<br/>&emsp;<b>跨页面刷新保留</b>。
+<br/>&mdash; 与浏览器历史记录和 URL 集成。
+<br/>&mdash; 中键单击可复制标签页，滚动鼠标滚轮可切换标签页。
+<br/>&mdash; 中键单击数据库面板中的表，可在新标签页中打开。
+<br/>&mdash; 连接凭据收纳在密钥按钮之后。</p>
+
+<p style="margin-top: 0.7em;">演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/play_ui.png) center / contain no-repeat; background-color: #111;">
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">配色、固定列与自动补全</h2>
+
+<p style="margin-top: -0.3em;">结果表的能力得到大幅增强：</p>
+
+<p style="margin-top: 0.3em;">&mdash; 每列可设置<b style="color: green;">配色</b>（表头中的 🌈 开关）：
+<br/>&emsp;条形图、热力图或分类配色，设置会保存在 URL 中。
+<br/>&mdash; <b style="color: green;">固定列</b>（📌）：滚动时让关键列保持可见。
+<br/>&mdash; 基于 <b>system.completions</b> 与 WASM SQL 词法分析器的<b style="color: green;">自动补全</b>。
+<br/>&mdash; <b style="color: green;">完整键盘导航</b>：可用方向键操作数据库面板和结果表，
+<br/>&emsp;并提供焦点轮廓与无障碍工具栏。
+<br/>&mdash; 彩虹括号、数字分组高亮、Tab 缩进，
+<br/>&emsp;以及就地语法错误高亮。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>数据库面板改进</h2>
+
+<p>Web UI 左侧面板得到全面改进：</p>
+
+<p style="margin-top: 0.5em;">&mdash; 每个展开的数据库旁显示表数量。
+<br/>&mdash; 使用刷新按钮重新加载表列表。
+<br/>&mdash; 面板重新打开时恢复之前展开的数据库。
+<br/>&mdash; 单击表图标可查看其<b>列</b>，包括类型图标、
+<br/>&emsp;每列大小条，以及工具提示中的压缩率。
+<br/>&mdash; 选中数据库后，会将其设为查询的默认数据库。</p>
+
+<p style="margin-top: 0.7em;">演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>即时参考文档</h2>
+
+<p>服务器内置了新的文档页面：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">http://localhost:8123<b style="color: green;">/docs</b></code></p>
+
+<p style="margin-top: 0.5em;">&mdash; 即时搜索 <b>system.documentation</b> 中的函数、设置、
+<br/>&emsp;表引擎、数据类型和格式等内容。
+<br/>&mdash; 渲染带语法高亮、数学公式和交叉链接的参考文档。
+<br/>&emsp;支持离线使用，并始终与服务器版本匹配。</p>
+
+<p style="margin-top: 0.7em;">演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/docs_ui.png) center / contain no-repeat; background-color: #111;">
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back10.jpg); background-size: cover;">
+<h2 style="color: black;"><span class="hilite">JOIN 性能</span></h2>
+</section>
+
+<section class="slide">
+<h2>右表就是索引</h2>
+
+<p>JOIN 可以利用右侧值，通过左表的主键或跳数索引
+<br/><b>裁剪数据粒度</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET <b style="color: green;">enable_join_runtime_filters_index_analysis</b> = 1;
+
+SELECT &hellip; FROM facts JOIN lookup ON facts.id = lookup.id;
+<span style="color: gray;">-- the ids from `lookup` become an index condition on `facts`</span>
+</code></p>
+
+<p><b style="color: green;">实测</b>：1 亿行表与 100 行表连接：
+<br/>&emsp;读取的数据粒度：<b>12216 &rarr; <b style="color: green;">100</b></b>（减少 122 倍），
+<br/>&emsp;耗时：<b>0.177 s &rarr; <b style="color: green;">0.022 s</b></b>（提升 8 倍）。</p>
+
+<!-- Demo:
+
+CREATE TABLE facts (id UInt64, payload String) ENGINE = MergeTree ORDER BY id;
+INSERT INTO facts SELECT number, randomPrintableASCII(50) FROM numbers(100000000);
+CREATE TABLE lookup (id UInt64) ENGINE = MergeTree ORDER BY id;
+INSERT INTO lookup SELECT (rand64() % 100000000) FROM numbers(100);
+SELECT count(), max(length(payload)) FROM facts JOIN lookup ON facts.id = lookup.id SETTINGS enable_join_runtime_filters_index_analysis = 1;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Shankar Iyer。</p>
+</section>
+
+<section class="slide">
+<h2>紧凑行引用</h2>
+
+<p>哈希连接右侧现在对所有键类型都使用紧凑的
+<br/><b>8 字节索引行引用</b>：</p>
+
+<p style="margin-top: 0.5em;">&mdash; <b>ALL</b> 连接的哈希表条目现在与 <b>ANY</b> 连接一样小。
+<br/>&mdash; 对 1 亿至 3 亿行连接的基准测试显示：耗时中位数降低 <b>12%</b>，
+<br/>&emsp;峰值内存减少 <b>15%</b>；UInt64 键的 <b>INNER</b> 连接快 21%，内存减少 38%。</p>
+
+<p style="margin-top: 0.5em;">测试：1 亿 &times; 1.5 亿行 parallel_hash INNER JOIN：</p>
+<p><b>26.6: <span style="color: red;">14.4</span> GB，<span style="color: red;">0.84</span> 秒。</b>
+<br/><b>26.7: <span style="color: green;">8.0</span> GB，<span style="color: green;">0.66</span> 秒。</b>
+</p>
+
+<!-- Demo / proof:
+
+Q="SELECT count() FROM (SELECT number AS k, number AS v FROM numbers_mt(100000000)) AS l JOIN (SELECT intDiv(number, 3) AS k, number AS w FROM numbers_mt(150000000)) AS r ON l.k = r.k FORMAT Null SETTINGS join_algorithm = 'parallel_hash'"
+clickhouse local --time --memory-usage -q "$Q"   # 26.6: 0.84s / 14.4 GB   26.7: 0.66s / 8.0 GB
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Harikrishnan Prabakaran。</p>
+</section>
+
+<section class="slide">
+<h2>DPsub JOIN 重排序</h2>
+
+<p>一种新的 JOIN 顺序优化算法：
+<br/><b>基于子集的动态规划</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET query_plan_optimize_join_order_algorithm = '<b style="color: green;">dpsub</b>';
+</code></p>
+
+<p>&mdash; 考虑<b>所有</b> JOIN 顺序，找出最优计划。
+<br/>&mdash; 优化开销低于 <b>dpsize</b>。
+<br/>&mdash; 与 dpsize、dphyp 不同，支持<b>非内连接</b>。
+<br/>&mdash; 算法可串联：<b>'dpsub,greedy'</b>，按顺序尝试；
+<br/>&emsp;若某算法无法处理查询，则回退到下一算法。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1.5em;">开发者：Fisnik Kastrati。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back11.jpg); background-size: cover;">
+<h2><span style="color: black;" class="hilite">更多性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>JIT 编译的正则表达式引擎</h2>
+
+<p>简单正则表达式现在会通过 LLVM <b>编译为原生代码</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT count() FROM logs
+WHERE <b style="color: green;">match</b>(line, '^[a-z]+[0-9]+@example[0-9]+\\.com$');
+</code></p>
+
+<p>&mdash; 适用于 <b>match</b>、<b>extract</b>、<b>extractAll</b>、<b>replaceRegexpOne/All</b> 和 LIKE。
+<br/>&mdash; <b>compile_regular_expressions</b> 默认启用；不支持的模式
+<br/>&emsp;会透明回退到 RE2。</p>
+
+<p style="margin-top: 0.5em;">测试：对 2000 万个字符串执行 match()：</p>
+<p><b>26.6: <span style="color: red;">2.7</span> 秒。</b>
+<br/><b>26.7: <span style="color: green;">1.1</span> 秒。</b>
+</p>
+
+<!-- Demo / proof:
+
+Q="SELECT count() FROM (SELECT concat('user', toString(number), '@example', toString(number % 100), '.com') AS s FROM numbers(20000000)) WHERE match(s, '^[a-z]+[0-9]+@example[0-9]+\\.com$') FORMAT Null"
+clickhouse local --time -q "$Q"                                     # 26.7: 1.07s
+clickhouse local --time --compile_regular_expressions=0 -q "$Q"     # 26.7: 2.77s (26.6: 2.68s)
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">融合 GROUP BY 与 ORDER BY LIMIT</h2>
+
+<p style="margin-top: -0.3em;">当 GROUP BY 键与 ORDER BY 键及表排序键匹配时，
+<br/><b>LIMIT 会下推至按序聚合</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT site, avg(dur) FROM visits
+GROUP BY site <b style="color: green;">ORDER BY site LIMIT 10</b>
+SETTINGS optimize_aggregation_in_order = 1;
+<span style="color: gray;">-- stops reading as soon as 10 groups are complete</span>
+</code></p>
+
+<p>测试：2 亿行：</p>
+<p><b>26.6: <span style="color: red;">0.23</span></b> 秒。</b>
+<br/><b>26.7: <span style="color: green;">0.036</span></b> 秒（快 6.4 倍！）</b>
+</p>
+
+<p style="margin-top: 0.5em;">此外：<b>按序 DISTINCT</b> 快 2 倍，<b>按序 LIMIT BY</b> 快 1.4 倍
+<br/>（可更快扫描有序流中连续相等的键）。</p>
+
+<!-- Demo / proof:
+
+CREATE TABLE visits (site UInt32, ts DateTime, dur UInt32) ENGINE = MergeTree ORDER BY site;
+INSERT INTO visits SELECT number % 1000000, toDateTime('2026-07-01') + number % 86400, number % 1000 FROM numbers(200000000);
+Q="SELECT site, avg(dur) FROM visits GROUP BY site ORDER BY site LIMIT 10 FORMAT Null SETTINGS optimize_aggregation_in_order = 1"
+# 26.6: 0.232s   26.7: 0.036s
+# DISTINCT in order (max_threads=1): 26.6: 1.23s -> 26.7: 0.62s;  LIMIT 2 BY site: 2.31s -> 1.60s
+
+Q&A note — three related but distinct GROUP BY + LIMIT optimizations:
+1. THIS slide: #104859 (Konstantin Bogdanov, merged in 26.7, issue #105196) — ORDER BY the group key,
+   reading in order; LIMIT pushed into aggregation-in-order for early termination.
+2. #78553 (Dmitriy Terenichev) -> #95224 -> #96630 (Konstantin Bogdanov, OPEN, issue #72610) —
+   bounded top-K heap during hash aggregation prunes non-competitive groups; works regardless of
+   read order; enable_group_by_top_k_optimization.
+3. #98607 -> #107576 (Murphy, OPEN, issue #75098) — ORDER BY a min/max AGGREGATE value (not the key):
+   fused TopNAggregating operator when the table is sorted by the aggregate's argument; stops at the
+   K-th distinct group; optimize_topn_aggregation (off by default); ~5-10x in its benchmarks;
+   an unsorted-input mode is planned as a follow-up.
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Konstantin Bogdanov、Nihal Z. Miaji。</p>
+</section>
+
+<section class="slide">
+<h2>查询条件缓存的更多用途</h2>
+
+<p style="margin-top: -0.3em;">查询条件缓存会记住哪些数据范围满足 WHERE，
+<br/>现在还支持：</p>
+
+<p style="margin-top: 0.3em;">&mdash; 带动态筛选的 <b style="color: green;">Top-K 查询</b>（<b>ORDER BY &hellip; LIMIT n</b>），
+<br/>&emsp;包括使用惰性物化的查询，并与具有相同 WHERE 的普通查询共享缓存项。
+<br/>&mdash; 通过 File 引擎读取的<b style="color: green;">本地 Parquet 文件</b>；
+<br/>&emsp;对象存储此前已支持，S3 使用 ETag 作为缓存键。</p>
+
+<p style="margin-top: 0.5em;"><b style="color: green;">实测</b>：1 亿行 Top-K 查询第二次运行：<b>0.114 s &rarr; <b style="color: green;">0.057 s</b></b>（快 2 倍）。</p>
+
+<!-- Demo:
+
+CREATE TABLE topk (id UInt64, score Float64, payload String) ENGINE = MergeTree ORDER BY id;
+INSERT INTO topk SELECT number, rand() / 4294967296.0 * 100, randomPrintableASCII(64) FROM numbers(100000000);
+SELECT id, score FROM topk WHERE score > 99.99 ORDER BY score DESC LIMIT 10 SETTINGS use_query_condition_cache = 1;
+-- run 1: 0.114s, run 2: 0.057s
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov、Shankar Iyer。</p>
+</section>
+
+<section class="slide">
+<h2>更快的格式与压缩</h2>
+
+<p style="margin-top: -0.5em;">&mdash; <b style="color: green;">Arrow / ArrowStream</b>：原生读写器成为默认实现，
+<br/>&emsp;无需 Apache Arrow 库和额外复制，写入快约 1.3 倍。</p>
+<p>&mdash; <b style="color: green;">ZSTD</b>：在 ARM 上使用 NEON 向量化短偏移复制。
+<br/>&emsp;扫描重复 UInt64 列：<b>3.0 s &rarr; 1.8 s</b>（纯解压最高快 2.3 倍）。</p>
+<p>&mdash; <b style="color: green;">GZip</b>：改用 libdeflate，解压快约 1.4&ndash;1.5 倍，
+<br/>&emsp;压缩快约 1.15 倍且压缩率更高，适用于 .gz、HTTP、url/s3 和 Parquet GZIP。</p>
+<p>&mdash; <b style="color: green;">LZ4</b>：加快定长低基数列的解压。</p>
+<p>&mdash; <b style="color: green;">Delta 编解码器</b>：解压向量化后快 1.5&ndash;5 倍。</p>
+
+<!-- Demo / proof:
+
+# ZSTD (aarch64): CREATE TABLE z (ts DateTime CODEC(ZSTD), id UInt64 CODEC(ZSTD)) ...; 500M repetitive rows
+# single-thread scan: 26.6: 3.05s -> 26.7: 1.82s
+# gzip: 30M rows CSV.gz: read 1.76 -> 1.54s; write 4.32 -> 3.30s
+# Arrow write 50M rows: 1.53 -> 1.15s
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov、Nikita Taranov、Manuel。</p>
+</section>
+
+<section class="slide">
+<h2>ClickHouse 在 macOS 上更快</h2>
+
+<p style="margin-top: -0.3em;">面向 Mac 上 ClickHouse 用户的一批改进：</p>
+
+<p style="margin-top: 0.3em;">&mdash; jemalloc 不再急切清除脏页，而是像 Linux 一样使用后台清除线程；
+<br/>&emsp;递归 CTE 等大量分配内存的工作负载<b>快约 2 倍</b>。</p>
+<p>&mdash; 启用 jemalloc 的逐 CPU arena 和分配分析。</p>
+<p>&mdash; 通过 <b>kqueue</b> 实现远程副本异步读取，
+<br/>&emsp;分布式查询可以并行读取分片。</p>
+<p>&mdash; SSD 缓存字典和 FileLog 引擎现已支持 macOS。</p>
+<p>&mdash; 支持 STREAM 查询。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov、Raúl Marín。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">SQL Mandelbrot 基准测试</h2>
+
+<p style="margin-top: -0.5em;">使用<b>纯 SQL</b>（递归 CTE）计算 Mandelbrot 集：
+<br/><a href="https://github.com/ClickHouse/sql-mandelbrot-benchmark">github.com/ClickHouse/sql-mandelbrot-benchmark</a></p>
+
+<div style="float: right; width: 44%; margin: 0.3em -55px 0 12px;">
+<img class="zoomable" style="width: 100%;" src="https://presentations.clickhouse.com/2026-release-26.7/pictures/mandelbrot.png" alt="ClickHouse 使用纯 SQL 渲染的 Mandelbrot 集" onclick="this.classList.toggle('zoomed'); event.stopPropagation();"/>
+<p style="color: gray; font-size: 10pt; text-align: right; margin: -0.8em 0 0 0;">由 ClickHouse 渲染。</p>
+</div>
+
+<table style="border-collapse: collapse; font-size: 14pt; width: auto; margin: 0.3em 0 0 0; line-height: 1.3;">
+<tr><td style="padding: 0 8px 0 0;"><b style="color: green;">1</b></td><td style="padding: 0 10px 0 0;"><b style="color: green;">ClickHouse (SQL)</b></td><td style="padding: 0; text-align: right;"><b style="color: green;">518 ms</b> ⭐</td></tr>
+<tr><td style="padding: 0 8px 0 0;">2</td><td style="padding: 0 10px 0 0;">NumPy (vectorized)</td><td style="padding: 0; text-align: right;">688 ms</td></tr>
+<tr><td style="padding: 0 8px 0 0;">3</td><td style="padding: 0 10px 0 0;">chDB (SQL)</td><td style="padding: 0; text-align: right;">745 ms</td></tr>
+<tr><td style="padding: 0 8px 0 0;">4</td><td style="padding: 0 10px 0 0;">CedarDB (SQL)</td><td style="padding: 0; text-align: right;">835 ms</td></tr>
+<tr><td style="padding: 0 8px 0 0;">5</td><td style="padding: 0 10px 0 0;">ArrowDatafusion (SQL)</td><td style="padding: 0; text-align: right;">998 ms</td></tr>
+<tr><td style="padding: 0 8px 0 0;">6</td><td style="padding: 0 10px 0 0;">Arc (DuckDB over HTTP)</td><td style="padding: 0; text-align: right;">1,589 ms</td></tr>
+<tr><td style="padding: 0 8px 0 0;">7</td><td style="padding: 0 10px 0 0;">DuckDB (SQL)</td><td style="padding: 0; text-align: right;">1,954 ms</td></tr>
+<tr><td style="padding: 0 8px 0 0;">&hellip;</td><td style="padding: 0 10px 0 0;"></td><td style="padding: 0;"></td></tr>
+<tr><td style="padding: 0 8px 0 0;">11</td><td style="padding: 0 10px 0 0;">SQLite (SQL)</td><td style="padding: 0; text-align: right;">144,421 ms</td></tr>
+</table>
+
+<p style="margin-top: 0.4em; font-size: 15pt;">&mdash; 唯一<b>快于手工向量化 NumPy</b> 的引擎。
+<br/>&mdash; 测试使用 MacBook Pro M3 Max，并促成了上一页提到的分配器修复。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.4em;">创建者：Thomas Zeutschler、Ulrich Ludmann、Jakub Jirak；
+<br/>后续工作：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>全面提速</h2>
+
+<p style="margin-top: -0.5em;">&mdash; <b style="color: green;">查询分析更快</b>：构建 DAG 时不再重建共享子表达式，
+<br/>&emsp;并限制超长 AND 链的处理开销。</p>
+<p style="margin-top: -0.4em;">&mdash; <b style="color: green;">窗口函数更快</b>：宽表 SELECT * 占用更少内存；
+<br/>&emsp;带 OVER () 和 RANGE 窗口的 quantile*/uniq*/groupArray 更快。</p>
+<p style="margin-top: -0.4em;">&mdash; <b style="color: green;">浮点解析更快</b>，且默认提供<b>精确</b>的最近可表示值；
+<br/>&emsp;解析 5000 万个浮点数比 26.6 快 1.2 倍。</p>
+<p style="margin-top: -0.4em;">&mdash; <b style="color: green;">uniq、uniqCombined 更快</b>：5 亿行、无键聚合从 <b>0.23 s &rarr; 0.09 s</b>（快 2.5 倍）。</p>
+<p style="margin-top: -0.4em;">&mdash; 优化<b style="color: green;">冗余逻辑表达式</b>：<b>a &lt; 3 AND a &gt; 5</b> &rarr; <b>false</b>，
+<br/>&emsp;<b>a = 3 AND a &lt; 5</b> &rarr; <b>a = 3</b>，规划阶段即可检测矛盾。</p>
+<p style="margin-top: -0.4em;">&mdash; INTERSECT ALL / EXCEPT ALL 快数倍，另有更多改进。</p>
+
+<!-- Demo:
+
+EXPLAIN actions = 1 SELECT count() FROM numbers(10) WHERE number < 3 AND number > 5;  -- Filter column: 0
+SELECT uniqCombined(number) FROM numbers_mt(500000000);  -- 26.6: 0.229s   26.7: 0.092s
+
+-->
+
+<p style="color: gray; font-size: 13pt; margin-top: 0.3em;">开发者：D. Novik、A. Milovidov、N. Z. Miaji、R. Marín、A. Popov、Xiaozhe Yu。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back12.jpg); background-size: cover;">
+<h2><span class="hilite">更多有趣功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>EXPLAIN ANALYZE</h2>
+
+<p style="margin-top: -0.5em;">执行查询，并在计划中查看<b>实际</b>执行指标：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.2;"><b style="color: green;">EXPLAIN ANALYZE</b> SELECT site, avg(dur) FROM visits
+WHERE site &lt; 100000 GROUP BY site ORDER BY site LIMIT 10
+
+Query summary:
+  Time:        76.77 ms (planning 29.38 ms · execution 47.39 ms)
+  Read:        20.08 million rows, 160.54 MB (423.72 million rows/s.)
+  Peak memory: 91.95 MiB
+&hellip;
+└──Aggregating
+   │  I/O: rows 20.00 million → 100.00 thousand (0.50%) · 160 MB → 1.2 MB
+   │    Stage (partial aggregation): time 24.29 ms <b style="color: green;">(51.3%)</b> · parallelism 16.29/96
+   └──ReadFromMergeTree (default.visits)
+</code></p>
+
+<p style="margin-top: -0.2em;">&mdash; 分别显示规划与执行耗时，以及每一步的行数、字节数、
+<br/>&emsp;耗时占比和实际<b>并行度</b>，可以快速定位瓶颈。</p>
+
+<!-- Demo:
+
+EXPLAIN ANALYZE SELECT created_at, actor_login, repo_name,
+    'https://github.com/'||repo_name||(event_type LIKE 'Issue%' ? '/issues/' : '/pull/')||number AS url,
+    title
+FROM "default"."github_events"
+WHERE (title ILIKE '%ClickHouse%' OR body ILIKE '%ClickHouse%') AND repo_name NOT LIKE 'ClickHouse/%'
+ORDER BY created_at DESC LIMIT 100
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.2em;">开发者：Kirill Kopnev。</p>
+</section>
+
+<section class="slide">
+<h2 style="margin-bottom: 0.5em;">UDF 驱动程序 🧪</h2>
+
+<p style="margin-top: -0.5em;">直接在 SQL 中使用<b>任意编程语言</b>编写 UDF。
+<br/>“驱动程序”会在 CREATE 时将其编译为可执行 UDF：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.2;">CREATE FUNCTION collatz_steps ARGUMENTS (n UInt64) RETURNS UInt64
+<b style="color: green;">ENGINE = GVisorC</b> AS $$
+    <span style="color: blue;">uint64_t steps = 0;
+    while (n > 1) { n = (n % 2 == 0) ? n / 2 : 3 * n + 1; ++steps; }
+    return steps;</span>
+$$;
+
+SELECT number, <b style="color: green;">collatz_steps</b>(number) FROM numbers(1, 10);
+</code></p>
+
+<p style="margin-top: -0.2em;">&mdash; C 函数体会被编译并在<b>沙箱化 Docker 容器</b>中运行；
+<br/>&emsp;项目提供 GVisorC、DockerC 和 UnsafeC 驱动作为示例。
+<br/>&mdash; 驱动由运维人员声明，函数在服务器重启后仍保留。</p>
+
+<!-- Demo (server started with user_defined_executable_function_drivers_config + allow_experimental_executable_udf_drivers=1):
+
+CREATE FUNCTION my_plus ARGUMENTS (a UInt64, b UInt64) RETURNS UInt64
+ENGINE = UnsafeC AS $$ return a + b; $$;
+
+SELECT number, my_plus(number, number) FROM numbers(10);
+
+SELECT count() FROM system.numbers_mt WHERE NOT ignore(plus(number, number));
+
+CREATE FUNCTION my_crash ARGUMENTS (a UInt64) RETURNS UInt64
+ENGINE = UnsafeC AS $$ return *(int*)a; $$;
+
+SELECT number, my_crash(number) FROM numbers(10);
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.2em;">开发者：Daniil Timižev、Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>DateTime64：支持公元 0 至 9999 年</h2>
+
+<p>支持范围从 [1900, 2299] 扩展至
+<br/><b style="color: green;">[0000-01-01, 9999-12-31]</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT toDateTime64('9999-12-31 23:59:59.999', 3);
+<span style="color: gray;">-- 9999-12-31 23:59:59.999   (was clamped to 2299-12-31)</span>
+
+SELECT age('year', toDateTime64('0079-08-24 13:00:00', 0), now());
+<span style="color: gray;">-- 1946 years since the eruption of Vesuvius</span>
+
+SELECT toDateTime64('1789-07-14 12:00:00', 0) + INTERVAL 237 YEAR;
+<span style="color: gray;">-- 2026-07-14 12:00:00</span>
+</code></p>
+
+<p>使用外推格里高利历。</p>
+
+<!-- Demo:
+
+SELECT toDateTime64('9999-12-31 23:59:59.999', 3), toDateTime64('0079-08-24 13:00:00', 0);
+-- On 26.6 the first one returns 2299-12-31 23:59:59.999
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>ZXC 编解码器 🧪</h2>
+
+<p>一种新的非对称 LZ 编解码器：<b>压缩率优于 LZ4，
+<br/>解压速度与 LZ4 相当</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE logs (line String <b style="color: green;">CODEC(ZXC)</b>) &hellip;;
+</code></p>
+
+<table style="font-size: 15pt; width: 85%; margin-top: 0.4em; line-height: 1.1;">
+<tr><th>编解码器</th><th>压缩后大小</th><th>压缩比</th><th>全量扫描</th></tr>
+<tr><td>LZ4</td><td>1.28 GiB</td><td>3.73</td><td>0.21 s</td></tr>
+<tr><td><b style="color: green;">ZXC</b></td><td><b style="color: green;">1.15 GiB</b></td><td><b style="color: green;">4.16</b></td><td><b style="color: green;">0.21 s</b></td></tr>
+<tr><td>ZSTD</td><td>0.67 GiB</td><td>7.16</td><td>1.05 s</td></tr>
+</table>
+
+<p style="margin-top: 0.4em;">&mdash; 压缩速度较慢（约为 LZ4 的一半），这是有意的取舍：写入时付出一次成本，
+<br/>&emsp;每次读取都能受益，非常适合读取密集型列。</p>
+
+<!-- Demo / proof: 50M log-like lines, single-thread scan, aarch64. Insert 10M rows: LZ4 2.1s / ZSTD 2.4s / ZXC 3.9s. -->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.4em;">开发者：Alexey Milovidov。
+<br/>ZXC 编解码器：Bertrand Lebonnois 及贡献者（BSD 许可证）https://github.com/hellobertrand/zxc</p>
+</section>
+
+<section class="slide">
+<h2>SZ3 与 ALP 编解码器</h2>
+
+<p style="margin-top: -0.5em;"><b style="color: green;">SZ3</b> 🧪：面向浮点数、误差有界的<b>有损</b>压缩：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">v Float64 CODEC(<b style="color: green;">SZ3</b>('ALGO_INTERP_LORENZO', 'ABS', 0.001))
+<span style="color: gray;">-- sensor data, 50M rows: ZSTD 353 MiB → SZ3 22 MiB (16x)</span>
+<span style="color: gray;">-- with the default settings: 2.1 MiB (168x)</span>
+</code></p>
+
+<p style="margin-top: 0.2em;"><b style="color: green;">ALP</b> 🧪：现在会在两种方案之间自动选择：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">price Float64 CODEC(<b style="color: green;">ALP</b>)        <span style="color: gray;">-- AUTO: picks STD or RD per block</span>
+m Float64 CODEC(<b style="color: green;">ALP(RD)</b>)        <span style="color: gray;">-- force "Real Doubles"</span>
+<span style="color: gray;">-- decimal-like data: ALP ratio 3.74 vs ZSTD 2.42 — and it is lossless</span>
+</code></p>
+
+<p style="margin-top: 0.2em;">&mdash; 两者都需要设置 <b>allow_experimental_codecs = 1</b>。</p>
+
+<!-- Demo:
+
+SET allow_experimental_codecs = 1;
+CREATE TABLE alp_test (price_zstd Float64 CODEC(ZSTD), price_alp Float64 CODEC(ALP)) ENGINE = MergeTree ORDER BY tuple();
+INSERT INTO alp_test SELECT p, p FROM (SELECT round(rand() / 4294967296.0 * 1000, 2) AS p FROM numbers(30000000));
+OPTIMIZE TABLE alp_test FINAL;
+SELECT name, formatReadableSize(data_compressed_bytes) FROM system.columns WHERE table = 'alp_test';
+
+-->
+
+<p style="color: gray; font-size: 13pt; margin-top: 0.2em;">开发者：Konstantin Vedernikov、Alexey Milovidov、Nazarii Piontko。
+<br/><span style="font-size: 10pt;">SZ3 库：Sheng Di、Kai Zhao、Xin Liang、Jinyang Liu、Franck Cappello 及贡献者（BSD 许可证）https://github.com/szcompressor/SZ3
+<br/>ALP 算法：Azim Afroozeh、Leonardo Kuffó、Peter Boncz，CWI（https://ir.cwi.nl/pub/33334）</span></p>
+</section>
+
+<section class="slide">
+<h2>QueryRunner</h2>
+
+<p style="margin-top: -0.3em;">一种会<b>执行</b>所插入查询的表引擎：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE shadow (query String) <b style="color: green;">ENGINE = QueryRunner</b>
+SETTINGS cluster = 'staging', shard = 'random', threads = 4;
+
+INSERT INTO shadow
+SELECT query FROM system.query_log WHERE type = 'QueryFinish';
+<span style="color: gray;">-- replay production traffic on the staging cluster</span>
+</code></p>
+
+<p>&mdash; 即发即忘：支持异步或同步模式，执行结果会被丢弃。
+<br/>&mdash; 用于<b>影子流量</b>、基准测试、模糊测试、批量执行生成的查询，
+<br/>&emsp;以及将查询定向到远程集群。
+<br/>&mdash; 通过 SQL SECURITY INVOKER / DEFINER / NONE 控制访问权限。</p>
+
+<!-- Demo:
+
+CREATE TABLE shadow (query String) ENGINE = QueryRunner SETTINGS mode = 'synchronous', threads = 4;
+CREATE TABLE audit (q String, ts DateTime DEFAULT now()) ENGINE = MergeTree ORDER BY ts;
+INSERT INTO shadow VALUES ('INSERT INTO audit (q) VALUES (''ran query 1'')'), ('INSERT INTO audit (q) SELECT ''ran query '' || toString(number + 2) FROM numbers(3)');
+SELECT q FROM audit ORDER BY q;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Miсhael Stetsyuk。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back13.jpg); background-size: cover;">
+<h2><span class="hilite">附加内容</span></h2>
+</section>
+
+<section class="slide">
+<p style="margin: 0 -55px 0 -55px;"><code style="font-size: 8pt; line-height: 1.25; height: 550px; overflow: auto;">WITH
+    2.5 AS z0, 0.6 AS ty,
+    (24.0, 0.0, 6.0)    AS target,
+    (24.0, -45.0, 12.0) AS eye,
+    36.0 AS fovDeg,
+    getSetting(&#x27;output_format_image_width&#x27;)::UInt64  AS W,
+    getSetting(&#x27;output_format_image_height&#x27;)::UInt64 AS H,
+    W::Float64 AS imgW, H::Float64 AS imgH,
+    4 AS maxDepth,
+    (9.0, -30.0, 52.0)  AS lightPos,
+    5.0 AS lightR,
+    (0.42, 0.60, 0.95)  AS skyColor,
+    (0.66, 0.78, 0.96)  AS hazeColor,
+    35.0 AS fogStart, 120.0 AS fogRange,
+    (0.02, 0.02, 0.02)  AS floorA,
+    (1.00, 0.80, 0.00)  AS floorB,
+    5.0 AS tile, 0.30 AS floorAmb, 0.85 AS floorDiff,
+    (1.0, 1.0, 1.0)     AS specColor,
+    60.0 AS shininess, 0.72 AS reflect_k,
+    (24.0, 12.0, 17.5)  AS csgA, 6.0 AS csgAr,
+    (24.0, 6.6, 17.0)   AS csgB, 4.4 AS csgBr,
+    1.15 AS exposure, 2.2 AS gamma, 0.002 AS eps,
+    48 AS marchSteps, 0.01 AS marchEps, 260.0 AS marchMax,
+
+    0.62 AS rodR,
+    [((100000.0,100000.0,100000.0),(1.0,0.0,0.0),(0.0,1.0,0.0),0.1,0.1)]  AS oboxes,
+    [((5.75,0.0,2.5),(5.75,0.0,9.5),0.62), ((8.65,0.0,2.5),(8.65,0.0,7.5),0.62), ((16.8,0.0,2.5),(16.8,0.0,9.5),0.62), ((17.15,0.0,5.0),(20.05,0.0,7.6),0.62), ((17.35,0.0,5.1),(20.05,0.0,2.5),0.62), ((22.4,0.0,2.5),(22.4,0.0,9.5),0.62), ((26.15,0.0,2.5),(26.15,0.0,9.5),0.62), ((22.35,0.0,6.0),(26.15,0.0,6.0),0.62), ((34.82,0.0,3.5),(34.82,0.0,7.5),0.62), ((37.72,0.0,3.5),(37.72,0.0,7.5),0.62), ((45.35,0.0,5.05),(48.85,0.0,5.05),0.41333)]    AS cyls,
+    [(100000.0,100000.0,0.1,0.05,100000000.0,100000000.0,100000000.0,100000000.0)]   AS rings,
+    [((8.65,0.0,8.8),0.72)] AS spheres,
+    [(1.3,6.0,2.28,0.62,(4.425,0.0,6.0),(3.025,100.0,1.5)), (12.95,5.0,1.425,0.575,(16.45,0.0,5.0),(3.4,100.0,1.1)), (30.4,5.0,1.475,0.525,(1000000.0,0.0,1000000.0),(0.1,0.1,0.1)), (36.27,4.0,1.45,0.62,(33.95,0.0,7.75),(9.0,100.0,3.75)), (41.9,6.0,1.025,0.425,(45.375,0.0,-0.25),(3.475,100.0,6.25)), (41.9,3.9,1.025,0.425,(36.375,0.0,7.7),(5.525,100.0,3.8)), (47.25,5.0,1.585,0.465,(50.8,0.0,4.32),(3.25,100.0,0.32))]    AS tori,
+
+    ((a, b) -&gt; tuplePlus(a, b))                                   AS va,
+    ((a, b) -&gt; tupleMinus(a, b))                                  AS vs,
+    ((a, s) -&gt; tupleMultiplyByNumber(a, s))                       AS vm,
+    ((a, b) -&gt; dotProduct(a, b))                                  AS vd,
+    ((a)    -&gt; L2Normalize(a))                                    AS vn,
+    ((a, b) -&gt; (a.2*b.3 - a.3*b.2, a.3*b.1 - a.1*b.3, a.1*b.2 - a.2*b.1)) AS vc,
+    ((d, n) -&gt; tupleMinus(d, tupleMultiplyByNumber(n, 2.0 * dotProduct(d, n)))) AS vref,
+
+    L2Normalize(tupleMinus(target, eye))                          AS camFwd,
+    L2Normalize(vc(L2Normalize(tupleMinus(target, eye)), (0.0, 0.0, 1.0))) AS camRight,
+    vc(camRight, camFwd)                                          AS camUp,
+    tan(fovDeg * 0.5 * pi() / 180.0)                              AS tanHalf,
+    imgW / imgH AS aspect,
+
+    ((O,D,b)  -&gt; arrayMap(eu -&gt; arrayMap(fu -&gt; arrayMap(ev -&gt; arrayMap(fv -&gt; arrayMap(ew -&gt; arrayMap(fw -&gt; arrayMap(lou -&gt; arrayMap(hiu -&gt; arrayMap(lov -&gt; arrayMap(hiv -&gt; arrayMap(low -&gt; arrayMap(hiw -&gt; arrayMap(tn -&gt; arrayMap(tf -&gt; if(tf &gt;= tn AND tf &gt; eps, if(tn &gt; eps, tn, tf), 1e9), [least(hiu, least(hiv, hiw))])[1], [greatest(lou, greatest(lov, low))])[1], [greatest((ew-ty)/fw,(ew+ty)/fw)])[1], [least((ew-ty)/fw,(ew+ty)/fw)])[1], [greatest((ev-b.5)/fv,(ev+b.5)/fv)])[1], [least((ev-b.5)/fv,(ev+b.5)/fv)])[1], [greatest((eu-b.4)/fu,(eu+b.4)/fu)])[1], [least((eu-b.4)/fu,(eu+b.4)/fu)])[1], [D.2])[1], [b.1.2 - O.2])[1], [vd(b.3,D)])[1], [vd(b.3, vs(b.1,O))])[1], [vd(b.2,D)])[1], [vd(b.2, vs(b.1,O))])[1]) AS oboxT,
+    ((hp,b)   -&gt; arrayMap(qu -&gt; arrayMap(qv -&gt; arrayMap(qw -&gt; if(abs(qu) &gt;= abs(qv) AND abs(qu) &gt;= abs(qw), vm(b.2, if(qu&gt;0.0,1.0,-1.0)), if(abs(qv) &gt;= abs(qw), vm(b.3, if(qv&gt;0.0,1.0,-1.0)), (0.0, if(qw&gt;0.0,1.0,-1.0), 0.0))), [(hp.2 - b.1.2)/ty])[1], [vd(b.3, vs(hp,b.1))/b.5])[1], [vd(b.2, vs(hp,b.1))/b.4])[1]) AS oboxN,
+    ((O,D,A,B,r)  -&gt; arrayMap(ba -&gt; arrayMap(oa -&gt; arrayMap(baba -&gt; arrayMap(bard -&gt; arrayMap(baoa -&gt; arrayMap(aa -&gt; arrayMap(bb -&gt; arrayMap(cc -&gt; arrayMap(hh -&gt; arrayMap(t -&gt; arrayMap(y -&gt; if(hh &gt;= 0.0 AND aa &gt; 1e-9 AND t &gt; eps AND y &gt; 0.0 AND y &lt; baba, t, 1e9), [baoa + t*bard])[1], [(-bb - sqrt(greatest(hh,0.0)))/aa])[1], [bb*bb - aa*cc])[1], [baba*vd(oa,oa) - baoa*baoa - r*r*baba])[1], [baba*vd(D,oa) - baoa*bard])[1], [baba - bard*bard])[1], [vd(ba,oa)])[1], [vd(ba,D)])[1], [vd(ba,ba)])[1], [vs(O,A)])[1], [vs(B,A)])[1]) AS cylBodyT,
+    ((O,D,P,ax,r) -&gt; arrayMap(den -&gt; arrayMap(t -&gt; arrayMap(hp -&gt; if(abs(den) &gt; 1e-9 AND t &gt; eps AND vd(vs(hp,P), vs(hp,P)) &lt;= r*r, t, 1e9), [va(O, vm(D, t))])[1], [vd(ax, vs(P,O))/den])[1], [vd(ax, D)])[1]) AS diskT,
+    ((O,D,A,B,r)  -&gt; least(cylBodyT(O,D,A,B,r), least(diskT(O,D,A,vs(B,A),r), diskT(O,D,B,vs(B,A),r)))) AS rodT,
+    ((O,D,A,B,r)  -&gt; arrayMap(ba -&gt; arrayMap(tL -&gt; arrayMap(tA -&gt; arrayMap(tB -&gt; arrayMap(tm -&gt; arrayMap(hp -&gt; if(tm = tL, vn(vs(hp, va(A, vm(ba, vd(vs(hp,A),ba)/vd(ba,ba))))), if(tm = tA, vn(vm(ba,-1.0)), vn(ba))), [va(O, vm(D,tm))])[1], [least(tL, least(tA,tB))])[1], [diskT(O,D,B,ba,r)])[1], [diskT(O,D,A,ba,r)])[1], [cylBodyT(O,D,A,B,r)])[1], [vs(B,A)])[1]) AS rodN,
+    ((O,D,rg) -&gt; arrayMap(a2 -&gt; arrayMap(hb -&gt; arrayMap(rr -&gt; arrayMap(dO -&gt; arrayMap(dI -&gt; arrayMap(toN -&gt; arrayMap(toF -&gt; arrayMap(tiN -&gt; arrayMap(tiF -&gt; arrayMap(ty0 -&gt; arrayMap(ty1 -&gt; arrayMap(tcN -&gt; arrayMap(tcF -&gt; arrayMap(aN -&gt; arrayMap(aF -&gt; arrayMap(e1 -&gt; arrayMap(e2 -&gt; arrayMap(e3 -&gt; arrayMap(tm -&gt; tm, [least(e1, least(e2, e3))])[1], [if(aN &lt; tcF AND tcF &lt; aF AND tcF &gt; eps AND NOT (tiN &lt; tcF AND tcF &lt; tiF), tcF, 1e9)])[1], [if(aN &lt; tiF AND tiF &lt; aF AND tiF &gt; eps AND NOT (tcN &lt; tiF AND tiF &lt; tcF), tiF, 1e9)])[1], [if(aN &lt; aF AND aN &gt; eps AND NOT (tiN &lt; aN AND aN &lt; tiF) AND NOT (tcN &lt; aN AND aN &lt; tcF), aN, 1e9)])[1], [least(ty1, toF)])[1], [greatest(ty0, toN)])[1], [least(greatest((rg.5-O.1)/D.1,(rg.7-O.1)/D.1), greatest((rg.6-O.3)/D.3,(rg.8-O.3)/D.3))])[1], [greatest(least((rg.5-O.1)/D.1,(rg.7-O.1)/D.1), least((rg.6-O.3)/D.3,(rg.8-O.3)/D.3))])[1], [greatest((-ty-O.2)/D.2, (ty-O.2)/D.2)])[1], [least((-ty-O.2)/D.2, (ty-O.2)/D.2)])[1], [if(dI &gt; 0.0, (-hb + sqrt(dI))/a2, -1e9)])[1], [if(dI &gt; 0.0, (-hb - sqrt(dI))/a2, 1e9)])[1], [if(dO &gt; 0.0, (-hb + sqrt(dO))/a2, -1e9)])[1], [if(dO &gt; 0.0, (-hb - sqrt(dO))/a2, 1e9)])[1], [hb*hb - a2*(rr - rg.4*rg.4)])[1], [hb*hb - a2*(rr - rg.3*rg.3)])[1], [(O.1-rg.1)*(O.1-rg.1) + (O.3-rg.2)*(O.3-rg.2)])[1], [(O.1-rg.1)*D.1 + (O.3-rg.2)*D.3])[1], [greatest(D.1*D.1 + D.3*D.3, 1e-12)])[1]) AS ringT,
+    ((O,D,rg) -&gt; arrayMap(a2 -&gt; arrayMap(hb -&gt; arrayMap(rr -&gt; arrayMap(dO -&gt; arrayMap(dI -&gt; arrayMap(toN -&gt; arrayMap(toF -&gt; arrayMap(tiN -&gt; arrayMap(tiF -&gt; arrayMap(ty0 -&gt; arrayMap(ty1 -&gt; arrayMap(tcN -&gt; arrayMap(tcF -&gt; arrayMap(aN -&gt; arrayMap(aF -&gt; arrayMap(e1 -&gt; arrayMap(e2 -&gt; arrayMap(e3 -&gt; arrayMap(tm -&gt; arrayMap(hp -&gt; if(tm = e1, if(toN &gt;= ty0, vn((hp.1-rg.1, 0.0, hp.3-rg.2)), (0.0, if(D.2&gt;0.0,-1.0,1.0), 0.0)), if(tm = e2, vn((rg.1-hp.1, 0.0, rg.2-hp.3)),    if(greatest((rg.5-O.1)/D.1,(rg.7-O.1)/D.1) &lt;= greatest((rg.6-O.3)/D.3,(rg.8-O.3)/D.3),       (if(D.1&gt;0.0,-1.0,1.0),0.0,0.0), (0.0,0.0,if(D.3&gt;0.0,-1.0,1.0))))), [va(O, vm(D, tm))])[1], [least(e1, least(e2, e3))])[1], [if(aN &lt; tcF AND tcF &lt; aF AND tcF &gt; eps AND NOT (tiN &lt; tcF AND tcF &lt; tiF), tcF, 1e9)])[1], [if(aN &lt; tiF AND tiF &lt; aF AND tiF &gt; eps AND NOT (tcN &lt; tiF AND tiF &lt; tcF), tiF, 1e9)])[1], [if(aN &lt; aF AND aN &gt; eps AND NOT (tiN &lt; aN AND aN &lt; tiF) AND NOT (tcN &lt; aN AND aN &lt; tcF), aN, 1e9)])[1], [least(ty1, toF)])[1], [greatest(ty0, toN)])[1], [least(greatest((rg.5-O.1)/D.1,(rg.7-O.1)/D.1), greatest((rg.6-O.3)/D.3,(rg.8-O.3)/D.3))])[1], [greatest(least((rg.5-O.1)/D.1,(rg.7-O.1)/D.1), least((rg.6-O.3)/D.3,(rg.8-O.3)/D.3))])[1], [greatest((-ty-O.2)/D.2, (ty-O.2)/D.2)])[1], [least((-ty-O.2)/D.2, (ty-O.2)/D.2)])[1], [if(dI &gt; 0.0, (-hb + sqrt(dI))/a2, -1e9)])[1], [if(dI &gt; 0.0, (-hb - sqrt(dI))/a2, 1e9)])[1], [if(dO &gt; 0.0, (-hb + sqrt(dO))/a2, -1e9)])[1], [if(dO &gt; 0.0, (-hb - sqrt(dO))/a2, 1e9)])[1], [hb*hb - a2*(rr - rg.4*rg.4)])[1], [hb*hb - a2*(rr - rg.3*rg.3)])[1], [(O.1-rg.1)*(O.1-rg.1) + (O.3-rg.2)*(O.3-rg.2)])[1], [(O.1-rg.1)*D.1 + (O.3-rg.2)*D.3])[1], [greatest(D.1*D.1 + D.3*D.3, 1e-12)])[1]) AS ringN,
+    ((O,D,C,r) -&gt; if(dotProduct(vs(O,C),D)*dotProduct(vs(O,C),D) - (dotProduct(vs(O,C),vs(O,C))-r*r) &gt; 0.0
+                     AND -dotProduct(vs(O,C),D) - sqrt(greatest(dotProduct(vs(O,C),D)*dotProduct(vs(O,C),D)-(dotProduct(vs(O,C),vs(O,C))-r*r),0.0)) &gt; eps,
+                     -dotProduct(vs(O,C),D) - sqrt(greatest(dotProduct(vs(O,C),D)*dotProduct(vs(O,C),D)-(dotProduct(vs(O,C),vs(O,C))-r*r),0.0)), 1e9)) AS sphT,
+    ((o, d, c, rad) -&gt; if(
+        dotProduct(vs(o,c), d) * dotProduct(vs(o,c), d) - (dotProduct(vs(o,c), vs(o,c)) - rad*rad) &gt; 0.0,
+        (-dotProduct(vs(o,c), d) - sqrt(greatest(dotProduct(vs(o,c), d) * dotProduct(vs(o,c), d) - (dotProduct(vs(o,c), vs(o,c)) - rad*rad), 0.0)),
+         -dotProduct(vs(o,c), d) + sqrt(greatest(dotProduct(vs(o,c), d) * dotProduct(vs(o,c), d) - (dotProduct(vs(o,c), vs(o,c)) - rad*rad), 0.0))),
+        (1e9, -1e9))) AS sphPair,
+
+    ((p,tl) -&gt; sqrt(pow(sqrt((p.1-tl.1)*(p.1-tl.1)+(p.3-tl.2)*(p.3-tl.2)) - tl.3, 2) + p.2*p.2) - tl.4) AS tsdf,
+
+    ((p,C,H) -&gt; sqrt(pow(greatest(abs(p.1-C.1)-H.1,0.0),2) + pow(greatest(abs(p.2-C.2)-H.2,0.0),2) + pow(greatest(abs(p.3-C.3)-H.3,0.0),2))
+                + least(greatest(abs(p.1-C.1)-H.1, greatest(abs(p.2-C.2)-H.2, abs(p.3-C.3)-H.3)), 0.0)) AS bsdf,
+
+    ((p) -&gt; arrayMin(arrayMap(tl -&gt; greatest(tsdf(p, tl), -bsdf(p, tl.5, tl.6)), tori))) AS toriSDF,
+
+    ((O,D) -&gt; arrayMap(tfin -&gt; if(toriSDF(va(O, vm(D, tfin))) &lt; marchEps AND tfin &gt; eps AND tfin &lt; marchMax, tfin, 1e9),
+                       [arrayFold((t, i) -&gt; t + toriSDF(va(O, vm(D, t))), range(marchSteps), 0.02)])[1]) AS marchTorus,
+
+    ((O,D,t) -&gt; arrayMap(p -&gt; vn(va(va(vm((1.0,-1.0,-1.0), toriSDF(va(p, (0.0009,-0.0009,-0.0009)))),
+                                       vm((-1.0,-1.0,1.0), toriSDF(va(p, (-0.0009,-0.0009,0.0009))))),
+                                    va(vm((-1.0,1.0,-1.0), toriSDF(va(p, (-0.0009,0.0009,-0.0009)))),
+                                       vm((1.0,1.0,1.0), toriSDF(va(p, (0.0009,0.0009,0.0009))))))),
+                         [va(O, vm(D, t))])[1]) AS torusN,
+    ((o, d) -&gt; if(d.3 &lt; -eps AND o.3 &gt; 0.0, -o.3 / d.3, 1e9))     AS planeT,
+    ((o, d, maxd) -&gt; arrayExists(b -&gt; oboxT(o, d, b) &lt; maxd, oboxes)
+        OR arrayExists(c -&gt; rodT(o, d, c.1, c.2, c.3) &lt; maxd, cyls)
+        OR arrayExists(rg -&gt; ringT(o, d, rg) &lt; maxd, rings)
+        OR arrayExists(sp -&gt; sphT(o, d, sp.1, sp.2) &lt; maxd, spheres)
+        OR (marchTorus(o, d) &lt; maxd)) AS occluded,
+    ((d) -&gt; tupleMultiplyByNumber(skyColor, 0.35 + 0.65 * pow(greatest(1.0 - d.3, 0.0), 3.0))) AS sky,
+    ((p) -&gt; (toInt64(floor(p.1 / tile)) + toInt64(floor(p.2 / tile))) % 2) AS checker,
+    ((a, b, c) -&gt; (cityHash64(a, b, c) % 1048576) / 1048576.0)    AS rnd,
+
+    ((s, lpos) -&gt; arrayMap(o -&gt; arrayMap(d -&gt; arrayMap(thr -&gt; arrayMap(acc -&gt; arrayMap(oboxHits -&gt; arrayMap(cylHits -&gt; arrayMap(ringHits -&gt; arrayMap(sphHits -&gt; arrayMap(tTorus -&gt; arrayMap(tBox -&gt; arrayMap(tCyl -&gt; arrayMap(tRing -&gt; arrayMap(tSph -&gt; arrayMap(tLet -&gt; arrayMap(tP -&gt; arrayMap(pairA -&gt; arrayMap(pairB -&gt; arrayMap(cEnter -&gt; arrayMap(cCav -&gt; arrayMap(tC -&gt; arrayMap(tM -&gt; arrayMap(tHit -&gt; arrayMap(hp -&gt; arrayMap(letN -&gt; arrayMap(sn -&gt; arrayMap(isMirror -&gt; arrayMap(isFloor -&gt; arrayMap(isMiss -&gt; arrayMap(nrm -&gt; arrayMap(shOrig -&gt; arrayMap(rdir -&gt; arrayMap(ldir -&gt; arrayMap(distL -&gt; arrayMap(shadowed -&gt; arrayMap(spec -&gt; arrayMap(lambert -&gt; arrayMap(fog -&gt; arrayMap(floorCol -&gt; (
+        if(isMirror, shOrig, o),
+        if(isMirror, rdir, d),
+        if(isMirror, thr * reflect_k, thr),
+        va(acc, va(if(isMirror, vm(specColor, thr * spec), (0.0, 0.0, 0.0)),
+                   va(if(isFloor, vm(floorCol, thr), (0.0, 0.0, 0.0)),
+                      if(isMiss, vm(sky(d), thr), (0.0, 0.0, 0.0))))),
+        if(isMirror, 1.0, 0.0)), [va(vm(vm(if(checker(hp) = 0, floorA, floorB), floorAmb + floorDiff * lambert), 1.0 - fog), vm(hazeColor, fog))])[1], [least(1.0, greatest(0.0, (tHit - fogStart) / fogRange))])[1], [greatest(vd(ldir, (0.0, 0.0, 1.0)), 0.0) * if(shadowed, 0.0, 1.0)])[1], [pow(greatest(vd(ldir, rdir), 0.0), shininess) * if(shadowed, 0.0, 1.0)])[1], [occluded(shOrig, ldir, distL - 0.05)])[1], [L2Norm(vs(lpos, hp))])[1], [vn(vs(lpos, hp))])[1], [vref(d, sn)])[1], [va(hp, vm(nrm, eps * 2.0))])[1], [if(isFloor, (0.0, 0.0, 1.0), sn)])[1], [(tM &gt;= 1e8) AND (tP &gt;= 1e8)])[1], [(tP &lt;= tM) AND (tP &lt; 1e8)])[1], [(tM &lt; tP) AND (tM &lt; 1e8)])[1], [if(tC &lt; tLet, if(cEnter &lt;= cCav, vn(vs(hp, csgA)), vn(vs(csgB, hp))), letN)])[1], [if(tTorus &lt;= tBox AND tTorus &lt;= tCyl AND tTorus &lt;= tRing AND tTorus &lt;= tSph, torusN(o, d, tTorus), if(tCyl &lt;= tBox AND tCyl &lt;= tRing AND tCyl &lt;= tSph,    rodN(o, d, cyls[indexOf(cylHits, tCyl)].1, cyls[indexOf(cylHits, tCyl)].2, cyls[indexOf(cylHits, tCyl)].3), if(tBox &lt;= tRing AND tBox &lt;= tSph, oboxN(hp, oboxes[indexOf(oboxHits, tBox)]), if(tRing &lt;= tSph, ringN(o, d, rings[indexOf(ringHits, tRing)]),    vn(vs(hp, spheres[indexOf(sphHits, tSph)].1))))))])[1], [va(o, vm(d, tHit))])[1], [least(tM, tP)])[1], [least(tLet, tC)])[1], [least(cEnter, cCav)])[1], [if(pairB.1 &lt; 1e8 AND pairB.2 &gt; eps AND pairA.1 &lt;= pairB.2 AND pairB.2 &lt;= pairA.2, pairB.2, 1e9)])[1], [if(pairA.1 &gt; eps AND pairA.1 &lt; 1e8 AND NOT (pairB.1 &lt;= pairA.1 AND pairA.1 &lt;= pairB.2), pairA.1, 1e9)])[1], [sphPair(o, d, csgB, csgBr)])[1], [sphPair(o, d, csgA, csgAr)])[1], [planeT(o, d)])[1], [least(least(tBox, tCyl), least(tRing, least(tSph, tTorus)))])[1], [arrayMin(sphHits)])[1], [arrayMin(ringHits)])[1], [arrayMin(cylHits)])[1], [arrayMin(oboxHits)])[1], [marchTorus(o, d)])[1], [arrayMap(sp -&gt; sphT(o, d, sp.1, sp.2), spheres)])[1], [arrayMap(rg -&gt; ringT(o, d, rg), rings)])[1], [arrayMap(c -&gt; rodT(o, d, c.1, c.2, c.3), cyls)])[1], [arrayMap(b -&gt; oboxT(o, d, b), oboxes)])[1], [s.4])[1], [s.3])[1], [s.2])[1], [s.1])[1]) AS oneBounce
+
+SELECT
+    clamp(pow(greatest(avg(col.1), 0.0) * exposure, 1.0 / gamma), 0.0, 1.0) AS r,
+    clamp(pow(greatest(avg(col.2), 0.0) * exposure, 1.0 / gamma), 0.0, 1.0) AS g,
+    clamp(pow(greatest(avg(col.3), 0.0) * exposure, 1.0 / gamma), 0.0, 1.0) AS b,
+    pixel % W      AS x,
+    intDiv(pixel, W) AS y
+FROM (
+  SELECT pixel, va(st.4, if(st.5 &gt; 0.5, vm(sky(st.2), st.3), (0.0,0.0,0.0))) AS col
+  FROM (
+    SELECT pixel,
+      arrayFold((s, i) -&gt; if(s.5 &gt; 0.5, oneBounce(s, lpos), s), range(maxDepth), st0) AS st
+    FROM (
+      SELECT
+        intDiv(number, {SAMPLES:UInt32}) AS pixel,
+        number % {SAMPLES:UInt32} AS sample,
+        va(lightPos, (lightR * (rnd(pixel, sample, 3) - 0.5),
+                      lightR * (rnd(pixel, sample, 4) - 0.5),
+                      lightR * (rnd(pixel, sample, 5) - 0.5))) AS lpos,
+        CAST((eye,
+              vn(va(camFwd, va(vm(camRight, (((pixel % W) + rnd(pixel, sample, 1)) / imgW * 2.0 - 1.0) * aspect * tanHalf),
+                                vm(camUp,    (1.0 - (intDiv(pixel, W) + rnd(pixel, sample, 2)) / imgH * 2.0) * tanHalf)))),
+              1.0, (0.0, 0.0, 0.0), 1.0) AS Tuple(Tuple(Float64,Float64,Float64), Tuple(Float64,Float64,Float64), Float64, Tuple(Float64,Float64,Float64), Float64)) AS st0
+      FROM numbers_mt(W * H * {SAMPLES:UInt32})
+    )
+  )
+)
+GROUP BY pixel
+SETTINGS max_block_size = 2048
+FORMAT PNG
+</code></p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">RayTracer &mdash; 使用 ClickHouse SQL 实现的光线追踪器</h2>
+
+<p style="margin-top: -0.5em;"><a href="https://github.com/ClickHouse/RayTracer">github.com/ClickHouse/RayTracer</a></p>
+
+<img class="zoomable" style="width: 100%; margin-top: 0.2em;" src="https://presentations.clickhouse.com/2026-release-26.7/pictures/raytracer_terrain.png" alt="使用 SQL 光线追踪，在程序化地形上渲染成镀铬 CSG 字母的 ClickHouse" onclick="this.classList.toggle('zoomed'); event.stopPropagation();"/>
+</section>
+
+<section class="slide" style="background: black; padding: 0;">
+<video style="width: 100%; height: 100%; object-fit: contain;" preload="metadata" loop><source src="https://presentations.clickhouse.com/2026-release-26.7/pictures/clickbulb_hd.mp4" type="https://presentations.clickhouse.com/2026-release-26.7/video/mp4"></video>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/rowsandcolumns.png) center / contain no-repeat; background-color: #0d1b2a;">
+<a href="https://rowsandcolumnssummit.com/"><b>rowsandcolumnssummit.com</b></a>
+</section>
+
+<section class="slide">
+<h2 style="margin-top: -0.5em;">Open House 世界巡回活动</h2>
+
+<img class="zoomable" style="margin-left: -100px; margin-right: -100px; margin-top: -1.5em; width: calc(100% + 200px); display: block;" src="https://presentations.clickhouse.com/2026-release-26.7/pictures/openhouse_tour.jpg" alt="ClickHouse Open House：面向 AI 的实时数据库大会" onclick="this.classList.toggle('zoomed'); event.stopPropagation();"/>
+
+<p style="line-height: 1.45; font-size: 16pt; text-align: center; margin-top: 1.5em;">🇦🇺 悉尼，8 月 11 日 &nbsp;·&nbsp; 🇦🇺 墨尔本，8 月 13 日 &nbsp;·&nbsp; 🇳🇱 阿姆斯特丹，9 月 1 日
+<br/>🇺🇸 纽约，9 月 10 日 &nbsp;·&nbsp; 🇮🇳 班加罗尔，9 月 22 日 &nbsp;·&nbsp; 🇸🇬 新加坡，9 月 24 日
+<br/>🇬🇧 伦敦，9 月 30 日 &nbsp;·&nbsp; 🇩🇪 慕尼黑，10 月 6 日</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/wing.jpg); background-size: cover;">
+<h2>社区活动</h2>
+<p style="line-height: 1.2; margin-top: -2.2em; font-size: 19pt;">
+<br/><span class="hilite">&mdash; 🇹🇭 曼谷：OSS 与数据之夜，7 月 23 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 孟买：从数据湖到查询，7 月 25 日</span>
+<br/><span class="hilite">&mdash; 🇸🇬 新加坡：BUILD 工作坊，7 月 28 日</span>
+<br/><span class="hilite">&mdash; 🇯🇵 东京：Google Cloud Next，7 月 30 日</span>
+<br/><span class="hilite">&mdash; 🇨🇴 波哥大：AWS Summit，7 月 30 日</span>
+<br/><span class="hilite">&mdash; 🇮🇩 雅加达 Meetup，8 月 5 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 西雅图：AI 演示之夜，8 月 6 日</span>
+<br/><span class="hilite">&mdash; 🇨🇱 圣地亚哥：实时分析培训，8 月 6 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 旧金山 Meetup，8 月 11 日</span>
+<br/><span class="hilite">&mdash; 🇦🇺 悉尼用户大会，8 月 11 日</span>
+<br/><span class="hilite">&mdash; 🇦🇺 墨尔本用户大会，8 月 13 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 纽约：AI 演示之夜，8 月 18 日</span>
+</p>
+</section>
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<a href="https://clickhouse.com/blog/introducing-the-clickhouse-adbc-driver"><img style="float: right; width: 20%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://presentations.clickhouse.com/2026-release-26.7/pictures/qr_adbc.png" alt="二维码：clickhouse.com/blog/introducing-the-clickhouse-adbc-driver"/></a>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5; margin-right: -5em;">
+&mdash; 跨三个云处理一千万亿行：扩展 LogHouse
+<br/>&mdash; 一个驱动、一种格式、支持所有语言：ADBC
+<br/>&mdash; 使用 chDB 作为 Agent 的本地数据引擎
+<br/>&mdash; 替代 HDB：使用 ClickHouse 存储历史行情数据
+<br/>&mdash; pg_re2：Postgres 中基于 RE2 的高性能正则表达式
+<br/>&mdash; ClickHouse 可观测性：ClickStack 如何提速 5 倍
+<br/>&mdash; 在 Docker Hardened Images 上运行 ClickHouse
+<br/>&mdash; ClickHouse Managed Postgres 如何扩展 PgBouncer
+<br/>&mdash; @clickhouse/rowbinary：既是库，也是解析器编译器
+</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.7/pictures/back14.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问答</h2>
+</section>
+
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/mKBNLaFOVDA" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
