@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：22.12 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：22.12 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+         table, tr, td { border: 0; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：22.12 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2022-12-15。</p>
+    </header>
+    <section class="slide" id="cover">
+        <img src="https://presentations.clickhouse.com/original_website/logo.svg" style="width: 15%; position: absolute; right: 20px; bottom: 20px;" />
+        <h1 style="margin-top: 80px; line-height: 150%; color: black; font-size: 64pt">ClickHouse<br/> 22.12 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>22.12 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 22.12 新增内容。</p>
+<p>2.（10 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/back1.jpg); background-size: cover;">
+<h2 style="color: white;">22.12 版本</h2>
+<p><span style="color: white;">ClickHouse 圣诞版本。</span></p>
+<p style="margin-top: 2em;"><span style="color: white;">— 🎁 17 项新功能</span></p>
+<p><span style="color: white;">— ⛸️ 8 项性能优化</span></p>
+<p><span style="color: white;">— 🎅 39 项错误修复</span></p>
+</section>
+
+<!--
+
+SQL UI
+Trust Center
+Uptime page
+GA
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/back2.jpg); background-size: cover;">
+<h2 style="color: white;">SQL 语言功能</h2>
+</section>
+
+<section class="slide">
+<h2>带下划线的数字字面量</h2>
+
+<p>示例：</p>
+<p><code><span style="color: gray;">SELECT 1_000_000;
+SELECT 12.345_67;
+SELECT 0xABCD_EF01;
+SELECT 0b1111_0000_1010_0101;
+SELECT 1_50_000, 1_00_00_000; -- 1.5 lakh, 1 crore
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：jh0x、unbyte。</p>
+</section>
+
+<section class="slide">
+<h2>FROM table SELECT columns...</h2>
+
+<p><code style="line-height: 1.5"><b style="color: green;">FROM github_events</b>
+SELECT created_at,
+       'https://github.com/' || repo_name AS url,
+       title
+WHERE title LIKE '%🎄%'
+ORDER BY created_at DESC
+LIMIT 1 BY title
+LIMIT 100</code></p>
+
+<p>为什么？&mdash; 改善编辑器中的自动补全。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Nikolay Degterinsky。</p>
+</section>
+
+<section class="slide">
+<h2>GROUP BY ALL</h2>
+
+<p><code style="line-height: 1.5">SELECT
+    county, town, district, street,
+    median(price), count()
+FROM uk_price_paid
+WHERE toYear(date) = 2022
+<b style="color: green;">GROUP BY ALL</b>
+ORDER BY count() DESC
+LIMIT 10</code></p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：TaoFengLiu。</p>
+</section>
+
+<section class="slide">
+<h2>GROUP BY ALL（替代写法）</h2>
+
+<p><code style="line-height: 1.5">SELECT
+    county, town, district, street,
+    median(price), count()
+FROM uk_price_paid
+WHERE toYear(date) = 2022
+<b style="color: green;">GROUP BY 1, 2, 3, 4</b>
+ORDER BY count() DESC
+LIMIT 10</code></p>
+</section>
+
+<section class="slide">
+<h2>GROUP BY ALL（替代写法）</h2>
+
+<p><code style="line-height: 1.5">SELECT
+    (county, town, district, street) AS k,
+    median(price), count()
+FROM uk_price_paid
+WHERE toYear(date) = 2022
+<b style="color: green;">GROUP BY k</b>
+ORDER BY count() DESC
+LIMIT 10</code></p>
+</section>
+
+<section class="slide">
+<h2>concatWithSeparator, concat_ws</h2>
+
+<p><code style="font-size: 15pt;">SELECT <b style="color: green;">concatWithSeparator</b>(' - ', 'Hello', 'world', 'goodbye.') AS x
+
+┌─x────────────────────────┐
+│ Hello - world - goodbye. │
+└──────────────────────────┘
+</code></p>
+
+<p>别名：<b>concat_ws</b>.</p>
+<p>用途？&mdash; 兼容 Spark。</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：TaiYang Li。</p>
+<p>额外亮点：<b>concatWithSeparatorAssumeInjective</b>.</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">指定精度的十进制运算</h2>
+
+<p><code style="line-height: 1.5">SELECT
+  1::Decimal(10, 5) AS a,
+  3::Decimal(10, 5) AS b,
+  a / b AS x,
+  <b style="color: green;">divideDecimal(a, b, 10)</b> AS y
+
+┌─a─┬─b─┬───────x─┬────────────y─┐
+│ 1 │ 3 │ 0.33333 │ 0.3333333333 │
+└───┴───┴─────────┴──────────────┘
+</code></p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Andrey Zvonov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">CREATE 查询中的 SQL UDF</h2>
+
+<p><code style="line-height: 1.25; font-size: 16pt;">CREATE FUNCTION <b style="color: green;">toBFloat16</b> AS (x) ->
+  reinterpretAsFloat32(
+    bitAnd(reinterpretAsUInt32(x), 0xFFFF0000));
+
+CREATE TABLE feature_store
+(
+  time DateTime DEFAULT now(),
+  vec Array(Float32) CODEC(ZSTD) TTL time + INTERVAL 1 DAY,
+  vec16 Array(Float32)
+    DEFAULT arrayMap(x -> <b style="color: green;">toBFloat16(x)</b>, vec) CODEC(ZSTD),
+  text String
+) ENGINE = MergeTree ORDER BY time;
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Antonio Andelic。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">CREATE 查询中的 SQL UDF</h2>
+
+<p><code style="line-height: 1.25; font-size: 16pt;">:) INSERT INTO feature_store (vec) VALUES ([0.1, 0.2, 0.3])
+
+Ok.
+
+:) SELECT vec, vec16 FROM feature_store
+
+┌─vec───────────┬─vec16───────────────────────────────┐
+│ [0.1,0.2,0.3] │ [0.099609375,0.19921875,0.29882812] │
+└───────────────┴─────────────────────────────────────┘
+
+:) SELECT L2Distance(vec, vec16) FROM feature_store
+
+┌─L2Distance(vec, vec16)─┐
+│           0.0014615965 │
+└────────────────────────┘
+</code></p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/back3.jpg); background-size: cover;">
+<h2 style="color: white;">运维与<br/>监控</h2>
+</section>
+
+<section class="slide">
+<h2>system.moves 表</h2>
+
+<p>检查数据片段在存储卷和磁盘之间的移动。</p>
+
+<p><code>DESCRIBE TABLE system.moves
+
+┌─name─────────────┬─type────┐
+│ database         │ String  │
+│ table            │ String  │
+│ elapsed          │ Float64 │
+│ target_disk_name │ String  │
+│ target_disk_path │ String  │
+│ part_name        │ String  │
+│ part_size        │ UInt64  │
+│ thread_id        │ UInt64  │
+└──────────────────┴─────────┘
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Sergei Trifonov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 31pt;">ClickHouse Keeper 的 Prometheus 端点</h2>
+
+<p>使用你喜欢的工具监控 ClickHouse Keeper！</p>
+<p>这可能是相比 ZooKeeper 最后一项缺失的功能。</p>
+
+<p style="margin-top: 2em;"><code style="line-height: 1.2;">$ cat /etc/clickhouse-keeper/config.d/prometheus.yaml
+
+prometheus:
+    port: 9369
+    endpoint: /metrics
+</code></p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Antonio Andelic。</p>
+<p>额外亮点：极高请求速率下的写入性能和稳定性。</p>
+</section>
+
+
+<section class="slide">
+<h2>MergeTree 设置约束</h2>
+
+<p style="margin-top: -0.5em;">禁止或限制用户修改某些设置：</p>
+<p><code style="line-height: 1.1; font-size: 16pt;">CREATE TABLE ... ENGINE = MergeTree
+  ORDER BY ...
+  <b style="color: red;">SETTINGS storage_policy = 'local', ...</b>
+</code></p>
+
+<p><code style="line-height: 1.1; font-size: 16pt;">$ cat /etc/clickhouse-server/users.d/table_constraints.yaml
+
+profiles:
+    default:
+        constraints:
+            <span style="color: green;">merge_tree_<b>storage_policy</b></span>:
+                const:
+            <span style="color: green;">merge_tree_<b>parts_to_throw_insert</b></span>:
+                max: 1000
+</code></p>
+
+<p style="margin-top: -0.5em; color: gray; font-size: 14pt;">开发者：Sergei Trifonov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">安全</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>密码复杂度规则</h2>
+
+<p style="margin-top: -1em;"><code style="font-size: 16pt; line-height: 1.1;">$ cat /etc/clickhouse-server/config.d/rules.yaml
+
+password_complexity:
+    - rule:
+        pattern: '.{12}'
+        message: 'be at least 12 characters long'
+    - rule:
+        pattern: '\p{N}'
+        message: contain at least 1 numeric character
+    - rule:
+        pattern: '\p{Lu}'
+        message: contain at least 1 uppercase character
+    - rule:
+        pattern: '[^\p{L}\p{N}]'
+        message: contain at least 1 special character
+</code></p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Nikolay Degterinsky。</p>
+</section>
+
+<section class="slide">
+<h2>密码复杂度规则</h2>
+
+<p style="margin-top: -1em;"><code style="font-size: 16pt; line-height: 1.5;">:) CREATE USER vasyan
+   IDENTIFIED WITH sha256_password BY 'qwerty123'
+
+DB::Exception: Invalid password. The password should:
+be at least 12 characters long,
+contain at least 1 uppercase character,
+contain at least 1 special character.
+</code></p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Nikolay Degterinsky。</p>
+
+<p>注意：使用 clickhouse-client 时，<br/>密码将在客户端检查并计算哈希。</p>
+<p>服务器永远不会收到明文密码。</p>
+</section>
+
+<section class="slide">
+<h2>凭据脱敏</h2>
+<p style="margin-top: -1em;"><code style="font-size: 16pt; line-height: 1.1; overflow-x: hidden;">CREATE TABLE test AS mysql(
+  'monty:3306', maria, table, 'videnius', 'qwerty123');
+
+2022.12.15 07:51:10.997810 [ 2282939 ] {ea24d544-3e40-4f2a-9f0e-2e3a35fc63c8}
+&lt;Debug> executeQuery: (from [::ffff:127.0.0.1]:47320)
+CREATE TABLE test AS mysql('monty:3306', maria, table,
+'videnius', '<b style="color: green;">[HIDDEN]</b>') (stage: Complete)
+
+:) SHOW CREATE TABLE test
+
+... AS mysql('monty:3306', maria, table, 'videnius', '<b style="color: green;">[HIDDEN]</b>');
+
+:) SELECT query FROM system.query_log
+   WHERE query LIKE 'CREATE TABLE test%'
+
+CREATE TABLE test AS mysql(
+  'monty:3306', maria, table, 'videnius', '<b style="color: green;">[HIDDEN]</b>')
+</code></p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Vitaly Baranov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">额外亮点</span></h2>
+</section>
+
+<section class="slide">
+<h2>BSON 导入/导出</h2>
+<p style="margin-top: -1em;"><code style="font-size: 16pt;">$ clickhouse-client --time --progress --query "
+    SELECT * FROM hits_1m INTO OUTFILE 'hits.jsonl'"
+
+0.801
+
+$ clickhouse-client --time --progress --query "
+    SELECT * FROM hits_1m INTO OUTFILE 'hits.<b style="color: green;">bson</b>'"
+
+<span style="color: gray;">$ clickhouse-client --time --progress --query "
+    SELECT * FROM hits_1m FORMAT <b style="color: green;">BSONEachRow</b> > hits.bson"</span>
+
+<span style="color: green">0.564</span>
+
+$ wc -c hits.jsonl hits.bson
+
+2358439536 hits.jsonl
+ <span style="color: green">778316087</span> hits.bson
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov、Mark Polokhov。</p>
+</section>
+
+<section class="slide">
+<h2>BSON 导入/导出</h2>
+
+<p style="margin-top: -1em;"><code style="font-size: 16pt;">$ time clickhouse-local --progress --query "
+  SELECT * FROM table FORMAT Null" &lt; hits.jsonl
+
+real    0m4,404s
+user    0m9,831s
+sys     0m1,057s
+
+$ time clickhouse-local --progress --query "
+  SELECT * FROM table FORMAT Null" &lt; hits.bson
+
+real    <span style="color: green">0m1,471s</span>
+user    0m4,226s
+sys     0m0,697s
+</code></p>
+
+<p>文件扩展名检测、结构推断。&mdash; 全面支持！</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">Developer: Pavel Kruglov, Mark Polokhov.</p>
+</section>
+
+
+<section class="slide">
+<h2>Grace Hash JOIN</h2>
+
+<p><code>SET join_algorithm = 'grace_hash';</code></p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Sergei Skvortsov。</p>
+
+<p>测试：通过自连接遍历图</p>
+<p><code style="font-size: 16pt; line-height: 1.5">SELECT UserID,
+  h1.Referer, h1.URL, h2.URL
+FROM hits AS h1 INNER JOIN hits AS h2
+  ON (h1.UserID = h2.UserID) AND (h1.URL = h2.Referer)
+WHERE (h1.URL != '') AND (h2.URL != '')
+  AND (h1.Referer != '') AND (h2.Referer != '')
+ORDER BY UserID LIMIT 10</code></p>
+</section>
+
+<section class="slide">
+<h2>Grace Hash JOIN</h2>
+
+<p>测试：在 1 亿条 Web 流量日志上通过自连接遍历图：</p>
+
+<p><code style="font-size: 16pt; line-height: 1.25">SET join_algorithm = 'hash';
+-- 26 sec, <span style="color: red;">26.56</span> GiB RAM
+
+SET join_algorithm = 'parallel_hash';
+-- <span style="color: green;">10</span> sec, <span style="color: red;">28.79</span> GiB RAM
+
+SET max_memory_usage = '10G', join_algorithm = 'partial_merge';
+-- <span style="color: red;">1216.914 sec</span>
+
+SET max_memory_usage = '10G', join_algorithm = '<b style="color: green;">grace_hash</b>',
+    grace_hash_join_initial_buckets = 128;
+-- 173 sec, <span style="color: green;">6.85</span> GiB.
+</code></p>
+</section>
+
+
+<section class="slide">
+<p><img style="width: 90%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/compliance.png"/></p>
+<p><a href="https://trust.clickhouse.com/">https://trust.clickhouse.com/</a></p>
+<p>以及渗透测试、漏洞赏金计划、审计报告……</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/cloud.jpg); background-size: cover;">
+<h2><span class="hilite">ClickHouse Cloud</span></h2>
+
+<p><span class="hilite">&mdash; 30 天免费试用，最多 1 TB 数据；</span></p>
+<p><span class="hilite">&mdash; 面向开发者、价格实惠且具备完整高可用性的集群&lt; 每月 100 美元</span></p>
+<p><span class="hilite">试试看！<a href="https://clickhouse.cloud/">https://clickhouse.cloud/</a>.</span></p>
+</section>
+
+<section class="slide">
+<p><img style="width: 100%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/sql_ui.png"/></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.12/pictures/back6.jpg); background-size: cover; background-position: right;">
+<h2 style="color: white;">问答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/sREupr6uc2k" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
