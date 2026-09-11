@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.10 版本发布会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.10 版本发布会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+        .cell { font-family: Monospace; width: 1.5em; height: 1.5em; display: inline-block; border: 3px solid white; background-color: lightblue; text-align: center; line-height: 1.3em; }
+        .cell-num { font-family: Monospace; width: 1.5em; height: 1.5em; display: inline-block; border: 3px solid white; background-color: lightgreen; text-align: center; line-height: 1.3em; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.10 版本发布会</h1>
+        <p>作者：Alexey Milovidov，2025-10-30。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 25px; line-height: 110%; font-size: 56pt; color: yellow; text-align: center;">ClickHouse 25.10 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 25.10 版本</h2>
+<p>1.（55 分钟）ClickHouse 25.10 的新变化。</p>
+<p>2.（5 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">25.10 版本</span></h2>
+<p><span class="hilite">ClickHouse 万圣节版本。</span></p>
+<p><span class="hilite">— 20 项新功能 👻</span></p>
+<p><span class="hilite">— 30 项性能优化 🔮</span></p>
+<p><span class="hilite">— 103 项缺陷修复 🎃</span></p>
+</section>
+<!--
+
+小功能
+
+别名表
+IS NOT DISTINCT FROM
+conv
+LIMIT BY ALL
+所有列的统计信息
+ALTER TABLE REWRITE PARTS
+SYSTEM RECONNECT ZOOKEEPER
+startsWithCaseInsensitive、endsWithCaseInsensitive 等
+
+性能
+
+单独存储 String 大小
+跳过索引的延迟物化
+复制列
+用于 JOIN 优化的布隆过滤器
+下推析取条件
+拆分大数据块
+Iceberg 有序读取
+
+主要功能
+
+负数 LIMIT 和 OFFSET
+QBit
+
+数据湖
+
+Apache Paimon
+
+集成
+
+额外内容
+
+ClickGems
+
+阅读
+
+QBit
+更快的 JSON
+日志压缩 170 倍
+构建智能体的框架
+使用 ClickStack 跟踪智能体
+数据湖目录
+Laravel
+GitLab
+Netflix
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">实用小功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>表别名</h2>
+
+<p><code style="font-size: 18pt; line-height: 1.5;">CREATE TABLE my_alias
+ENGINE = <b style="color: green;">Alias</b>(source_table);
+
+CREATE TABLE my_alias
+ENGINE = <b style="color: green;">Alias</b>(source_database, source_table);
+</code></p>
+
+<p>引用现有表，并将所有操作转发给它
+<br/>（DROP、DETACH 和 RENAME 除外）。</p>
+
+<p>适合迁移时为同一张表提供多个名称。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Kai Zhu。</p>
+</section>
+
+
+<section class="slide">
+<h2>运算符 &lt;=></h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT NULL = NULL
+
+0
+
+:) SELECT NULL &lt;=> NULL
+
+1</code></p>
+
+<p>&mdash; 将 NULL 视为相同值的相等比较。</p>
+<p>也可使用 <b>IS NOT DISTINCT FROM</b> 运算符。</p>
+<p style="color: gray;">此前该运算符仅能在 JOIN ON 部分使用。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Simon Michal。</p>
+</section>
+
+
+<section class="slide">
+<h2>conv</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">conv</b>('111', 10, 8)
+
+157
+</code></p>
+
+<p>在不同进制之间转换数值（数字字符为 0..9A..Z）。</p>
+<p>兼容 MySQL。</p>
+<p style="color: gray;">注意：我们已有 <b>hex</b>/<b>unhex</b> 和 <b>bin</b>/<b>unbin</b> 函数。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：hp77-creator。</p>
+</section>
+
+
+<section class="slide">
+<h2>LIMIT BY ALL</h2>
+
+<p>ClickHouse 已支持 LIMIT BY 子句，
+<br/>它是对 DISTINCT 的扩展。</p>
+
+<p>示例： <b>LIMIT <span style="color: green;">5</span> BY <span style="color: teal;">country</span></b>
+<br/>&mdash; 每个不同的 country 仅取前 5 条记录。</p>
+
+<p>还可与 LIMIT 组合：
+<br/><b>LIMIT <span style="color: green;">5</span> BY <span style="color: teal;">country</span> LIMIT <span style="color: green;">100</span></b>。</p>
+
+<p>现在可以写成 <b>LIMIT <span style="color: green;">5</span> BY <span style="color: green;">ALL</span></b>
+<br/>&mdash; 最多取 5 条重复记录。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Surya Kant Ranjan。</p>
+</section>
+
+
+<section class="slide">
+<h2>列统计信息</h2>
+
+<p>现在可通过表级设置为所有列启用统计信息：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">CREATE TABLE test (...) ORDER BY ()
+SETTINGS <b style="color: green;">auto_statistics_types</b> = 'minmax,uniq,countmin';
+</code></p>
+
+<p>或使用全局配置：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">$ cat /etc/config.d/merge_tree.yaml
+
+merge_tree:
+    <b style="color: green;">auto_statistics_types</b>: 'minmax,uniq,countmin'
+</code></p>
+
+<p>统计信息用于 <b style="color: green;">自动 JOIN 重排</b>。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Anton Popov。</p>
+</section>
+
+
+<section class="slide">
+<h2>SYSTEM RECONNECT ZOOKEEPER</h2>
+
+<p>新增系统查询，用于重新建立 Keeper 会话。</p>
+
+<p>如果 ClickHouse 节点与 Keeper 节点之间的连接分布不均或不理想，可通过此命令重新均衡。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pradeep Chhetri。</p>
+</section>
+
+<section class="slide">
+<h2>ALTER TABLE REWRITE PARTS</h2>
+
+<p><code style="font-size: 14pt; line-height: 1;">ALTER TABLE hits <b style="color: green;">REWRITE PARTS</b>;
+
+ALTER TABLE hits <b style="color: green;">REWRITE PARTS</b> IN PARTITION 202501;
+</code></p>
+
+<p>新增 <b>ALTER TABLE</b> 查询模式，适用于：</p>
+
+<p>&mdash; 更换加密密钥后重新加密数据；
+<br/>&mdash; 修改物理数据布局设置后应用变更，
+<br/>&emsp; 例如压缩块大小；</p>
+
+<p>它不合并数据片段，因此比 OPTIMIZE 更快。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Azat Khuzhin。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/back2.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>String 的新物理布局</h2>
+
+<p>此前的布局， <b>default</b>:
+<br/><b>str.bin</b>: <span class="cell-num">5</span><span class="cell">H</span><span class="cell">e</span><span class="cell">l</span><span class="cell">l</span><span class="cell">o</span><span class="cell-num">10</span><span class="cell">C</span><span class="cell">l</span><span class="cell">i</span><span class="cell">c</span><span class="cell">k</span><span class="cell">H</span><span class="cell">o</span><span class="cell">u</span><span class="cell">s</span><span class="cell">e</span></p>
+
+<p>新的布局， <b>with_size_stream</b>:
+<br/><b>str.bin</b>: <span class="cell">H</span><span class="cell">e</span><span class="cell">l</span><span class="cell">l</span><span class="cell">o</span><span class="cell">C</span><span class="cell">l</span><span class="cell">i</span><span class="cell">c</span><span class="cell">k</span><span class="cell">H</span><span class="cell">o</span><span class="cell">u</span><span class="cell">s</span><span class="cell">e</span>
+<br/><b>str.size.bin</b>: <span class="cell-num">5</span><span class="cell-num">10</span></p>
+
+<p><code style="font-size: 16pt; line-height: 1.25;">CREATE TABLE ...
+SETTINGS <b style="color: green;">serialization_info_version</b> = 'with_types',
+         <b style="color: green;">string_serialization_version</b> = 'with_size_stream';
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+clickhouse-benchmark <<< "SELECT count() FROM hits WHERE URL != ''"
+clickhouse-benchmark <<< "SELECT count() FROM hits2 WHERE URL != ''"
+
+clickhouse-benchmark <<< "SELECT SearchPhrase FROM hits WHERE SearchPhrase <> '' ORDER BY EventTime LIMIT 10;"
+clickhouse-benchmark <<< "SELECT SearchPhrase FROM hits2 WHERE SearchPhrase <> '' ORDER BY EventTime LIMIT 10;"
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Amos Bird。</p>
+</section>
+
+
+<section class="slide">
+<h2>“Replicated”列</h2>
+
+<p>如果数据块在 JOIN 期间被复制多次，会怎样？</p>
+<p><code style="font-size: 16pt; line-height: 1.5;">SELECT count() FROM hits; <b style="color: green;">-- 100 million</b>
+SELECT count() FROM hits AS t1 INNER JOIN hits AS t2
+    ON t1.ClientIP = t2.ClientIP; <b style="color: red;">-- 40.18 billion</b>
+</code></p>
+
+<p>现在可以延迟处理，无需为复制消耗内存和 CPU！</p>
+
+<p><code style="font-size: 18pt; line-height: 1.25;">:) SET enable_lazy_columns_replication;
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+SELECT sum(cityHash64(URL)) FROM hits AS t1 INNER JOIN hits AS t2 ON t1.ClientIP = t2.ClientIP;
+SET enable_lazy_columns_replication = 1;
+SELECT sum(cityHash64(URL)) FROM hits AS t1 INNER JOIN hits AS t2 ON t1.ClientIP = t2.ClientIP;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>JOIN 中的布隆过滤器</h2>
+
+<p>加快查询：</p>
+
+<p><code style="font-size: 18pt; line-height: 1.25;">:) SET enable_join_runtime_filters;
+</code></p>
+
+<p>从 JOIN 一侧构建小型过滤器，
+<br/>在另一侧读取表时将其用作“PREWHERE”。</p>
+
+<p>演示</p>
+
+<!--
+
+USE tpch_stats;
+
+SELECT avg(o_totalprice)
+FROM orders, customer, nation
+WHERE (c_custkey = o_custkey) AND (c_nationkey = n_nationkey) AND (n_name = 'FRANCE')
+SETTINGS enable_join_runtime_filters = 0;
+
+SELECT avg(o_totalprice)
+FROM orders, customer, nation
+WHERE (c_custkey = o_custkey) AND (c_nationkey = n_nationkey) AND (n_name = 'FRANCE')
+SETTINGS enable_join_runtime_filters = 1;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Alexander Gololobov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">下推 JOIN 中的复杂条件</h2>
+
+<p>假设组合了针对不同表的条件：</p>
+
+<p><code style="font-size: 18pt; line-height: 1.25;">SELECT *
+FROM <b style="color: blue;">n1</b> INNER JOIN <b style="color: brown;">n2</b>
+WHERE (<b style="color: blue;">n1</b>.name = 'FRANCE' AND <b style="color: brown;">n2</b>.name = 'GERMANY')
+   OR (<b style="color: blue;">n1</b>.name = 'GERMANY' AND <b style="color: brown;">n2</b>.name = 'FRANCE');
+</code></p>
+
+<p>将自动推导出分别针对左右表的条件，<br/>
+并将其下推。</p>
+
+<p><code style="font-size: 18pt; line-height: 1.25;">:) SET use_join_disjunctions_push_down;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">二级索引的延后物化</h2>
+
+<p>现在可以将索引构建从 INSERT 时
+<br/>推迟至后台合并：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET <b style="color: green;">exclude_materialize_skip_indexes_on_insert</b>;
+</code></p>
+
+<p>甚至可以禁用合并时的索引构建：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE t (...)
+SETTINGS <b style="color: green;">materialize_skip_indexes_on_merge</b> = false;
+</code></p>
+
+<p>或从计算中排除特定的重量级索引：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE t (...)
+SETTINGS <b style="color: green;">exclude_materialize_skip_indexes_on_merge</b> = 'vector_a,bf';
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：George Larionov。</p>
+</section>
+
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/back3.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>负数 LIMIT 和 OFFSET</h2>
+
+<p>示例：获取最后 100 条记录，但按升序返回：</p>
+
+<p><code style="font-size: 16pt; line-height: 1.25;"><span style="color: gray;">-- Before 25.10:</span>
+:) SELECT * FROM (
+     SELECT * FROM logs WHERE date = today()
+     ORDER BY time DESC LIMIT 100
+   ) ORDER BY time;
+
+<span style="color: gray;">-- Since 25.10:</span>
+:) SELECT * FROM logs WHERE date = today()
+   ORDER BY time <b style="color: green;">LIMIT -100</b>;
+
+<span style="color: gray;">-- negative pagination: LIMIT -100 OFFSET 100</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Nihal Z. Miaji。</p>
+</section>
+
+
+<section class="slide">
+<h2>QBit 数据类型 🧪</h2>
+
+<p>面向 <b>嵌入向量</b>,
+<br/>，允许在运行时调整搜索精度。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -1em;">CREATE TABLE vectors (
+    id UInt64, name String, ...
+    vec <b style="color: green;">QBit(BFloat16, 1536)</b>
+) ORDER BY ();</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -1em;">SELECT id, name FROM vectors
+ORDER BY <b style="color: green;">L2DistanceTransposed</b>(vector, target, <b style="color: green;">10</b>)
+LIMIT 10;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Raufs Dunamalijevs。</p>
+</section>
+
+<section class="slide">
+<div style="float: right; width: 60%; height: 110%; margin-right: -100px; margin-top: -20px; background: #1a1a18;">
+<img style="width: 100%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/qbit.jpg"/>
+</div>
+<h2>QBit 数据类型 🧪</h2>
+
+<p>采用 <b>位切片</b> 数据布局：
+<br/>每个数值按位切分，
+<br/>例如对于一个 1536 维 Float32 向量，
+<br/>我们存储 <b style="color: green;">32 个子列</b> ，分别保存所有维度的第 N 位（第 0..31 位）。</p>
+
+<p>查询时指定取多少个最高有效位。</p>
+
+<p>例如，可以只要求读取
+<br/>32 位中的 10 位。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Raufs Dunamalijevs。</p>
+</section>
+
+<section class="slide">
+<h2>QBit 数据类型 🧪</h2>
+
+<p style="margin-top: -2em;">演示</p>
+<p><code style="font-size: 12pt; line-height: 1.25; margin-right: -1em;">CREATE TABLE dbpedia
+(
+  id      String,
+  title   String,
+  text    String,
+  vector  Array(Float32) CODEC(NONE)
+) ENGINE = MergeTree ORDER BY (id);
+
+seq 0 25 | xargs -P4 -I{} clickhouse-client "INSERT INTO dbpedia
+SELECT id, title, text, \"text-embedding-3-large-1536-embedding\"
+FROM url(<span style="color: teal;">'https://huggingface.co/api/datasets/Qdrant/dbpedia-entities-
+openai3-text-embedding-3-large-1536-1M/parquet/default/train/{}.parquet'</span>)
+SETTINGS max_http_get_redirects = 5"
+
+SET allow_experimental_qbit_type = 1;
+ALTER TABLE dbpedia ADD COLUMN qbit <b style="color: green;">QBit(Float32, 1536)</b>;
+ALTER TABLE dbpedia UPDATE qbit = vector WHERE 1;
+</code></p>
+
+<!--
+
+SELECT
+    title,
+    text,
+    COUNT(DISTINCT concept) AS num_concepts_matched,
+    MIN(distance) AS min_distance,
+    AVG(distance) AS avg_distance
+FROM (
+    (
+        SELECT title, text, 'Moon' AS concept,
+               L2Distance(vector, (SELECT vector FROM dbpedia WHERE title = 'Moon')) AS distance
+        FROM dbpedia
+        WHERE title != 'Moon'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+    UNION ALL
+    (
+        SELECT title, text, 'Apollo 11' AS concept,
+               L2Distance(vector, (SELECT vector FROM dbpedia WHERE title = 'Apollo 11')) AS distance
+        FROM dbpedia
+        WHERE title != 'Apollo 11'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+    UNION ALL
+    (
+        SELECT title, text, 'Space Shuttle' AS concept,
+               L2Distance(vector, (SELECT vector FROM dbpedia WHERE title = 'Space Shuttle')) AS distance
+        FROM dbpedia
+        WHERE title != 'Space Shuttle'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+    UNION ALL
+    (
+        SELECT title, text, 'Astronaut' AS concept,
+               L2Distance(vector, (SELECT vector FROM dbpedia WHERE title = 'Astronaut')) AS distance
+        FROM dbpedia
+        WHERE title != 'Astronaut'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+    UNION ALL
+    (
+        SELECT title, text, 'Rocket' AS concept,
+               L2Distance(vector, (SELECT vector FROM dbpedia WHERE title = 'Rocket')) AS distance
+        FROM dbpedia
+        WHERE title != 'Rocket'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+)
+WHERE title NOT IN ('Moon', 'Apollo 11', 'Space Shuttle', 'Astronaut', 'Rocket')
+GROUP BY title, text
+HAVING num_concepts_matched >= 3
+ORDER BY num_concepts_matched DESC, min_distance ASC
+LIMIT 10;
+
+
+SELECT
+    title,
+    text,
+    COUNT(DISTINCT concept) AS num_concepts_matched,
+    MIN(distance) AS min_distance,
+    AVG(distance) AS avg_distance
+FROM (
+    (
+        SELECT title, text, 'Moon' AS concept,
+               L2DistanceTransposed(qbit, (SELECT vector FROM dbpedia WHERE title = 'Moon'), 5) AS distance
+        FROM dbpedia
+        WHERE title != 'Moon'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+    UNION ALL
+    (
+        SELECT title, text, 'Apollo 11' AS concept,
+               L2DistanceTransposed(qbit, (SELECT vector FROM dbpedia WHERE title = 'Apollo 11'), 5) AS distance
+        FROM dbpedia
+        WHERE title != 'Apollo 11'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+    UNION ALL
+    (
+        SELECT title, text, 'Space Shuttle' AS concept,
+               L2DistanceTransposed(qbit, (SELECT vector FROM dbpedia WHERE title = 'Space Shuttle'), 5) AS distance
+        FROM dbpedia
+        WHERE title != 'Space Shuttle'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+    UNION ALL
+    (
+        SELECT title, text, 'Astronaut' AS concept,
+               L2DistanceTransposed(qbit, (SELECT vector FROM dbpedia WHERE title = 'Astronaut'), 5) AS distance
+        FROM dbpedia
+        WHERE title != 'Astronaut'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+    UNION ALL
+    (
+        SELECT title, text, 'Rocket' AS concept,
+               L2DistanceTransposed(qbit, (SELECT vector FROM dbpedia WHERE title = 'Rocket'), 5) AS distance
+        FROM dbpedia
+        WHERE title != 'Rocket'
+        ORDER BY distance ASC
+        LIMIT 1000
+    )
+)
+WHERE title NOT IN ('Moon', 'Apollo 11', 'Space Shuttle', 'Astronaut', 'Rocket')
+GROUP BY title, text
+HAVING num_concepts_matched >= 3
+ORDER BY num_concepts_matched DESC, min_distance ASC
+LIMIT 10;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Raufs Dunamalijevs。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/back7.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">数据湖</span></h2>
+</section>
+
+<section class="slide">
+<h2>Apache Paimon 🧪</h2>
+
+<p>ClickHouse 现在有表函数可以查询 <b>Paimon</b> 表：</p>
+
+<p><code style="font-size: 16pt; line-height: 1.5;">SELECT * FROM <b style="color: green;">paimon</b>('s3://...');</code></p>
+
+<p>我们已支持 <b>Iceberg</b>, <b>Delta Lake</b>, <b>Hudi</b>。为什么还支持 <b>Paimon</b>？🤔</p>
+<p>&mdash; 因为有人在用。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Jia Qi Tang。</p>
+</section>
+
+<section class="slide">
+<h2>数据湖改进</h2>
+
+<h3 style="font-size: 28pt;">按表顺序读取的优化：</h3>
+<p>如果 <b>Iceberg</b> 表已经排序，带有相应
+<br/>ORDER BY 的 SELECT 就无需完整排序。</p>
+
+<h3 style="font-size: 28pt;">Delta 元数据操作日志：</h3>
+<p><b>system.delta_lake_metadata_log</b> 提供 Delta 表元数据操作的信息，类似于 <b>system.iceberg_metadata_log</b>。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">额外消息</span></h2>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/gems.png); background-size: cover;">
+<h1 style="color: white; position: absolute; left: 0.5em; bottom: 0.54em; line-height: 1; text-shadow: 5px 5px 5px black;"><span style="background: black; display: inline-block; drop-shadow: 5px 5px 5px black;">clickgems.clickhouse.com</span></h1>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/party.png); background-size: cover;">
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流会</h2>
+<p style="line-height: 1.5">
+<span class="hilite">&mdash; 🇪🇪 塔林，10 月 30 日</span>
+<br/><span class="hilite">&mdash; 🇸🇪 斯德哥尔摩，11 月 3 日</span>
+<br/><span class="hilite">&mdash; 🇨🇴 波哥大，11 月 13 日</span>
+<br/><span class="hilite">&mdash; 🇦🇺 LaraCon 2025，11 月 13 日</span>
+<br/><span class="hilite">&mdash; 🇰🇷 ClickHouse + Dev-Korea 首尔联合交流会，11 月 18 日</span>
+<br/><span class="hilite">&mdash; 🇨🇾 塞浦路斯，11 月 20 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 House Party，The SQL，12 月 2 日</span>
+</p>
+</section>
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;">
+&mdash; QBit：在查询时调整精度的向量搜索
+<br/>&mdash; 我们如何进一步加快 JSON 数据类型
+<br/>&mdash; 实现日志 170 倍压缩
+<br/>&mdash; 使用 ClickHouse 构建智能体的 12 个框架
+<br/>&mdash; 使用 ClickStack 跟踪智能体
+<br/>&mdash; 如何在云端查询数据湖目录
+<br/>&mdash; Netflix, GitLab, Laravel
+</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/openhouse.png); background-size: cover;">
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.10/pictures/back8.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/cV2hiOCzDG4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--视频插件-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/视频插件-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
