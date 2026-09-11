@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：23.7 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.7/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：23.7 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.7/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：23.7 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2023-07-27。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.7/pictures/summer1.jpg); background-size: cover;">
+        <h1 style="margin-top: 130px; line-height: 150%; color: white; font-size: 64pt; text-shadow: 10px 10px 10px black;">ClickHouse<br/> 23.7 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>23.7 版本网络研讨会</h2>
+<p>1.（55 分钟）ClickHouse 23.7 新内容。</p>
+<p>&emsp; 还有嘉宾分享！</p>
+<p>2.（5 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.7/pictures/summer2.jpg); background-size: cover;">
+<h2><span class="hilite">23.7 版本</span></h2>
+<p><span class="hilite">ClickHouse 夏季版本。</span></p>
+<p><span class="hilite">— 31 项新功能 🌞</span></p>
+<p><span class="hilite">— 16 项性能优化 🕶️</span></p>
+<p><span class="hilite">— 47 项缺陷修复 ⛱️</span></p>
+</section>
+
+<!--
+
+initcap
+hasSubsequence
+arrayJaccardIndex
+firstLine
+
+STOP LISTEN
+
+Keeper 磁盘上的日志和快照
+Keeper 的 reconfig
+
+RowBinaryWithDefaults
+CSV 中可变的列数
+default_temporary_table_engine
+disable_url_encoding
+
+兼容性
+
+列声明中的 PRIMARY KEY
+array_agg
+any_value
+array_concat_agg
+OCTET_LENGTH
+current_database
+current_schemas
+curdate current_date current_timestamp
+
+性能：
+
+Parquet 写入
+稀疏列
+多阶段 PREWHERE
+
+
+主要内容：
+
+PRQL
+叠加数据库
+CI 中的 RISC-V
+
+
+嘉宾分享：
+
+CHDB
+BigHouse
+
+集成
+
+ClickPipes
+JS 驱动
+
+阅读
+
+基于 ClickHouse 的内部数据仓库
+ClickPipes
+Vantage 从 Redshift 迁移
+
+-->
+
+<section class="slide">
+<h2>实用的新函数</h2>
+</section>
+
+<section class="slide">
+<h2>initcap, initcapUTF8</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">initCap</b>('what is this?');
+
+What Is This?
+
+:) SELECT <b style="color: green;">initcapUTF8</b>('унылая хрень');
+
+Унылая Хрень
+
+:) SELECT <b style="color: green;">initcapUTF8</b>('好的数据库');
+
+好的数据库
+</code></p>
+
+<p style="color: gray; font-size: 14pt;">* 对土耳其语无法保证正确。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: -0.5em;">开发者：Dmitry Kardymon。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">hasSubsequence</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">hasSubsequence</b>('<b style="color: blue;">Rep</b>licated<b style="color: blue;">M</b>erge<b style="color: blue;">T</b>ree', 'RepMT');
+
+1
+
+:) SELECT <b style="color: green;">hasSubsequenceCaseInsensitive</b>(
+          '<b style="color: blue;">Click</b>stream Data Ware<b style="color: blue;">house</b>', 'ClickHouse');
+
+1
+
+:) SELECT <b style="color: green;">hasSubsequenceCaseInsensitiveUTF8</b>(
+          '<b style="color: blue;">не </b>при<b style="color: blue;">слон</b>ятьс<b style="color: blue;">я</b>', 'не слонЯ');
+
+1
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Dmitry Kardymon。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">firstLine</h2>
+
+ClickHouse 23.6: 🥱
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT extract(text, '^[^\n]+') FROM articles;</code></p>
+<p><code style="font-size: 14pt; line-height: 1.25; margin-top: -0.5em;">SELECT substring(text, 1, position('\n' IN text) - 1) FROM articles;</code></p>
+
+ClickHouse 23.7: 😎
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">firstLine</b>(text) FROM articles;</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Dmitry Kardymon。</p>
+</section>
+
+
+<section class="slide">
+<h2>arrayJaccardIndex</h2>
+
+<p><img src="https://wikimedia.org/api/rest_v1/media/math/render/svg/89dcb98a3dc7e505fe274e3f779a2fdf11009efd"/></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">arrayJaccardIndex</b>(
+          tokens('ClickHouse is a database'),
+          tokens('ClickHouse is a good database'))
+</code></p>
+
+<p style="color: white;">0.8</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：FFFFFFFHHHHHHH。</p>
+</section>
+
+<section class="slide">
+<h2>运维</h2>
+</section>
+
+<section class="slide">
+<h2>SYSTEM STOP LISTEN</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SYSTEM STOP LISTEN <b>QUERIES HTTPS</b></code></p>
+
+<p>&mdash; TCP, TCP WITH PROXY, TCP SECURE,<br/>
+&emsp; HTTP, HTTPS, MYSQL, GRPC,<br/>
+&emsp; POSTGRESQL, PROMETHEUS, CUSTOM,<br/>
+&emsp; INTERSERVER HTTP, INTERSERVER HTTPS,<br/>
+&emsp; QUERIES ALL, QUERIES DEFAULT, QUERIES CUSTOM;</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SYSTEM START LISTEN <b>QUERIES ALL</b> ON CLUSTER default</code></p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Nikolai Degterinskiy。</p>
+</section>
+
+<section class="slide">
+<h2>Keeper 的新能力</h2>
+</section>
+
+<section class="slide">
+<h2>Keeper 中的自定义磁盘</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">keeper_server:
+    log_storage_disk: log_s3_plain
+    latest_log_storage_disk: log_local
+    snapshot_storage_disk: snapshot_s3_plain
+    latest_snapshot_storage_disk: snapshot_local
+</code></p>
+
+<p>仅最新的日志需要本地存储。</p>
+<p>旧日志和所有快照可以使用 S3（采用 <b>s3_plain</b> 磁盘类型）。</p>
+
+<p>&mdash; 让本地存储空间保持 <b style="color: green;">较小</b> 且 <b style="color: green;">有上限</b> （约 100 MB）；
+<br/>&mdash; 支持在磁盘之间迁移；</p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Antonio Andelic。</p>
+</section>
+
+<section class="slide">
+<h2>Keeper 动态重配置</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">keeper_server:
+    enable_reconfiguration: 1
+</code></p>
+
+<p>允许选择通过修改配置文件进行重配置，
+<br/>或发送 <b>reconfig</b> 命令。</p>
+
+<p>它与 <b style="color: green;">ZooKeeper 协议</b> 兼容。</p>
+<p>所有支持 ZooKeeper reconfig 的客户端都能与 Keeper 配合使用。</p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Michael Kot。</p>
+</section>
+
+<section class="slide">
+<h2>导入/导出</h2>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">列数可变的 CSV</h2>
+
+<p>普通 CSV：</p>
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -1em;">"Name","Is It Good","Stars","LOC","Contributors"
+ClickHouse,Yes,29990,800000,1300
+MongoDB,No<b style="color: red;">,,,</b>
+</code></p>
+
+<p>奇特的 CSV：</p>
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -1em;">"Name","Is It Good","Stars","LOC","Contributors"
+ClickHouse,Yes,29990,800000,1300
+MongoDB,No
+</code></p>
+
+<p>要解析奇特的 CSV，请执行 <br/>SET <b style="color: green;">input_format_csv_allow_variable_number_of_columns</b> = 1.</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Dmitry Kardymon。</p>
+</section>
+
+
+<section class="slide">
+<h2>RowBinaryWithDefaults 格式</h2>
+
+<p>类似于 RowBinary，但允许编码 <i>值缺失的情况</i>。</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -1em;"><b style="color: green;">0x00</b> encoded_value
+<span style="color: gray;">^ when the value is present</span>
+
+<b style="color: green;">0x01</b>
+<span style="color: gray;">^ when the value is absent</span></code></p>
+
+<p>允许逐条记录计算表的 DEFAULT 表达式。</p>
+
+<p>注意：也可以使用 <b>input_format_null_as_default</b> 设置。
+<br/>但 NULL 与 <i>值缺失</i> 并不相同。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+
+<section class="slide">
+<h2>性能优化</h2>
+</section>
+
+<section class="slide">
+<h2>Parquet 写入</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT * FROM hits INTO OUTFILE 'hits.parquet'
+</code></p>
+
+<p>23.6: <b style="color: red">32.55 万</b> 行/秒， <b style="color: red">270.16 MB/s</b>。</p>
+<p>23.7: <b style="color: green">157 万</b> 行/秒， <b style="color: green">1.30 GB/s</b>。</p>
+
+<p><b>6 倍</b> 提速！</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Michael Kolupaev。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 36pt">稀疏列、多阶段 PREWHERE</h2>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.7/pictures/clickbench.png" style="width: 100%"/>
+</section>
+
+
+<section class="slide">
+<h2>社区项目</h2>
+<p><b>chdb</b>：Auxten &amp; Lorenzo Mangani；</p>
+<p><b>BigHouse</b>：Dan Goodman；</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">展示你的 ClickHouse 集成</h2>
+<p style="line-height: 1.5;">如果希望在 ClickHouse 网络研讨会上展示你的项目，
+<br/>请联系 tyler@clickhouse.com，或通过以下链接与我们沟通： <a href="https://clickhouse.com/slack">https://clickhouse.com/slack</a></p>
+</section>
+
+
+
+<section class="slide">
+<h2>特别内容</h2>
+</section>
+
+
+<section class="slide">
+<h2>将文件系统作为数据库</h2>
+
+<p style="margin-top: -1em;">在以下工具中自动挂载： <b>clickhouse-local</b>。</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -1em;">$ clickhouse-local
+
+<span style="color: gray;"># ClickHouse 1.1 (2017)</span>
+:) SELECT * FROM file('test.csv', CSVWithNames, 'a String, b String')
+
+<span style="color: gray;"># ClickHouse 22.1 (2022)</span>
+:) SELECT * FROM file('test.csv', CSVWithNames)
+
+<span style="color: gray;"># ClickHouse 23.1 (2023)</span>
+:) SELECT * FROM file('test.csv')
+
+<span style="color: gray;"># ClickHouse 23.7 (2023)</span>
+:) SELECT * FROM <b style="color: green;">`test.csv`</b>
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Aleksey Golub。</p>
+</section>
+
+<section class="slide">
+<h2>将文件系统作为数据库</h2>
+
+<p style="margin-top: -1em;">可在服务器上创建，
+<br/>使用 <b>user_files</b> 目录中的文件：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -1em;">CREATE DATABASE files ENGINE = <b style="color: green;">Filesystem</b>;
+CREATE DATABASE files ENGINE = <b style="color: green;">Filesystem</b>('subdir/');
+
+SELECT * FROM files.`path/to/file.avro.zst`;
+</code></p>
+
+<p>还有 <b>S3</b> 和 <b>HDFS</b> 数据库引擎 😍</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -4em;">CREATE DATABASE s3 ENGINE = <b style="color: green;">S3</b>;
+CREATE DATABASE bucket ENGINE = <b style="color: green;">S3</b>('https://clickhouse-public-datasets.s3.amazonaws.com/');
+
+SELECT * FROM
+    s3.`https://clickhouse-public-datasets.s3.amazonaws.com/hits_compatible/hits.csv.gz`;
+
+SELECT * FROM bucket.`hits_compatible/hits.csv.gz`;
+</code></p>
+</section>
+
+
+<section class="slide">
+<h2>PRQL &mdash; 一种新语言</h2>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.7/pictures/prql.png" style="width: 100%;"/>
+</section>
+
+<section class="slide">
+<h2>PRQL &mdash; 一种新语言</h2>
+<p>ClickHouse 中的实验性支持。</p>
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -1em;">:) SET dialect = 'prql';
+:) from tracks
+   select [album_id, name, unit_price] | sort [-unit_price, name]
+   group album_id (aggregate [track_count = count, album_price = sum unit_price])
+   join albums (==album_id)
+   group artist_id (
+       aggregate [track_count = sum track_count, artist_price = sum album_price])
+   join artists (==artist_id)
+   select [artists.name, artist_price, track_count] | sort [-artist_price]
+   derive avg_track_price = artist_price / track_count | take 10;</code></p>
+
+<p>试试看……也许能正常运行。</p>
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：János Benjamin Antal。</p>
+</section>
+
+<section class="slide">
+<h2>ClickHouse Cloud 中的 ClickPipes</h2>
+<img src="https://clickhouse.com/uploads/clickpipes_1mn_88c2bc30a1.gif" style="width: 125%; margin: -1.5em -100px 0 -100px"/>
+</section>
+
+<section class="slide">
+<h2>JavaScript 客户端</h2>
+<p>现在可用于浏览器和 CloudFlare Workers！</p>
+<p style="color: gray;">顺便说一下，无需任何驱动也能使用 ClickHouse，
+<br/>只需使用 <b>fetch</b> 甚至 XMLHttpRequest。</p>
+<p>不过，使用 <b>ClickHouse.js</b>可以获得：</p>
+<p>&mdash; 流式处理；<br/>
+&mdash; TypeScript 类型（例如具有类型的设置）；<br/>
+&mdash; 开箱即用的示例。</p>
+<p><a href="https://github.com/ClickHouse/clickhouse-js">https://github.com/ClickHouse/clickhouse-js</a></p>
+</section>
+
+<section class="slide">
+<h2>阅读园地</h2>
+<img style="float: right; margin-top: -1em; margin-right: -2em; width: 40%; image-rendering: pixelated;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.7/pictures/ai.png"/>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; Vantage 从 Redshift 和 Postgres<br/>&emsp; 迁移到 ClickHouse 的历程
+<br/>&mdash; 我们如何构建内部数据仓库<br/>&emsp; ——ClickHouse 的实践
+<br/>&mdash; 使用 ClickHouse、<br/>&emsp; Confluent Cloud 和 ClickPipes 实现实时事件流处理</p>
+
+<p>视频回放： <a href="https://www.youtube.com/c/ClickHouseDB">https://www.youtube.com/c/ClickHouseDB</a></p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.7/pictures/summer3.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/TI1kONfON18" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
