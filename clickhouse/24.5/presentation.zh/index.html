@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：24.5 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：24.5 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：24.5 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2024-05-30。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 60px; line-height: 150%; font-size: 56pt;"><span class="hilite">ClickHouse 版本<br/>24.5</span></h1>
+    </section>
+
+<section class="slide">
+<h2>24.5 版本网络研讨会</h2>
+<p>1.（55 分钟）ClickHouse 24.5 新内容。</p>
+<p>2.（5 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">24.5 版本</span></h2>
+<p><span class="hilite">ClickHouse 春夏之交版本。</span></p>
+<p><span class="hilite">— 19 项新功能 🌿</span></p>
+<p><span class="hilite">— 20 项性能优化 🚴‍</span></p>
+<p><span class="hilite">— 68 项缺陷修复 🐝</span></p>
+</section>
+<!--
+
+Small
+
+Any keys in Map
+clamp
+NPy as an output format
+Direct reading from archives on S3
+generateSnowflakeID
+fromReadableSize
+
+Usability
+
+Trailing commas in INSERT
+stdout compression autodetection
+positional argument
+English-style quotes
+width and ANSI sequences
+
+Performance
+
+Native Parquet reader
+DateTime vs DateTime64
+Indices of type Set
+-UTF8: substringUTF8, substringIndexUTF8, reverseUTF8, lowerUTF8, leftPadUTF8, rightPadUTF8
+Faster globs
+splitByRegexp when a single character
+FixedHashTable
+Sparse columns, Vertical merge.
+
+Main
+
+Dynamic
+Azure - workload identity, backups
+Compressing cross join; cross join in external memory
+Inequal join
+Form data format
+
+chdb
+9 times faster processing of data frames
+custom readers
+chdb-server
+
+
+
+Bonus
+
+loongarch64
+
+Integrations
+
+ClickPipes: Kinesis
+Kafka offsets
+Kafka meta-columns: key, timestamp, headers, topic, offset
+
+Metabase update: CSV uploads
+
+dbt: codecs
+Java, Go, Python
+Tableau
+
+https://github.com/rjoelnorgren - DBT
+https://github.com/Wang - Golang client
+https://github.com/jirislav - Kafka Connector
+https://github.com/abhishekgahlot2 - Kafka Connector
+https://github.com/feychenie - Python client
+https://github.com/calherries
+
+Reading
+
+Graviton
+New SQL console
+API endpoints
+Configurable backups
+Kinesis
+Certification program
+Elasticsearch comparison
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">精巧实用的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>不受限制的 Map 数据类型</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TEMPORARY TABLE test (
+   x Map(Array(Map(Float64, String)), String));
+
+INSERT INTO test VALUES
+   ({[]: 'Hello'}),
+   ({[{1.1: 'test'}]: 'World'});
+
+SELECT * FROM test1;
+
+   ┌─x────────────────────────┐
+1. │ {[]:'Hello'}             │
+2. │ {[{1.1:'test'}]:'World'} │
+   └──────────────────────────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：TaiYang Li。</p>
+</section>
+
+
+<section class="slide">
+<h2>Npy 输出格式</h2>
+
+<p>自 23.10 起已支持数据导入。</p>
+<p>从 24.5 起也支持数据导出。</p>
+
+<p><code style="font-size: 14pt;">SELECT [number, number * 2]
+FROM numbers(10) <b style="color: green;">INTO OUTFILE 'test.npy'</b> <span style="color: gray;">-- or <b>FORMAT Npy</b></span>
+
+SELECT * FROM 'test.npy'
+
+python3 -c "
+    import numpy as np;
+    array = np.load('test.npy');
+    print(array)"
+</code></p>
+
+<p>演示。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：HowePa。</p>
+</section>
+
+
+<section class="slide">
+<h2>clamp</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: gray;">:) SELECT greatest(5, least(10, x))</span>
+
+<span style="color: gray;">:) SELECT max2(5, min2(10, x))</span>
+
+<span style="color: green;">:) SELECT <b>clamp</b>(x, 5, 10)</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：skyoct。</p>
+</section>
+
+<!--
+<section class="slide">
+<h2>generateSnowflakeID</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT generateSnowflakeID() FROM numbers(3)
+
+   ┌─generateSnowflakeID()─┐
+1. │   7201822390320365568 │
+2. │   7201822390320365569 │
+3. │   7201822390320365570 │
+   └───────────────────────┘
+</code></p>
+
+<p>Generates a monotonic 64-bit unique identifier.</p>
+<p>Similar to UUID, but smaller and monotonic.</p>
+<p style="color: gray; font-size: 14pt;">Has nothing to do with Snowflake Inc.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">Developer: Danila Puzov.</p>
+</section>
+-->
+
+<section class="slide">
+<h2>读取 S3 上的归档</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM s3(
+  '<b style="color: green;">s3://</b>umbrella-static/top-1m-2024-01-*.csv<b style="color: green;">.zip :: *.csv</b>')
+  LIMIT 10;
+
+SELECT _path, c1 FROM s3(
+  '<b style="color: green;">s3://</b>umbrella-static/top-1m-2024-01-*.csv<b style="color: green;">.zip :: *.csv</b>')
+  WHERE c2 = 'clickhouse.com' ORDER BY _path;</code></p>
+
+<p>以下容器格式的内容，例如 <b>*.tar.*</b>, <b>*.zip</b>, <b>*.7z</b>
+<br/>可直接从 S3 读取。</p>
+
+<p>对于本地文件系统， &mdash; 从 23.8 起就已支持。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Dan Ivanik。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">易用性改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>INSERT 中的末尾逗号</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">INSERT INTO test (c1, c2<b style="color: red;">,</b>) VALUES ('Hello', 'World'<b style="color: red;">,</b>);
+
+INSERT INTO test
+(
+    c1,
+    c2<b style="color: red;">,</b>
+)
+VALUES
+(
+    'Hello',
+    'World'<b style="color: red;">,</b>
+);</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">自动检测 StdOut 的压缩方式</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">ch -q "SELECT * FROM 'test.parquet' INTO OUTFILE 'test.csv.gz'"</code></p>
+
+<p style="margin-top: 2em;">从 24.5 起，即使使用 shell 重定向也能生效！</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">ch -q "SELECT * FROM 'test.parquet'" <b style="color: green;">> test.csv.gz</b>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：v01dXYZ。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">简化命令行</h2>
+
+<p><code style="font-size: 14pt; line-height: 2;">clickhouse-local --query "SELECT 1"
+clickhouse-local -q "SELECT 1"
+echo "SELECT 1" | clickhouse local
+ch -q "SELECT 1"
+echo "SELECT 1" | ch
+<b style="color: green;">ch "SELECT 1"</b> <span style="color: gray;"> # since 24.5</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">英文引号</h2>
+
+<p><code style="line-height: 2; font-family: Sans-Serif;">SELECT 'Hello, world';
+SELECT ‘Hello, world’;
+</code></p>
+
+<p>为什么？？？演示。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/back5.jpg); background-size: cover;">
+<h2 style="color: white;">性能改进</h2>
+</section>
+
+<section class="slide">
+<h2>更快的字符串函数</h2>
+
+<p><b>UTF8</b> 函数在字符串仅含 ASCII 时采用快捷路径：</p>
+<p>&mdash; substringUTF8, substringIndexUTF8, reverseUTF8,
+<br/>&emsp; lower/upperUTF8, left/rightPadUTF8.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：TaiYang Li。</p>
+</section>
+
+<section class="slide">
+<h2>更快的索引分析</h2>
+
+<p>适用于类型为 <b>set</b>。</p>
+
+<p>索引分析可能耗时很长，从而延迟查询处理，
+<br/>尤其是包含万亿行或 index_granularity 较小的表。</p>
+
+<p>现在最高提速 1.5 倍！</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>DateTime64 的索引分析</h2>
+
+<p>当 DateTime 与常量 DateTime64 比较时。</p>
+
+<!--
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<!--
+
+<section class="slide">
+<h2>Faster GROUP BY</h2>
+
+<p>When keys fit in 16 bits.</p>
+<p>By optimizing merging of lookup tables.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">Developer: Jie Binn.</p>
+</section>
+
+-->
+
+<section class="slide">
+<h2>S3 的更快 glob 匹配</h2>
+
+<p><code>prefix{1,2,3}/file*.csv</code></p>
+
+<p>此前：创建正则表达式，
+<br/>并与某个前缀下的所有路径匹配。</p>
+
+<p>现在：将 <b>{1,2,3}</b> 解释为惰性生成器，
+<br/>仅匹配 <b>file*.csv</b> ，匹配范围限于 <b>prefix1/</b>, <b>prefix2/</b>, <b>prefix3/</b>。</p>
+
+<p>文件数量极大时更快。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Andrey Zvonov。</p>
+</section>
+
+<!--
+<section class="slide">
+<h2>Faster Merges</h2>
+
+<p>With sparse columns.</p>
+
+<p>Sparse columns &mdash; is a special data format used for<br/>columns with a high ratio of default values.</p>
+
+<p>The query engine automatically takes the benefit of the sparse format<br/>by optimizing functions and expressions.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">Developer: Anton Popov.</p>
+</section>
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/back6.jpg); background-size: cover;">
+<h2 style="color: white; margin-top: 1em;">一些有趣的功能</h2>
+</section>
+
+<section class="slide">
+<h2>Dynamic 数据类型</h2>
+
+<p>一种新的实验性数据类型，用于 <b>半结构化数据</b>。</p>
+<p>类似于 <b>Variant</b> 数据类型，但它是 <i>动态的</i>。</p>
+
+<p><b>Variant(String, UInt64, Array(String))</b> &mdash; 类型列表中的任意类型。</p>
+
+<p><b>Dynamic</b> &mdash; 任意类型，自动扩展类型列表。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pavel Kruglov</p>
+</section>
+
+<section class="slide">
+<h2>Dynamic 数据类型</h2>
+
+<p>在表定义中使用 <b>Dynamic</b> 类型：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE test (d Dynamic) ENGINE = Memory;
+INSERT INTO test VALUES (NULL), (42), ('Hello, World!'), ([1, 2, 3]);
+SELECT d, dynamicType(d) FROM test;
+
+┌─d─────────────┬─dynamicType(d)─┐
+│ ᴺᵁᴸᴸ          │ None           │
+│ 42            │ Int64          │
+│ Hello, World! │ String         │
+│ [1,2,3]       │ Array(Int64)   │
+└───────────────┴────────────────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pavel Kruglov</p>
+</section>
+
+<section class="slide">
+<h2>Dynamic 数据类型</h2>
+
+<p style="margin-top: -1em;">从普通列进行 CAST：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">SELECT 'Hello, World!'<b style="color: green;">::Dynamic</b> as d, <b style="color: green;">dynamicType(d)</b>;
+
+┌─d─────────────┬─dynamicType(d)─┐
+│ Hello, World! │ String         │
+└───────────────┴────────────────┘
+</code></p>
+
+<p>从 <b>Variant</b> 列进行 CAST：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">SET allow_experimental_variant_type = 1, use_variant_as_common_type = 1;
+SELECT multiIf(number % 3 = 0, number,
+number % 3 = 1, range(number + 1), NULL)::<b style="color: green;">Dynamic</b> AS d, <b style="color: green;">dynamicType(d)</b>
+FROM numbers(3)
+
+┌─d─────┬─dynamicType(d)─┐
+│ 0     │ UInt64         │
+│ [0,1] │ Array(UInt64)  │
+│ ᴺᵁᴸᴸ  │ None           │
+└───────┴────────────────┘
+</code></p>
+</section>
+
+<section class="slide">
+<h2>Dynamic 数据类型</h2>
+
+<p style="margin-top: -1em;">读取 Dynamic 值的子列：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.1;">SELECT d, dynamicType(d), d.String, d.`Array(Int64)` FROM test;
+
+┌─d─────────────┬─dynamicType(d)─┬─d.String──────┬─d.Array(Int64)─┐
+│ ᴺᵁᴸᴸ          │ None           │ ᴺᵁᴸᴸ          │ []             │
+│ 42            │ Int64          │ ᴺᵁᴸᴸ          │ []             │
+│ Hello, World! │ String         │ Hello, World! │ []             │
+│ [1,2,3]       │ Array(Int64)   │ ᴺᵁᴸᴸ          │ [1,2,3]        │
+└───────────────┴────────────────┴───────────────┴────────────────┘
+
+SELECT toTypeName(d.String) FROM test;
+
+┌─toTypeName(d.String)─┐
+│ Nullable(String)     │
+└──────────────────────┘
+
+SELECT d, dynamicType(d), dynamicElement(d, 'String') FROM test;
+
+┌─d─────────────┬─dynamicType(d)─┬─dynamicElement(d, 'String')─┐
+│ ᴺᵁᴸᴸ          │ None           │ ᴺᵁᴸᴸ                        │
+│ 42            │ Int64          │ ᴺᵁᴸᴸ                        │
+│ Hello, World! │ String         │ Hello, World!               │
+│ [1,2,3]       │ Array(Int64)   │ ᴺᵁᴸᴸ                        │
+└───────────────┴────────────────┴─────────────────────────────┘
+</code></p>
+</section>
+
+<section class="slide">
+<h2>Dynamic 数据类型</h2>
+
+<p style="margin-top: -1em;">从数据格式推断类型：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">SELECT d, dynamicType(d)
+FROM format(JSONEachRow, 'd Dynamic',
+'
+    {"d" : "Hello, World!"},
+    {"d" : 42},
+    {"d" : 42.42},
+    {"d" : "2020-01-01"},
+    {"d" : [1, 2, 3]}
+')
+
+┌─d─────────────┬─dynamicType(d)─┐
+│ Hello, World! │ String         │
+│ 42            │ Int64          │
+│ 42.42         │ Float64        │
+│ 2020-01-01    │ Date           │
+│ [1,2,3]       │ Array(Int64)   │
+└───────────────┴────────────────┘
+</code></p>
+</section>
+
+<section class="slide">
+<h2>Azure</h2>
+
+<p>支持 <b>“工作负载标识”</b> &mdash; Vinay Suryadevara.</p>
+<p>优化 <b>备份</b> ：使用服务端复制 &mdash; Alexander Sapin.</p>
+<p style="margin-right: -3em;">支持 <b>plain_rewritable</b> 元数据，用于 <b>azure</b> Blob Storage &mdash; Julia Kartseva.</p>
+
+<p style="margin-top: 2em;">Azure 已 <b>生产可用</b> （从 24.5 起）！</p>
+
+<p style="color: green;">为了什么？</p>
+</section>
+
+<section class="slide">
+<img style="float: right; width: 25%; margin-right: -3em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/azure.png"/>
+<h2>Azure</h2>
+
+<p style="color: green;">为了什么？</p>
+<p>我们推出了 Azure 上的 ClickHouse Cloud（beta）！</p>
+<p style="margin-right: -5em;"><a href="https://clickhouse.com/blog/clickhouse-cloud-is-now-on-azure-in-public-beta">https://clickhouse.com/blog/clickhouse-cloud-is-now-on-azure-in-public-beta</a>
+<p>ClickHouse Cloud：现已支持 AWS、GCP， <b>以及 Azure</b>,
+<br/>……还有阿里云上的合作伙伴服务。</p>
+</section>
+
+<section class="slide">
+<h2>Form 数据格式</h2>
+<p><code style="font-size: 14pt; line-height: 1.5;">INSERT INTO test FORMAT <b style="color: green;">Form</b>
+name=Vasya&amp;email=vasya@pupkin.com&amp;text=I%20like%20ClickHouse%20so%20much!
+</code></p>
+<p>直接从 HTML 表单插入（<b>x-www-form-urlencoded</b> MIME 类型）</p>
+<p>与 Boomerang.js 等 JavaScript 库直接集成。</p>
+<p>支持插入单条记录<br/>（建议使用异步插入）。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Shaun Struwig。</p>
+</section>
+
+<section class="slide">
+<h2>JOIN 改进</h2>
+<p>从现在开始，每个 ClickHouse 版本都会包含 JOIN 改进。</p>
+
+<p><b>内存压缩</b> 用于 CROSS（逗号）JOIN：
+<br/>&mdash; 快速处理大型表的笛卡尔积。</p>
+
+<p><b>磁盘上</b> 执行 CROSS（逗号）JOIN：
+<br/>&mdash; 即使右侧表过大，<br/>&emsp; 也能生成大型表的笛卡尔积。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Maksim Alekseev。</p>
+</section>
+
+<section class="slide">
+<h2>非等值 JOIN</h2>
+
+<p><code>SET allow_experimental_join_condition = 1;</code></p>
+
+<p>现在 ClickHouse 的 ON 中不仅支持等值条件。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Lgbo-USTC。</p>
+</section>
+
+
+<section class="slide">
+<h2>chdb</h2>
+<p>快速处理 Pandas DataFrame。</p>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/chdb.jpg" style="width: 100%;"/>
+
+<p style="color: gray; font-size: 14pt; margin-top: -0.5em;">开发者：Auxten</p>
+</section>
+
+<section class="slide">
+<h2>chdb</h2>
+<p style="margin-top: -1em;">自定义数据类型：可处理任意用户提供的数据类型：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; overflow-y: scroll; height: 70%;">class myReader(chdb.PyReader):
+    def __init__(self, data):
+        self.data = data
+        self.cursor = 0
+        super().__init__(data)
+
+    def read(self, col_names, count):
+        block = [self.data[col] for col in col_names]
+        block = [col[self.cursor : self.cursor + count] for col in block]
+        self.cursor += block[0].shape[0]
+        return block
+
+reader = myReader(df_old)
+
+ret = chdb.query("""
+   SELECT RegionID, SUM(AdvEngineID), COUNT(*) AS c
+   FROM Python(reader) GROUP BY RegionID ORDER BY c DESC LIMIT 10""",
+    "DataFrame")
+</code></p>
+<p style="color: gray; font-size: 14pt; margin-top: -1.25em;">开发者：Auxten</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">额外内容</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>额外内容：loongarch64</h2>
+<p>现在支持：</p>
+<p>&mdash; <b>x86_64</b> （生产可用）；
+<br/>&mdash; <b>aarch64</b> （生产可用）；
+<br/>&mdash; <b>risc-v</b> （实验性）；
+<br/>&mdash; <b>powerpc64-le</b> （实验性）；
+<br/>&mdash; <b>s390x</b> （实验性）；
+<br/>&mdash; <b style="color: green;">loongarch64</b> （实验性）；</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：QiangXuhui</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/back8.jpg); background-size: cover;">
+<h2><span class="hilite">集成</span></h2>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<p>ClickPipes:
+<br/>&mdash; <b>Kinesis</b> 支持；
+<br/>&mdash; 允许设置 Kafka 的 <b>偏移量</b> ；
+<br/>&mdash; 元数据列 <b>key</b>, <b>timestamp</b>, <b>headers</b>, <b>topic</b>, <b>offset</b> ；
+</p>
+<p><b>Metabase</b> &mdash; 将 CSV 直接导入 ClickHouse。</p>
+
+<p>更新了 <b>dbt</b> 和 <b>Tableau</b> 集成，
+<br/>以及 <b>Java</b>, <b>Go</b>和 <b>Python</b> 驱动。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">+ 感谢贡献者提供的众多修复：
+<br/>R. Joel Norgren, Guo Qiang Wang,
+Jiří Kozlovský, Abhishek Gahlot, Frederik Eychenié, Cal Herries.</p>
+</section>
+
+<section class="slide">
+<img style="float: right; width: 40%; margin-right: -3em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/twitch.png"/>
+<h2>阅读园地</h2>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; AWS Graviton 4 的实际性能；
+<br/>&mdash; 新的 SQL 控制台；
+<br/>&mdash; API 端点；
+<br/>&mdash; 灵活的备份；
+<br/>&mdash; 如何成为认证 ClickHouse 开发者；
+<br/>&mdash; 为什么 ClickHouse 比 Elasticsearch 更快；
+</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.5/pictures/back9.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/dURnKjLuZLg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
