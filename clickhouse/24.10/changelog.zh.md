@@ -38,7 +38,7 @@
 * 新增 `getSettingOrDefault`，当前配置档案中找不到自定义设置时返回默认值，避免异常。 [#69917](https://github.com/ClickHouse/ClickHouse/pull/69917) ([Shankar](https://github.com/shiyer7474)).
 
 <h4 id="experimental-feature-1">
-  Experimental feature
+  实验性功能
 </h4>
 
 * 可刷新物化视图已可用于生产。 [#70550](https://github.com/ClickHouse/ClickHouse/pull/70550) ([Michael Kolupaev](https://github.com/al13n321)). Replicated 数据库现在支持可刷新物化视图。 [#60669](https://github.com/ClickHouse/ClickHouse/pull/60669) ([Michael Kolupaev](https://github.com/al13n321)).
