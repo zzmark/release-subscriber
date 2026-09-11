@@ -7,7 +7,7 @@
 </Frame>
 
 <h4 id="upgrade-notes">
-  Upgrade Notes
+  升级说明
 </h4>
 
 * `clickhouse-odbc-bridge` 和 `clickhouse-library-bridge` 现在是独立软件包。关闭 [#61677](https://github.com/ClickHouse/ClickHouse/issues/61677)。 [#62114](https://github.com/ClickHouse/ClickHouse/pull/62114) ([Alexey Milovidov](https://github.com/alexey-milovidov)).
