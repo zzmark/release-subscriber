@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：23.10 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：23.10 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：23.10 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2023-11-02。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/autumn3.jpg); background-size: cover;">
+        <h1 style="margin-top: 130px; line-height: 150%; color: white; font-size: 64pt; text-shadow: 1px 1px 1px black;">ClickHouse<br/> 23.10 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>23.10 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 23.10 的新内容。</p>
+<p>2.（10 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/autumn2.jpg); background-size: cover;">
+<h2><span class="hilite">23.10 版本</span></h2>
+<p><span class="hilite">ClickHouse 秋季版本。</span></p>
+<p><span class="hilite">— 23 项新功能 🌳</span></p>
+<p><span class="hilite">— 26 项性能优化 🚴</span></p>
+<p><span class="hilite">— 60 项缺陷修复 ☂️</span></p>
+</section>
+
+<!--
+
+小功能
+
+SHOW MERGES
+SHOW SETTING
+byteSwap
+lltb
+jsonMergePatch
+arrayRandomSample
+formatQuery
+ArgMin、ArgMax 组合器
+CHECK PART
+force_optimize_projection_name
+create_table_empty_primary_key_by_default
+原生协议中的异步插入
+DWARF 输入格式
+对分区执行参数化 ALTER
+MySQL 兼容性：字符串参数
+hostname_levenshtein_distance
+带别名的 untuple
+
+性能
+
+query_plan_preserve_num_streams_after_window_functions
+Context 中的锁
+更多处理流
+ORC 条件下推
+外部聚合
+外部聚合的内存使用
+跳过索引
+Map 下标访问
+大量数据片段的合并
+
+主要功能
+
+Npy
+arrayFold
+空间填充曲线
+Kusto v2
+
+集成
+
+MySQL 兼容性
+
+阅读
+
+大幅加速数据加载
+生成式 AI
+预测
+数百万美元
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/autumn4.jpg); background-size: cover;">
+<h2><span class="hilite">小而实用的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>SHOW MERGES</h2>
+
+<p><code style="float: right; font-size: 14pt; line-height: 1.25;">:) SHOW MERGES
+
+Row 1:
+──────
+table:             checks
+database:          default
+estimate_complete: 0.01
+elapsed:           0.11
+progress:          97.11
+is_mutation:       0
+size_compressed:   2.14 MiB
+memory_usage:      8.86 MiB
+</code></p>
+
+<p><span style="color: gray;">SHOW PROCESSLIST
+<br/>SHOW DATABASES
+<br/>SHOW TABLES
+<br/>SHOW ENGINES
+<br/>SHOW FUNCTIONS</span>
+<br/><b style="color: green;">SHOW MERGES</b>
+</p>
+
+<p>几乎等同于
+<br/>SELECT * FROM system.merges.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Megao。</p>
+</section>
+
+<section class="slide">
+<h2>SHOW SETTING</h2>
+
+<p style="color: gray;">SELECT value FROM system.settings WHERE name = 'max_block_size'</p>
+<p style="color: gray;">SELECT getSetting('max_block_size')</p>
+<p style="color: green;"><b>SHOW SETTING max_block_size</b></p>
+</p>
+
+<p>视频： <a href="https://youtu.be/tNzdrw1L1Xk">https://youtu.be/tNzdrw1L1Xk</a></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Maksim Kita。</p>
+</section>
+
+<section class="slide">
+<h2>byteSwap</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">:) SELECT byteSwap(1234567890)
+
+3523384905
+</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">:) SELECT hex(byteSwap(0xAABBCCDD))
+
+DDCCBBAA
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Priyansh Agrawal。</p>
+</section>
+
+<section class="slide">
+<h2>largestTriangleThreeBuckets</h2>
+
+<p>或 <b>lttb</b>.</p>
+<p>对时间序列类数据进行降采样，<br/>同时保留数据的整体形状和变化特征。</p>
+
+<p><pre>lttb(n)(x, y)</pre></p>
+<p>演示</p>
+
+<!--
+
+SELECT event_time AS t, value
+FROM system.asynchronous_metric_log
+WHERE event_date >= toDate(now() - INTERVAL 1 DAY) AND event_time >= now() - INTERVAL 1 DAY
+AND metric = 'TotalPartsOfMergeTreeTables'
+ORDER BY t
+
+SELECT lttb(1000)(event_time, value)
+FROM system.asynchronous_metric_log
+WHERE event_date >= toDate(now() - INTERVAL 1 DAY) AND event_time >= now() - INTERVAL 1 DAY
+AND metric = 'TotalPartsOfMergeTreeTables'
+
+WITH arrayJoin(lttb(1000)(event_time, value)) AS data
+SELECT data
+FROM system.asynchronous_metric_log
+WHERE event_date >= toDate(now() - INTERVAL 1 DAY) AND event_time >= now() - INTERVAL 1 DAY
+AND metric = 'TotalPartsOfMergeTreeTables'
+ORDER BY data
+
+WITH arrayJoin(lttb(1000)(event_time::INT, value)) AS data
+SELECT data.1 AS t, data.2 AS v
+FROM system.asynchronous_metric_log
+WHERE event_date >= toDate(now() - INTERVAL 1 DAY) AND event_time >= now() - INTERVAL 1 DAY
+AND metric = 'TotalPartsOfMergeTreeTables'
+ORDER BY t
+
+
+
+https://play.clickhouse.com/dashboard#eyJob3N0IjoiaHR0cHM6Ly9wbGF5LmNsaWNraG91c2UuY29tIiwidXNlciI6InBsYXkiLCJxdWVyaWVzIjpbeyJ0aXRsZSI6IlRvdGFsIE1lcmdlVHJlZSBQYXJ0cyAoZnVsbCkiLCJxdWVyeSI6IlNFTEVDVCBldmVudF90aW1lOjpJTlQgQVMgdCwgdmFsdWVcbkZST00gc3lzdGVtLmFzeW5jaHJvbm91c19tZXRyaWNfbG9nXG5XSEVSRSBldmVudF9kYXRlID49IHRvRGF0ZShub3coKSAtIHtzZWNvbmRzOlVJbnQzMn0pIEFORCBldmVudF90aW1lID49IG5vdygpIC0ge3NlY29uZHM6VUludDMyfVxuQU5EIG1ldHJpYyA9ICdUb3RhbFBhcnRzT2ZNZXJnZVRyZWVUYWJsZXMnXG5PUkRFUiBCWSB0In0seyJ0aXRsZSI6IlRvdGFsIE1lcmdlVHJlZSBQYXJ0cyAoYXZlcmFnZSBieSBtaW51dGUpIiwicXVlcnkiOiJTRUxFQ1QgdG9TdGFydE9mSW50ZXJ2YWwoZXZlbnRfdGltZSwgSU5URVJWQUwgMSBNSU5VVEUpOjpJTlQgQVMgdCwgYXZnKHZhbHVlKVxuRlJPTSBzeXN0ZW0uYXN5bmNocm9ub3VzX21ldHJpY19sb2dcbldIRVJFIGV2ZW50X2RhdGUgPj0gdG9EYXRlKG5vdygpIC0ge3NlY29uZHM6VUludDMyfSkgQU5EIGV2ZW50X3RpbWUgPj0gbm93KCkgLSB7c2Vjb25kczpVSW50MzJ9XG5BTkQgbWV0cmljID0gJ1RvdGFsUGFydHNPZk1lcmdlVHJlZVRhYmxlcydcbkdST1VQIEJZIHRcbk9SREVSIEJZIHQgV0lUSCBGSUxMIFNURVAgNjAifSx7InRpdGxlIjoiVG90YWwgTWVyZ2VUcmVlIFBhcnRzIChMTFRCLCAxMDAwIHBvaW50cykiLCJxdWVyeSI6IldJVEggYXJyYXlKb2luKGx0dGIoMTAwMCkoZXZlbnRfdGltZTo6SU5ULCB2YWx1ZSkpIEFTIGRhdGFcblNFTEVDVCBkYXRhLjEgQVMgdCwgZGF0YS4yIEFTIHZcbkZST00gc3lzdGVtLmFzeW5jaHJvbm91c19tZXRyaWNfbG9nXG5XSEVSRSBldmVudF9kYXRlID49IHRvRGF0ZShub3coKSAtIHtzZWNvbmRzOlVJbnQzMn0pIEFORCBldmVudF90aW1lID49IG5vdygpIC0ge3NlY29uZHM6VUludDMyfVxuQU5EIG1ldHJpYyA9ICdUb3RhbFBhcnRzT2ZNZXJnZVRyZWVUYWJsZXMnXG5PUkRFUiBCWSB0In1dLCJwYXJhbXMiOnsic2Vjb25kcyI6Ijg2NDAwIn19
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Sinan。</p>
+</section>
+
+
+<section class="slide">
+<h2>arrayRandomSample</h2>
+
+<p><code style="font-size: 10pt; line-height: 1.25;">:) SELECT arrayRandomSample(range(1000), 10)
+
+┌─arrayRandomSample(range(1000), 10)────────┐
+│ [639,357,338,999,920,851,696,537,602,235] │
+└───────────────────────────────────────────┘
+
+:) SELECT arrayRandomSample(range(1000), 10)
+
+┌─arrayRandomSample(range(1000), 10)──────┐
+│ [791,995,45,622,97,205,704,417,749,362] │
+└─────────────────────────────────────────┘
+
+:) SELECT arrayRandomSample(range(1000), 10)
+
+┌─arrayRandomSample(range(1000), 10)──────┐
+│ [572,805,521,71,539,703,950,434,120,49] │
+└─────────────────────────────────────────┘
+</code></p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Itay Israelov。</p>
+</section>
+
+
+<section class="slide">
+<h2>jsonMergePatch</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -3em;">:) SELECT
+    '{"dbms": "ClickHouse"}' AS a,
+    '{"is_it_good": true}' AS b,
+    <b style="color: green;">jsonMergePatch(a, b)</b> AS c,
+    '{"dbms": "MongoDB"}' AS d,
+    <b style="color: green;">jsonMergePatch(c, d)</b>
+</code></p>
+
+<p>演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Memo。</p>
+</section>
+
+<section class="slide">
+<h2>formatQuery, formatQuerySingleLine</h2>
+
+<code style="font-size: 8.5pt; line-height: 1.25; margin-top: -3em; white-space: pre-wrap;">SELECT * <b>FROM</b> (SELECT SUM(COALESCE(SEQ_VONR_MO_CALL_CONN_FAIL_TIMES_C, 0)) AS VONR_MO_CALL_CONN_FAIL_TIMES, MT.`102520001` AS `102520001`, MT.`181361814368` AS `181361814368`, MT.`102520102` AS `102520102`, MT.`102520101` AS `102520101`, MT.`102520104` AS `102520104`, MT.`183111861371` AS `183111861371`, MT.`102530101` AS `102530101`, MT.`102540101` AS `102540101`, MT.`102520103` AS `102520103`, MT.`102510101` AS `102510101` <b>FROM</b> ( SELECT COALESCE(SUM(VONR_MO_CALL_CONN_FAIL_TIMES), 0) AS SEQ_VONR_MO_CALL_CONN_FAIL_TIMES_C, COM_FAIL_CAUSE AS `102520001`, NULL AS `102520102`, COM_FAIL_CAUSE AS `102510101`, NULL AS `102520101`, D183111570684_H101.`183111861371` AS `183111861371`, NULL AS `102520104`, NULL AS `102520103`, H_COMPREHENSIVE_FAILURE_CAUSE.`102540101` AS `102540101`, H_COMPREHENSIVE_FAILURE_CAUSE.`102530101` AS `102530101`, concat('14', '-', '255', '-', '255', '-', SIP_RELEASE_CODE) AS `181361814368` <b>FROM</b> TEST_DATABASE.SDR_TEST LEFT <b>JOIN</b> ( SELECT concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID) AS `102510101`, UNIFIED_CAUSE_ID AS `183111861371`, concat(FAILCAUSE, '(', PD, ')') AS NAME_102510101 <b>FROM</b> TEST_DATABASE.DIM_TEST GROUP BY concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID), UNIFIED_CAUSE_ID, concat(FAILCAUSE, '(', PD, ')') ) AS D183111570684_H101 ON COM_FAIL_CAUSE = D183111570684_H101.`102510101` LEFT <b>JOIN</b> ( SELECT concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID) AS `102520001`, SCENE_ID AS `102540101`, CLASS_ID AS `102530101`, SCENE_NAME AS NAME_102540101 <b>FROM</b> TEST_DATABASE.DIM_TEST GROUP BY concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID), SCENE_ID, CLASS_ID, SCENE_NAME ) AS H_COMPREHENSIVE_FAILURE_CAUSE ON COM_FAIL_CAUSE = H_COMPREHENSIVE_FAILURE_CAUSE.`102520001` LEFT <b>JOIN</b> ( SELECT concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID) AS `181361814368`, CAUSE AS NAME_181361814368 <b>FROM</b> TEST_DATABASE.DIM_TEST GROUP BY concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID), CAUSE ) AS DIM_FAILCAUSE_ALL_181361814368 ON concat('14', '-', '255', '-', '255', '-', SIP_RELEASE_CODE) = DIM_FAILCAUSE_ALL_181361814368.`181361814368` WHERE (H_COMPREHENSIVE_FAILURE_CAUSE.NAME_102540101 IS NOT NULL) AND (D183111570684_H101.NAME_102510101 IS NOT NULL) AND (DIM_FAILCAUSE_ALL_181361814368.NAME_181361814368 IS NOT NULL) GROUP BY `102520001`, `102520102`, `102510101`, `102520101`, D183111570684_H101.`183111861371`, `102520104`, `102520103`, H_COMPREHENSIVE_FAILURE_CAUSE.`102540101`, H_COMPREHENSIVE_FAILURE_CAUSE.`102530101`, `181361814368` ) AS MT GROUP BY MT.`102520001`, MT.`181361814368`, MT.`102520102`, MT.`102520101`, MT.`102520104`, MT.`183111861371`, MT.`102530101`, MT.`102540101`, MT.`102520103`, MT.`102510101` ) AS ST WHERE ST.VONR_MO_CALL_CONN_FAIL_TIMES > 0 ORDER BY VONR_MO_CALL_CONN_FAIL_TIMES DESC LIMIT 0, 5000
+</code>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Salvatore Mesoraca。</p>
+</section>
+
+<section class="slide">
+<h2>ArgMin、ArgMax 聚合函数组合器</h2>
+
+<p>将聚合函数应用于这样一组值：<br/>
+另一列的值在该组中达到最大值。</p>
+<p>演示。</p>
+
+<!--
+SELECT * FROM VALUES((1, 'Hello'), (2, 'World'), (2, 'Googbye'))
+SELECT max(c1), argMax(c2, c1) FROM VALUES((1, 'Hello'), (2, 'World'), (2, 'Googbye'))
+SELECT max(c1), groupArrayArgMax(c2, c1) FROM VALUES((1, 'Hello'), (2, 'World'), (2, 'Googbye'))
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Amos Bird。</p>
+</section>
+
+<section class="slide">
+<h2>对分区执行参数化 ALTER</h2>
+
+<p><code style="line-height: 1.5;">ALTER TABLE <b style="color: green;">{name:Identifier}</b>
+  ATTACH PARTITION <b style="color: green;">{x:String}</b>
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Nikolai Degterinskiy。</p>
+</section>
+
+<section class="slide">
+<h2>Untuple 使用更合适的列名</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT untuple((1, 'Hello'))
+
+┌─tupleElement((1, 'Hello'), '1')─┬─tupleElement((1, 'Hello'), '2')─┐
+│                               1 │ Hello                           │
+└─────────────────────────────────┴─────────────────────────────────┘
+
+:) SELECT untuple((1, 'Hello')) AS t
+
+┌─t.1─┬─t.2───┐
+│   1 │ Hello │
+└─────┴───────┘
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：garcher22。</p>
+</section>
+
+<section class="slide">
+<h2>强制使用投影</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">:) SET force_optimize_projection_name = 'my_projection';
+</code></p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Yarik Briukhovetskyi。</p>
+
+<h2>允许不设置主键</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">:) SET create_table_empty_primary_key_by_default = 1,
+       default_table_engine = 'MergeTree';
+
+:) CREATE TABLE test (x UInt8, y String);
+</code></p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Srikanth Chekuri。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/autumn6.jpg); background-size: cover;">
+<h2><span class="hilite">性能改进</span></h2>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">大量并发查询的优化</h2>
+
+<p style="color: gray; margin-top: -1em;">（基于生产服务的查询日志运行 clickhouse-benchmark）</p>
+
+<p>23.9:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">QPS: 201.059
+
+50.000%     0.997 sec.
+99.990%     75.998 sec.</code></p>
+
+<p>23.10:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">QPS: 961.997
+
+50.000%     0.033 sec.
+99.990%     4.153 sec.</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Maksim Kita。<br/>更多信息： <a href="https://www.tinybird.co/blog-posts/clickhouse-lock-contention">https://www.tinybird.co/blog-posts/clickhouse-lock-contention</a></p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">外部聚合优化</h2>
+
+<p>适用于在磁盘上创建大量临时文件的情况。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">SELECT hash, count() FROM test_table
+GROUP BY (id % 150000) as hash
+SETTINGS max_bytes_before_external_group_by = '50M'
+</code></p>
+
+<p>23.9:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">Elapsed: <b style="color: red;">38.492</b> sec. (7.76 million rows/s., 108.42 MB/s.)
+</code></p>
+
+<p>23.10:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">Elapsed: <b style="color: green;">4.643</b> sec. (64.09 million rows/s., 894.11 MB/s.)
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Maksim Kita。</p>
+</section>
+
+<section class="slide">
+<h2>合并优化</h2>
+
+<p style="margin-top: 1em;">当表较窄时：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">CREATE TABLE test_table (id UInt64, value UInt64)
+ENGINE = MergeTree ORDER BY id;
+
+INSERT INTO test_table
+SELECT number % 15, number FROM numbers_mt(500000000);
+
+OPTIMIZE TABLE test_table
+</code></p>
+
+<p>23.9：耗时： <b style="color: red;">19.328</b> 秒。</p>
+
+<p>23.10：耗时： <b style="color: green;">12.578</b> 秒。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Maksim Kita。</p>
+</section>
+
+<section class="slide">
+<h2>优化 <span style="font-family: monospace; color: green;">map['element']</span></h2>
+
+<p>通过预测一个数据块中连续出现的 Map
+<br/>具有类似结构来实现。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">SELECT <b>map['hello']</b> FROM test SETTINGS max_threads = 1;
+</code></p>
+
+<p>23.9:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">Elapsed: <b style="color: red;">0.460</b> sec. (43.44 million rows/s., 3.52 GB/s.)
+</code></p>
+
+<p>23.10:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">Elapsed: <b style="color: green;">0.317</b> sec. (63.19 million rows/s., 5.12 GB/s.)
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：lgbo-ustc。</p>
+</section>
+
+<section class="slide">
+<h2>为短查询提供更好的执行流水线</h2>
+
+<p style="margin-top: -1em;">通过谨慎选择处理流的数量来实现。</p>
+
+<img style="width: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/clickbench1.png"/>
+<img style="width: 100%; margin-top: -1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/clickbench2.png"/>
+
+<p style="margin-top: -3em; color: white; text-align: right; font-size: 14pt;"><span style="display: inline-block; background-color: rgba(0,0,0,20%); backdrop-filter: blur(10px); padding: 0.25em; 0.5em;">开发者：Jiebin Sun。</span></p>
+</section>
+
+<section class="slide">
+<h2>ORC 条件下推</h2>
+
+<p>在 ORC 中使用 <b>数据跳过索引</b> ，与 Parquet 类似。</p>
+
+<p>演示。</p>
+
+<!--
+cd ~/work/ClickHouse
+
+SELECT * FROM test.hits INTO OUTFILE 'hits.orc'
+
+programs/server/clickhouse-23.8.3.48 local
+clickhouse-local
+
+SELECT count(), uniq(UserID) FROM 'hits.orc' WHERE CounterID = 3519
+-->
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Taiyang Li。</p>
+</section>
+
+<section class="slide">
+<h2>更快的窗口函数</h2>
+
+<p>SET query_plan_preserve_num_streams_after_window_functions = 1;</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT id, AVG(value)
+  OVER (ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS frame,
+sipHash64(frame) FROM window_test;
+</code></p>
+
+<p>23.9：耗时： <b style="color: red;">3.07</b> 秒。</p>
+
+<p>23.10：耗时： <b style="color: green;">2.38</b> 秒。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Frinkr。</p>
+</section>
+
+<section class="slide">
+<h2>更快的跳过索引</h2>
+
+<p>在不同数据粒度之间复用内存中的索引数据结构。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT count() FROM index_test
+WHERE x >= 20000 AND x &lt;= 20100 AND y >= 10000 AND y &lt;= 10100
+</code></p>
+
+<p>23.9：耗时： <b style="color: red;">0.083</b> 秒。</p>
+
+<p>23.10：耗时： <b style="color: green;">0.058</b> 秒。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Amos Bird。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/autumn5.jpg); background-size: cover;">
+<h2 style="color: white; line-height: 1.5; text-shadow: 3px 3px 3px black;">一些有趣的功能</h2>
+</section>
+
+<section class="slide">
+<h2>NumPy 输入格式</h2>
+
+<p>SELECT * FROM 'data.npy'</p>
+
+<p>演示</p>
+
+<!--
+
+ls -l images.npy
+
+clickhouse-local
+SELECT * FROM 'images.npy' LIMIT 10
+SELECT count() FROM 'images.npy' LIMIT 10
+
+
+SELECT arrayStringConcat(arrayMap(row -> arrayStringConcat(arrayMap(cell -> cell ? format('\x1b[38;2;{0};{0};{0}m█\x1b[0m', cell::String) : ' ', row)), array), '\n') AS x FROM 'images.npy' LIMIT 100
+
+-->
+
+<p style="color: gray; font-size: 14pt;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+
+<section class="slide">
+<h2>arrayFold</h2>
+
+<p>使用 lambda 函数对数组进行折叠：</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT arrayFold((acc, value...) -> new_acc, initial_acc, arr...)</code></p>
+
+<p style="color: gray;">……但我们已经有数组聚合函数了：</p>
+<p>arraySum, arrayProduct, arrayMin/Max/All/Any, arrayStringConcat...</p>
+
+<p style="color: gray;">……而且我们已经能够对数组应用任意聚合函数：</p>
+<p>arrayReduce('stddev', arr), arrayReduce('corr', arr1, arr2)</p>
+
+<p>不过，借助 <b>arrayFold</b>，你还能做得更多！</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Lirikl。</p>
+</section>
+
+<section class="slide">
+<h2>arrayFold</h2>
+
+<p><code style="font-size: 14pt; line-height: 1;">:) SELECT arrayFold((acc, value) -> (acc.2, acc.1 + value),
+          range(number),
+          (1::UInt64, 1::UInt64)).2 AS x
+   FROM numbers(10)
+
+┌──x─┐
+│  1 │
+│  1 │
+│  2 │
+│  3 │
+│  5 │
+│  7 │
+│ 10 │
+│ 13 │
+│ 17 │
+│ 21 │
+└────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Lirikl。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/autumn1.jpg); background-size: cover;">
+<h2>额外内容</h2>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<p style="margin-top: -1em;"><b>MySQL 兼容性</b>
+<br/>：为 <b>Tableau Online</b> 和 <b>QuickSight</b> 提供支持：
+<br/>&mdash; TO_DAYS;
+<br/>&mdash; add/subtract 日期与时间函数以及 toDayOfWeek 支持字符串参数；
+<br/>&mdash; information_schema: columns.extra, tables.table_rows, tables.data_length;
+</p>
+
+<p><b>Java 驱动</b>:
+<br/>&mdash; 使用 Apache HTTP Client 改进性能
+<br/>&mdash; 增加代理支持
+<br/>&mdash; 支持使用 Trust Store 建立安全连接</p>
+
+<p><b>Tableau Online</b> 通过 MySQL 协议：可正常使用！</p>
+
+<p>更新 <b>Python</b>, <b>Node.js</b>以及 <b>Go</b> 客户端。</p>
+</section>
+
+<section class="slide">
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/genai.gif" style="width: 100%; margin-top: 1em;"/>
+</section>
+
+
+<section class="slide">
+<h2>阅读园地</h2>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; 大幅加速 <b>大规模数据加载</b>;
+<br/>&mdash; 使用 <b>机器学习函数进行预测</b>;
+<br/>&mdash; 在 Kubernetes 中 <b>节省数百万美元</b>;
+<br/>&mdash; <b>使用生成式 AI</b> 编写 ClickHouse SQL 查询</p>
+
+<p>视频录像： <a href="https://www.youtube.com/c/ClickHouseDB">https://www.youtube.com/c/ClickHouseDB</a></p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.10/pictures/autumn7.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/PGQS6uPb970" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
