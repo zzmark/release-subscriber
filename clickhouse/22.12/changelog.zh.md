@@ -13,7 +13,7 @@
 </Warning>
 
 <h4 id="upgrade-notes">
-  Upgrade Notes
+  升级说明
 </h4>
 
 * 修复带 `String` 参数的 `min`、`max`、`any*`、`argMin`、`argMax` 聚合函数状态序列化/反序列化的向后不兼容问题。受影响分支为 22.9、22.10、22.11（分别自 22.9.6、22.10.4、22.11.2 修复）。22.3、22.7、22.8 的部分小版本也受影响：22.3.13…22.3.14（自 22.3.15 修复）、22.8.6…22.8.9（自 22.8.10 修复）、22.7.6 及更新版本（22.7 不会修复，建议从 22.7.\* 升级至 22.8.10 或更新版本）。从未使用受影响版本的用户无需关注本条说明。不兼容版本在读取上述聚合函数状态时，会给字符串额外附加一个 `'\0'`。例如，旧版本将 `anyState('foobar')` 状态保存到 `state_column` 后，不兼容版本执行 `anyMerge(state_column)` 会输出 `'foobar\0'`。不兼容版本写入聚合函数状态时又不会保留尾随 `'\0'`。除一个边界情况外，含修复的新版本可以正确读取所有版本（包括不兼容版本）写入的数据：如果不兼容版本保存的状态中字符串本来就以空字符结尾，新版本读取该聚合函数状态时会去掉尾随 `'\0'`。例如，不兼容版本将 `anyState('abrac\0dabra\0')` 状态保存到 `state_column` 后，新版本执行 `anyMerge(state_column)` 会输出 `'abrac\0dabra'`。当不兼容版本与更旧或更新版本在同一集群运行时，该问题也影响分布式查询。[#43038](https://github.com/ClickHouse/ClickHouse/pull/43038)（[Alexander Tokmakov](https://github.com/tavplubix)、[Raúl Marín](https://github.com/Algunenano)）。注意：所有官方 ClickHouse 构建均已包含补丁；非官方第三方构建未必如此，应避免使用。
