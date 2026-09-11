@@ -23,7 +23,7 @@
 - `index.md`：中文结构化更新总结。
 - `changelog.md`：上游原始 Changelog；除软件级规则明确要求聚合或抽取外，应保留原文。
 - `changelog.zh.md`：与原始 Changelog 结构对应的简体中文翻译。
-- 软件级配置可以要求额外资料。ClickHouse 版本还包含 `presentation.zh/index.html` 及其必要资源，作为可在线浏览的中文 Release 演示。
+- 软件级配置可以要求额外资料。ClickHouse 版本还包含 `presentation.zh/index.html`，作为可在线浏览的中文 Release 演示；图片等资源引用官方绝对地址，不提交本地副本。
 
 ## index.md 生成规则
 

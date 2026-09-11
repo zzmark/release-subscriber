@@ -53,6 +53,11 @@ presentation:
   output_directory: presentation.zh
   entry_file: index.html
   hosting: github_pages
+  resources:
+    mode: official_absolute_urls
+    commit_local_copies: false
+    images_url_base: https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/
+    scripts_and_styles_url_base: https://presentations.clickhouse.com/
   preserve:
     - slide_order
     - layout
