@@ -7,7 +7,7 @@
 </Frame>
 
 <h4 id="upgrade-notes-1">
-  Upgrade Notes
+  升级说明
 </h4>
 
 * 默认启用 `enable_positional_arguments` 设置。它允许 `SELECT ... ORDER BY 1, 2` 这类查询，其中 1、2 引用 SELECT 子句中的位置。如需恢复旧行为，请禁用此设置。[#38204](https://github.com/ClickHouse/ClickHouse/pull/38204)（[Alexey Milovidov](https://github.com/alexey-milovidov)）。
