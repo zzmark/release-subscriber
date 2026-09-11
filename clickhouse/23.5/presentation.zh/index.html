@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：23.5 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.5/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：23.5 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.5/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：23.5 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2023-06-08。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.5/pictures/spring1.jpg); background-size: cover;">
+        <h1 style="margin-top: 80px; line-height: 150%; color: white; font-size: 64pt; text-shadow: 1px 1px 10px black;">ClickHouse<br/> 23.5 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>23.5 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 23.5 新内容。</p>
+<p>2.（10 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.5/pictures/spring2.jpg); background-size: cover;">
+<h2><span class="hilite">23.5 版本</span></h2>
+<p><span class="hilite">ClickHouse 五月版本。</span></p>
+<p><span class="hilite">— 29 项新功能 🌿</span></p>
+<p><span class="hilite">— 25 项性能优化 🚴</span></p>
+<p><span class="hilite">— 83 项缺陷修复 🐝</span></p>
+</section>
+
+<!--
+
+小功能：
+
+space
+从临时表挂载
+不带 ELSE 的 CASE
+INTO OUTFILE APPEND
+generateRandom
+
+system.zookeeper_connection
+system.user_processes
+
+dotProduct
+bitHammingDistance
+bitCount
+
+SHOW INDEX
+
+主要功能：
+
+Azure
+Keeper 客户端
+urlCluster
+_file、_path
+表引擎的结构推断
+带前缀的 WITH FILL
+
+默认功能：
+
+查询缓存
+地理数据类型
+压缩标记和索引
+受内存约束的聚合
+
+性能：
+
+控制合并的内存消耗
+控制写入 S3 时的内存消耗
+控制投影使用
+并行处理
+Parquet
+
+安全：
+
+默认密码方案
+Bcrypt
+加密数据的 BACKUP
+
+集成
+
+云服务
+
+GCP
+API
+IAM
+
+阅读
+
+纽约交流会
+柏林交流会
+巴塞罗那交流会
+伦敦交流会
+旧金山交流会
+班加罗尔交流会
+ClickHouse 向量搜索
+面向 AI 的 ClickHouse
+ClickHouse 与 CDC
+可观测性
+JOIN
+哈希表
+
+-->
+
+<section class="slide">
+<h2>CASE 表达式的兼容性</h2>
+
+<table>
+<tr>
+<td>
+<p style="margin-top: -1em;"><code style="font-size: 13pt;">SELECT CASE WHEN number = 1 THEN 'Hello'
+            WHEN number = 2 THEN 'World'
+            ELSE '-' END
+       AS res FROM numbers(4)
+
+┌─res───┐
+│ -     │
+│ Hello │
+│ World │
+│ -     │
+└───────┘
+</code></p>
+
+</td>
+<td style="padding-left: 1em;">
+
+<p style="margin-top: -1em;"><code style="font-size: 13pt;">SELECT CASE number WHEN 1 THEN 'Hello'
+                   WHEN 2 THEN 'World'
+                   ELSE '-' END
+       AS res FROM numbers(4)
+
+┌─res───┐
+│ -     │
+│ Hello │
+│ World │
+│ -     │
+└───────┘
+</code></p>
+
+</td>
+</tr>
+<tr>
+<td>
+
+
+<p><code style="font-size: 13pt;">SELECT CASE WHEN number = 1 THEN 'Hello'
+            WHEN number = 2 THEN 'World'
+            END
+       AS res FROM numbers(4)
+
+┌─res───┐
+│ ᴺᵁᴸᴸ  │
+│ Hello │
+│ World │
+│ ᴺᵁᴸᴸ  │
+└───────┘
+</code></p>
+
+</td>
+<td style="padding-left: 1em;">
+
+<p><code style="font-size: 13pt; background-color: #FEE">SELECT CASE number WHEN 1 THEN 'Hello'
+                   WHEN 2 THEN 'World'
+                   END
+       AS res FROM numbers(4)
+
+┌─res───┐
+│ ᴺᵁᴸᴸ  │
+│ <b style="color: red;">ᴺᵁᴸᴸ</b>  │
+│ <b style="color: red;">ᴺᵁᴸᴸ</b>  │
+│ ᴺᵁᴸᴸ  │
+└───────┘
+</code></p>
+
+</td>
+</tr>
+</table>
+</section>
+
+<section class="slide">
+<h2>CASE 表达式的兼容性</h2>
+
+<table>
+<tr>
+<td>
+<p style="margin-top: -1em;"><code style="font-size: 13pt;">SELECT CASE WHEN number = 1 THEN 'Hello'
+            WHEN number = 2 THEN 'World'
+            ELSE '-' END
+       AS res FROM numbers(4)
+
+┌─res───┐
+│ -     │
+│ Hello │
+│ World │
+│ -     │
+└───────┘
+</code></p>
+
+</td>
+<td style="padding-left: 1em;">
+
+<p style="margin-top: -1em;"><code style="font-size: 13pt;">SELECT CASE number WHEN 1 THEN 'Hello'
+                   WHEN 2 THEN 'World'
+                   ELSE '-' END
+       AS res FROM numbers(4)
+
+┌─res───┐
+│ -     │
+│ Hello │
+│ World │
+│ -     │
+└───────┘
+</code></p>
+
+</td>
+</tr>
+<tr>
+<td>
+
+
+<p><code style="font-size: 13pt;">SELECT CASE WHEN number = 1 THEN 'Hello'
+            WHEN number = 2 THEN 'World'
+            END
+       AS res FROM numbers(4)
+
+┌─res───┐
+│ ᴺᵁᴸᴸ  │
+│ Hello │
+│ World │
+│ ᴺᵁᴸᴸ  │
+└───────┘
+</code></p>
+
+</td>
+<td style="padding-left: 1em;">
+
+<p><code style="font-size: 13pt; background-color: #DED">SELECT CASE number WHEN 1 THEN 'Hello'
+                   WHEN 2 THEN 'World'
+                   END
+       AS res FROM numbers(4)
+
+┌─res───┐
+│ ᴺᵁᴸᴸ  │
+│ Hello │
+│ World │
+│ ᴺᵁᴸᴸ  │
+└───────┘
+</code></p>
+
+</td>
+</tr>
+</table>
+</section>
+
+<section class="slide">
+<h2>CASE 表达式的兼容性</h2>
+
+<table>
+<tr>
+<td>
+<p style="margin-top: -1em;"><code style="font-size: 13pt;">SELECT multiIf(number = 1, 'Hello',
+               number = 2, 'World',
+               '-') AS res FROM numbers(4)
+
+┌─res───┐
+│ -     │
+│ Hello │
+│ World │
+│ -     │
+└───────┘
+</code></p>
+
+</td>
+<td style="padding-left: 1em;">
+
+<p style="margin-top: -1em;"><code style="font-size: 13pt;">SELECT transform(number,
+       [1, 2], ['Hello', 'World'],
+       '-') AS res FROM numbers(4)
+
+┌─res───┐
+│ -     │
+│ Hello │
+│ World │
+│ -     │
+└───────┘
+</code></p>
+
+</td>
+</tr>
+</table>
+</section>
+
+<section class="slide">
+<h2>SELECT ... INTO OUTFILE '...' APPEND</h2>
+
+<p><code style="line-height: 1.25; font-size: 14pt; margin-top: -1em;">:) SELECT * FROM numbers(10)
+   INTO OUTFILE 'numbers.tsv'
+
+Ok.
+
+:) SELECT * FROM numbers(10)
+   INTO OUTFILE 'numbers.tsv'
+
+Cannot open file numbers.tsv, errno: 17,
+strerror: File exists.                                <span style="color: gray;">-- this is fine</span>
+
+:) SELECT * FROM numbers(10)
+   INTO OUTFILE 'numbers.tsv' <b style="color: green;">APPEND</b>
+
+<b style="color: green;">Ok.</b></code></p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Manas Alekar。</p>
+</section>
+
+
+<section class="slide">
+<h2>从临时表执行 ATTACH ...</h2>
+
+<p>在暂存表内准备数据，
+<br/>再以一个大批次挂载。</p>
+
+<p><code style="line-height: 1.25; font-size: 14pt;">CREATE <b style="color: green;">TEMPORARY TABLE</b> src (x UInt64) <b style="color: green;">ENGINE</b> = MergeTree ORDER BY x;
+INSERT INTO src SELECT * FROM numbers(1000000);
+...
+
+ALTER TABLE dst <b>ATTACH PARTITION</b> () FROM src;
+</code></p>
+
+<p>也适用于 <b>REPLACE PARTITION</b> 。</p>
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Roman Vasin。</p>
+</section>
+
+
+<section class="slide">
+<h2>generateRandom 自给自足</h2>
+
+<p><code style="font-size: 16pt; line-height: 1.5;">SELECT * FROM generateRandom('x UInt8, y String') LIMIT 10;</code></p>
+
+<p><code style="font-size: 16pt; line-height: 1.5;">CREATE TEMPORARY TABLE test (x UInt8, y String);
+INSERT INTO test SELECT * FROM generateRandom() LIMIT 10;</code></p>
+
+<p><code style="font-size: 16pt; line-height: 1.5; color: green;">SELECT * FROM generateRandom() LIMIT 10;
+DESCRIBE (SELECT * FROM generateRandom());</code></p>
+
+<p>演示</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+
+<section class="slide">
+<h2>SHOW INDEX</h2>
+
+<p style="margin-top: -1em;">用于兼容 MySQL。</p>
+
+<p><code style="font-size: 13pt;">SHOW INDEX FROM hits
+
+Row 1:
+──────
+table:         hits
+non_unique:    0
+key_name:      PRIMARY
+seq_in_index:  ᴺᵁᴸᴸ
+column_name:   ᴺᵁᴸᴸ
+collation:     A
+cardinality:   ᴺᵁᴸᴸ
+sub_part:      ᴺᵁᴸᴸ
+packed:        ᴺᵁᴸᴸ
+null:          ᴺᵁᴸᴸ
+index_type:    primary
+comment:       ᴺᵁᴸᴸ
+index_comment: ᴺᵁᴸᴸ
+visible:       YES
+expression:    CounterID, EventDate, UserID, EventTime, WatchID</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Robert Schulze。</p>
+</section>
+
+<section class="slide">
+<h2>新系统表</h2>
+
+<p><b>system.user_processes</b></p>
+<p>&mdash; 每个用户当前的内存使用和资源计数器。</p>
+
+<p>演示</p>
+
+<p style="margin-top: 8em; color: gray; font-size: 14pt;">开发者：Kovi Benjamin Antal。</p>
+</section>
+
+<section class="slide">
+<h2>新系统表</h2>
+
+<p><code style="line-height: 1.25; font-size: 16pt;">SELECT *
+FROM system.zookeeper_connection
+
+Row 1:
+──────
+name:               default
+host:               127.0.0.1
+port:               9181
+index:              0
+connected_time:     1970-01-01 01:25:00
+is_expired:         0
+keeper_api_version: 3
+client_id:          122
+</code></p>
+
+<!-- SELECT name FROM system.tables WHERE database = 'system' AND NOT match(name, '_\d+$') -->
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Mateng915。</p>
+</section>
+
+
+<section class="slide">
+<h2>平淡的安全功能</h2>
+<p>&mdash; <b>bcrypt</b> 用于密码哈希；</p>
+<p>&mdash; 允许配置默认密码哈希方式；</p>
+<p><code>CREATE USER test IDENTIFIED BY 'my_password';
+
+<span style="color: gray;">config.d/password_type.yaml:</span>
+
+default_password_type: sha256_password
+</code></p>
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Nikolai Degterinskiy。</p>
+
+<p>&mdash; BACKUP 和 RESTORE 支持静态数据加密，
+<br/>&emsp; 无需解密并重新加密。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Vitaly Baranov。</p>
+</section>
+
+<section class="slide">
+<h2>平淡的功能</h2>
+<p>&mdash; <b>space</b> 函数；</p>
+<p>&mdash; 用于兼容 Spark；</p>
+<p>演示</p>
+<!--
+SELECT space(number) FROM numbers(10)
+SELECT space(number) FROM numbers(10) FORMAT JSONLines
+SELECT space(number + 100000) FROM numbers(10)
+SELECT space(number + 1000000) FROM numbers(10)
+SELECT repeat(' ', number) FROM numbers(10)
+
+SELECT count() FROM system.numbers_mt WHERE NOT ignore(repeat(' ', number % 10))
+SELECT count() FROM system.numbers_mt WHERE NOT ignore(space(number % 10))
+-->
+<p style="margin-top: 4em; color: gray; font-size: 14pt;">开发者：Robert Schulze。</p>
+</section>
+
+<section class="slide">
+<h2>Azure 表函数</h2>
+
+<p>表引擎：</p>
+
+<p><code style="font-size: 14pt; background-color: azure;">CREATE TABLE test ... ENGINE = <b style="color: green;">AzureBlobStorage</b>(
+  'https://alesapintestazure.blob.core.windows.net',
+  'container', 'path.tsv');
+
+SELECT * FROM test;
+INSERT INTO test ...;
+</code></p>
+
+<p>表函数：</p>
+
+<p><code style="font-size: 14pt; background-color: azure;">SELECT * FROM <b style="color: green;">azure_blob_storage</b>('...', 'container', 'path.tsv');
+INSERT INTO FUNCTION <b style="color: green;">azure_blob_storage</b>('...', 'container', 'path.tsv');</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Alexander Sapin、Smita Kulkarni。</p>
+</section>
+
+<section class="slide">
+<h2>urlCluster 表函数</h2>
+
+<p><code style="font-size: 14pt;">SELECT ... FROM s3(
+    'https://bucket.s3.amazonaws.com/data*.parquet.zst')</code></p>
+<p><code style="font-size: 14pt;">SELECT ... FROM <b style="color: green;">s3Cluster</b>(
+    cluster, 'https://bucket.s3.amazonaws.com/data*.parquet.zst')</code></p>
+
+<p style="color: green;">自 23.5 起：</p>
+
+<p><code style="font-size: 14pt;">SELECT ... FROM url(
+    'https://bucket.s3.amazonaws.com/data{01..99}.parquet.zst')</code></p>
+<p><code style="font-size: 14pt;">SELECT ... FROM <b style="color: green;">urlCluster</b>(
+    cluster, 'https://bucket.s3.amazonaws.com/data{01..99}.parquet.zst')</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Attack204、Pavel Kruglov。</p>
+
+<!--
+SELECT count() FROM urlCluster('https://clickhouse-public-datasets.s3.amazonaws.com/wikistat/original/pageviews-202202{01..28}-{01..23}0000.gz', LineAsString);
+
+SELECT count() FROM urlCluster(default, 'https://clickhouse-public-datasets.s3.amazonaws.com/wikistat/original/pageviews-202202{01..28}-{01..23}0000.gz', LineAsString);
+
+SELECT * FROM system.clusters;
+-->
+</section>
+
+<section class="slide">
+<h2>ClickHouse Keeper 客户端</h2>
+
+<p><b>clickhouse keeper-client</b></p>
+<p>&mdash; ClickHouse 内置工具，用于查看 Keeper 或 ZooKeeper 内部状态。</p>
+
+<p>演示</p>
+
+<!--
+
+clickhouse keeper-client --port 2181
+clickhouse keeper-client --port 9181
+
+ls /
+ls /clickhouse
+ruok
+
+clickhouse keeper-client --port 9181 --query 'ls /'
+
+-->
+
+<p style="color: gray; font-size: 14pt;">开发者：Artem Brustovetskii。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 26pt;">实验性功能达到生产可用状态</h2>
+
+<p><b>查询结果缓存</b></p>
+<p>&mdash; 默认在用户之间安全隔离；
+<br/>&mdash; 将查询规范化为 AST；
+<br/>&mdash; 遵循查询设置，并考虑非确定性函数；
+<br/>&mdash; 可控制每个条目及整体大小；
+<br/>&mdash; 可启用主动写入或仅使用已有缓存的模式；
+<br/><b style="color: green;">&mdash; 自 23.5 起可用于生产环境！</b>
+</p>
+
+<p><b>地理数据类型</b></p>
+<p>&mdash; Point、Ring、Polygon 和 MultiPolygon 数据类型；
+<br/>&mdash; 距离、面积、周长、并集、交集、凸包等函数；
+<br/>&mdash; 笛卡尔坐标和球面坐标；
+<br/>&mdash; 从 WKT 读取，输出为 SVG；
+<br/><b style="color: green;">&mdash; 自 23.5 起可用于生产环境！</b>
+</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">默认启用的功能</h2>
+
+<p><b>磁盘上的压缩标记和索引</b></p>
+<p>&mdash; 自 22.9 起可用；
+<br/>&mdash; 提高服务器启动后首次查询的速度；
+<br/><b style="color: green;">&mdash; 23.5 中默认启用。</b>
+</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">后台操作的内存使用</h2>
+
+<p style="margin-top: -1em;">控制内存使用的新服务器设置：</p>
+<p><b>merges_mutations_memory_usage_soft_limit</b> 和<br/><b>merges_mutations_memory_usage_to_ram_ratio</b> = 0.5</p>
+
+<p>如果后台操作已经消耗超过一半的<br/>服务器内存，就不再启动合并和变更操作。</p>
+<p style="color: gray; font-size: 14pt;">开发者：Dmitri Novik。</p>
+
+<p>降低内存使用的新表设置：</p>
+<p><b>merge_max_block_size_bytes</b> 和 <b>vertical_merge_algorithm_min_bytes_to_activate</b>
+<br/> &mdash; 合并具有大型行的表时节省内存；</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Nikita Mikhaylov。</p>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<!-- <img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.5/pictures/looker.png" style="height: 90%; margin-top: -1em;"/> -->
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>官方 Tableau 连接器</b>：</p>
+<p><a href="https://github.com/ClickHouse/clickhouse-tableau-connector-jdbc">https://github.com/ClickHouse/clickhouse-tableau-connector-jdbc</a></p>
+
+<p style="color: gray; font-size: 14pt;">最初由 Analytika Plus 开发。</p>
+
+<p style="margin-top: 2em;">更新了 <b>Grafana</b>、 <b>Metabase</b>、 <b>Kafka Connect</b>、 <b>Node.js</b>和 <b>Go</b> 驱动。</p>
+</section>
+
+<section class="slide">
+<h2>云服务更新</h2>
+<p><b>GCP</b></p>
+<p>&mdash; ClickHouse Cloud 现已登陆 Google Cloud！</p>
+<p><b>API</b></p>
+<p>&mdash; 现在可以通过编程管理服务！
+<br/>&mdash; 易用而完整的 REST API，用于管理服务、组织等。
+<br/>&emsp; 支持 OpenAPI，提供 Swagger 端点；
+<br/>&mdash; 即将推出：Terraform 提供程序；</p>
+<p><b>IAM</b></p>
+<p>&mdash; 从 ClickHouse Cloud 安全访问 S3 存储桶。</p>
+</section>
+
+<section class="slide">
+<h2>阅读园地</h2>
+<img style="float: right; margin-top: -1em; width: 40%; image-rendering: pixelated;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.5/pictures/ai.png"/>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p>&mdash; ClickHouse 中的向量搜索
+<br/>&mdash; 从 Postgres 到 ClickHouse 的 CDC
+<br/>&mdash; 结合 SigNoz 使用 ClickHouse 实现可观测性
+<br/>&mdash; 哈希表优化
+<br/>&mdash; 深入了解 ClickHouse 中的 JOIN</p>
+
+<p>ClickHouse 线下交流会，地点包括<br/><b>纽约</b>、 <b>柏林</b>、 <b>巴塞罗那</b>、 <b>伦敦</b>、
+<br/><b>旧金山</b>、 <b>班加罗尔</b>。</b>
+
+<p>面向 AI 的 ClickHouse：向量、嵌入、语义搜索及更多内容……</p>
+<p>视频回放： <a href="https://www.youtube.com/c/ClickHouseDB">https://www.youtube.com/c/ClickHouseDB</a></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.5/pictures/cloud.jpg); background-size: cover;">
+<h2><span class="hilite">ClickHouse Cloud</span></h2>
+
+<p style="margin-bottom: 2em;"><span class="hilite">现已支持 <svg style="width: 1.4em; position: relative; top: 0.35em;" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="fill-current h-10 w-auto ">
+  <g clip-path="url(#clip0_516_16271)">
+    <path d="M20.364 10.2439L21.389 10.2614L24.174 7.47638L24.309 6.29638C22.1 4.32838 19.1835 3.12988 15.9965 3.12988C10.2265 3.12988 5.35654 7.05588 3.91504 12.3739C4.21904 12.1619 4.86904 12.3209 4.86904 12.3209L10.434 11.4059C10.434 11.4059 10.72 10.9324 10.865 10.9559C11.5158 10.241 12.3087 9.6699 13.1929 9.27925C14.0772 8.88861 15.0333 8.68701 16 8.68738C17.65 8.69088 19.17 9.27388 20.364 10.2384V10.2439Z" fill="#EA4335"></path>
+    <path d="M28.0851 12.3849C27.4386 9.99989 26.1061 7.89389 24.3076 6.29639L20.3641 10.2399C21.9441 11.5149 22.9576 13.4659 22.9576 15.6499V16.3459C24.8761 16.3459 26.4346 17.9079 26.4346 19.8229C26.4346 21.7414 24.8726 23.2999 22.9576 23.2999H16.0036L15.3076 23.9999V28.1729L16.0036 28.8654H22.9576C25.3547 28.8621 27.6527 27.9084 29.3478 26.2134C31.0429 24.5185 31.9967 22.2205 32.0001 19.8234C31.9966 16.7459 30.4501 14.0234 28.0851 12.3854V12.3849Z" fill="#4285F4"></path>
+    <path d="M9.0426 28.87H15.9926V23.3H9.0426C8.54882 23.3001 8.0608 23.194 7.6116 22.989L6.6081 23.2965L3.8231 26.0815L3.5791 27.0215C5.14854 28.2188 7.0681 28.8669 9.0421 28.866L9.0426 28.87Z" fill="#34A853"></path>
+    <path d="M9.0425 10.7849C6.64538 10.7882 4.34738 11.7419 2.65232 13.4369C0.957249 15.1318 0.0034392 17.4298 0 19.8269C0 22.7634 1.4065 25.3744 3.583 27.0284L7.615 22.9964C7.00471 22.7212 6.48675 22.2758 6.12323 21.7137C5.75971 21.1515 5.56606 20.4964 5.5655 19.8269C5.5655 17.9084 7.1275 16.3499 9.0425 16.3499C10.4525 16.3499 11.6645 17.1999 12.2125 18.3999L16.2445 14.3679C14.591 12.1914 11.9795 10.7849 9.043 10.7849H9.0425Z" fill="#FBBC05"></path>
+  </g>
+  <defs>
+    <clipPath id="clip0_516_16271">
+      <rect width="32" height="32" fill="white"></rect>
+    </clipPath>
+  </defs>
+</svg></span></p>
+
+<p><span class="hilite">&mdash; 免费试用 30 天，提供 300 美元额度，支持最多 10 TB 数据；</span></p>
+<p><span class="hilite">&mdash; 面向开发者的经济型集群，具备完整高可用性 &lt; 100 美元/月</span></p>
+<p><span class="hilite">试试看！ <a href="https://clickhouse.cloud/">https://clickhouse.cloud/</a>。</span></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.5/pictures/spring3.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/o8Gj1ClU71M" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
