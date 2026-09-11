@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：23.11 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：23.11 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：23.11 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2023-12-05。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/autumn1.jpg); background-size: cover;">
+        <h1 style="margin-top: 150px; line-height: 150%; color: white; font-size: 56pt; text-shadow: 1px 1px 1px black;">ClickHouse 23.11 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>23.11 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 23.11 的新内容。</p>
+<p>2.（10 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/autumn2.jpg); background-size: cover;">
+<h2><span class="hilite">23.11 版本</span></h2>
+<p><span class="hilite">ClickHouse 十一月版本。</span></p>
+<p><span class="hilite">— 25 项新功能 🍁</span></p>
+<p><span class="hilite">— 24 项性能优化 🧤</span></p>
+<p><span class="hilite">— 70 项缺陷修复 🦔</span></p>
+</section>
+<!--
+
+小功能
+
+concat 支持单个参数
+concat 支持任意类型
+
+blob_storage_log
+s3_queue_log
+
+表函数中的 _size
+fileCluster
+
+CHECK ALL TABLES
+ALTER ADD/MATERIALIZE INDEX
+FFT
+preferred_projection_name
+
+Keeper 让出领导权
+Keeper 协议压缩
+Keeper 可用区
+
+ALTER MODIFY QUERY
+Protobuf 熟知类型
+
+
+性能
+
+system.numbers 的索引
+异步加载表
+并行窗口函数
+索引中的 ALIAS 列
+默认启用并发控制
+针对大量用户的优化
+更积极地重试 S3 请求
+优化缓存读取
+
+
+主要功能
+
+PREWHERE 统计信息
+S3Queue
+可刷新物化视图
+
+额外内容
+
+减小二进制文件体积
+ch
+
+集成
+
+Tableau Online
+dbt
+Kafka Connector
+
+
+阅读
+
+RAG 流水线
+解耦云数据仓库
+在 ClickHouse 中构建安全数据平台
+增强 Google Analytics
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/autumn3.jpg); background-size: cover;">
+<h2><span class="hilite">小而实用的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>ADD 与 MATERIALIZE INDEX</h2>
+
+<p>……可以放在同一条 ALTER 查询中</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">ALTER TABLE test
+  <b>ADD INDEX</b> ix (col) TYPE minmax,
+  <b>MATERIALIZE INDEX</b> ix
+</code></p>
+
+<p>此前： <span style="color: gray;">DB::Exception: Unknown index: ix.</span></p>
+<p>现在： <span style="color: green;">可以正常执行！</span></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Flynn。</p>
+</section>
+
+<section class="slide">
+<h2>concat 支持任意类型</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT concat('Hello ', <b style="color: green;">[1, 2]</b>)
+
+┌─concat('Hello, ', [1, 2])─┐
+│ Hello, [1,2]              │
+└───────────────────────────┘
+</code></p>
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT concat('Hello ', <b style="color: green;">[1, 2]</b>, 3)
+
+┌─concat('Hello ', [1, 2], 3)─┐
+│ Hello [1,2]3                │
+└─────────────────────────────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Serge Klochkov。</p>
+</section>
+
+<section class="slide">
+<h2>concat 支持单个参数</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT concat('Hello')
+
+┌─concat('Hello')─┐
+│ Hello           │
+└─────────────────┘
+</code></p>
+
+<p>为什么需要它？</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Serge Klochkov。</p>
+</section>
+
+
+
+<section class="slide">
+<h2>_size 虚拟列</h2>
+
+<p>可用于外部表： <b>s3</b>, <b>url</b>, <b>file</b>, <b>hdfs</b>, <b>azureBlobStorage</b>...</p>
+<p>在已有虚拟列 <b>_file</b> 和 <b>_path</b>之外新增。</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5;">SELECT _file, <b>_size</b>, count(), uniq(UserID) FROM s3(
+  's3://clickhouse-public-datasets/hits_compatible/athena_partitioned/hits*.parquet')
+GROUP BY _file, _size ORDER BY _file
+</code></p>
+
+<p>演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Pavel Kruglov。</p>
+</section>
+
+
+<section class="slide">
+<h2>fileCluster</h2>
+
+<p>新的表函数和表引擎，类似于<br/><b>s3Cluster</b>, <b>urlCluster</b>, <b>hdfsCluster</b>, <b>azureBlobStorageCluster</b>.</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5;">SELECT uniq(UserID) FROM <b style="color: green;">fileCluster</b>('partitioned/hits*.parquet')
+</code></p>
+
+<p>处理一组文件，将工作分配给集群中的各台服务器。</p>
+<p>需要使用网络文件系统，
+<br/>并将其挂载到 <b>user_files</b> 路径下，
+<br/>以便集群的每台服务器都能看到全部文件。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Andrey Zvonov。</p>
+</section>
+
+
+<section class="slide">
+<h2>preferred_optimize_projection_name</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SET <b style="color: green;">preferred_optimize_projection_name</b> = 'summaries';</code></p>
+
+<p>&mdash; 如果指定的投影存在，则优先使用它，
+<br/>&emsp; 而不是自动选择。</p>
+
+<p>相当于一个提示。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+
+<section class="slide">
+<h2>system.blob_storage_log</h2>
+
+<p><code style="font-size: 10pt; line-height: 1.25; margin-top: -1em; white-space: pre-wrap;">CREATE TABLE system.blob_storage_log
+(
+    event_date Date,
+    event_time DateTime,
+    event_time_microseconds DateTime64(6),
+    event_type Enum8(
+        'Upload' = 1, 'Delete' = 2,
+        'MultiPartUploadCreate' = 3, 'MultiPartUploadWrite' = 4,
+        'MultiPartUploadComplete' = 5, 'MultiPartUploadAbort' = 6),
+    query_id String,
+    thread_id UInt64,
+    thread_name String,
+    disk_name LowCardinality(String),
+    bucket String,
+    remote_path String,
+    local_path String,
+    data_size UInt64,
+    error String
+)</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vladimir Cherkasov。</p>
+</section>
+
+<section class="slide">
+<h2>Keeper 改进</h2>
+
+<p>用于让出领导权的四字母命令：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">echo 'rqld' | nc localhost 2181</code></p>
+
+<p>允许在移除节点之前发起领导者选举，<br/>并等待新的领导者产生。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Pradeep Chhetri。</p>
+</section>
+
+<section class="slide">
+<h2>Keeper 改进</h2>
+
+<p>网络协议支持压缩。</p>
+
+<p>在客户端控制：</p>
+
+<p><code style="font-size: 16pt; line-height: 1.25;">zookeeper:
+  node:
+    host: example1
+    port: 2181
+    <b style="color: green;">use_compression: true</b>
+</code></p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Smita Kulkarni。</p>
+</section>
+
+<section class="slide">
+<h2>Keeper 改进</h2>
+
+<p>可用区信息。</p>
+
+<p><code style="font-size: 16pt; line-height: 1.5;">keeper_server:
+  availability_zone:
+    <span style="color: gray;"># option 1, explicit value:</span>
+    value: eu-central-1b
+    <span style="color: gray;"># option 2, from the metadata service:</span>
+    enable_auto_detection_on_cloud: true
+</code></p>
+
+<p>信息发布在 <b>/keeper/availability-zone</b></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Jianfei Hu。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/autumn4.jpg); background-size: cover;">
+<h2><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>system.numbers 上的索引</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">:) SELECT * FROM system.numbers_mt
+  WHERE number BETWEEN 3 AND 5
+     OR number IN (1000000000, 456)
+</code></p>
+
+<p>演示</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：JackyWoo。</p>
+</section>
+
+<section class="slide">
+<h2>并行窗口函数</h2>
+
+<p>演示</p>
+
+<!--
+
+CREATE TABLE window_funtion_threading
+Engine = MergeTree
+ORDER BY (ac, nw)
+AS SELECT
+        toUInt64(rand(1) % 20000000) as ac,
+        toFloat32(1) as wg,
+        toUInt16(rand(3) % 400) as nw
+FROM numbers_mt(10000000);
+
+SELECT
+    nw,
+    sum(WR) AS R,
+    sumIf(WR, uniq_rows = 1) AS UNR
+FROM
+(
+    SELECT
+        uniq(nw) OVER (PARTITION BY ac) AS uniq_rows,
+        AVG(wg) AS WR,
+        ac,
+        nw
+    FROM window_funtion_threading
+    GROUP BY ac, nw
+)
+GROUP BY nw
+ORDER BY R DESC
+LIMIT 10;
+
+-->
+
+<p style="color: gray; font-size: 14pt;">开发者：Dmitriy Novik。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">异步加载表</h2>
+
+<p>服务器启动需要多长时间？</p>
+<p>……如果有 10 000 张复制表呢？</p>
+
+<p style="color: gray;">不过，拥有 10 000 张表是一种反模式……</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">异步加载表</h2>
+
+<p>在 config.xml 中启用 <b>async_load_databases</b> 。</p>
+<p>ClickHouse 将 <b style="color: green;">立即启动</b>.</p>
+<p>在接受连接的同时开始加载表。</p>
+<p>如果查询需要某张表，则优先初始化该表，
+<br/>查询会等待初始化完成。</p>
+
+<p><span style="color: green;">优点：效果惊人！</span> <span style="color: gray;">缺点：有一些需要注意的情况。</span></p>
+<p style="color: gray; font-size: 14pt;">开发者：Sergei Trifonov。</p>
+</section>
+
+
+<section class="slide">
+<h2>并发控制</h2>
+
+<p>从 23.11 版本开始，默认启用并发控制。</p>
+<p>它会自动调整每个查询使用的线程数。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">concurrent_threads_soft_limit_ratio_to_cores: 2</code></p>
+
+<p>结果： <b style="color: green;">高 QPS</b> 且性能不会退化。</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Roman Vasin。</p>
+</section>
+
+<section class="slide">
+<h2>更积极地重试 S3 请求</h2>
+
+<p>大幅降低尾部延迟。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Sema Checherinda。</p>
+
+<h2>优化缓存读取</h2>
+
+<p>如果数据位于本地磁盘缓存中，则同步读取，
+<br/>也无需顾虑进行更多次寻址。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Nikita Taranov。</p>
+
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/autumn5.jpg); background-size: cover;">
+<h2 style="color: white; line-height: 1.5; text-shadow: 3px 3px 3px black;">一些有趣的功能</h2>
+</section>
+
+
+<section class="slide">
+<h2>列统计信息</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SET allow_experimental_statistic = 1;
+
+CREATE TABLE example
+(
+    a Int64 <b style="color: green;">STATISTIC(TDigest)</b>,
+    b String
+) ENGINE = MergeTree ORDER BY b;
+
+ALTER TABLE example <b style="color: green;">ADD STATISTIC</b> a TYPE TDigest;
+ALTER TABLE example <b style="color: green;">DROP|CLEAR STATISTIC</b> a;
+ALTER TABLE example <b style="color: green;">MATERIALIZE STATISTIC</b> a;
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Han Fei。</p>
+</section>
+
+<section class="slide">
+<h2>列统计信息</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SET allow_statistic_optimize = 1;
+
+SELECT ... WHERE <b style="color: green;">a = 123</b> AND ...
+</code></p>
+
+<p>自动确定条件的选择性。</p>
+<p>然后结合列大小信息，<br/>在多阶段筛选（PREWHERE）优化中
+<br/>选择最优执行顺序。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Han Fei。</p>
+</section>
+
+<section class="slide">
+<h2>列统计信息</h2>
+
+<p>类似于数据跳过索引，<br/>但每个数据片段的统计信息 <b style="color: green;">汇总在一个小文件中</b> 。</p>
+
+<p>接下来是什么？<br/>&mdash; JOIN 重排序；<br/>&mdash; 隐式 LowCardinality。</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Han Fei。</p>
+</section>
+
+
+<section class="slide">
+<h2>S3Queue 已可用于生产环境</h2>
+
+<p>一个用于从 <b>S3</b>流式消费数据的表引擎：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -3em;">CREATE TABLE <b>queue</b> ENGINE = <b style="color: green;">S3Queue</b>('https://clickhouse-public-datasets.s3.amazonaws.com/
+hits_compatible/athena_partitioned/hits_*.parquet') SETTINGS mode = 'unordered';
+
+CREATE TABLE <b>data</b>
+ENGINE = MergeTree ORDER BY ()
+EMPTY AS SELECT * FROM queue;
+
+CREATE MATERIALIZED VIEW <b>consumer</b> TO <b>data</b> AS SELECT * FROM <b>queue</b>;
+</code></p>
+
+<p>&mdash; 从 S3 上的一组文件中消费数据。<br/>
+&mdash; 新文件出现后立即消费。<br/>
+&mdash; 支持并行和分布式消费。</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Sergei Katkovskiy、Kseniia Sumarokova。</p>
+</section>
+
+
+<section class="slide">
+<h2>S3Queue 示例</h2>
+
+<p>AWS Spot 实例数据馈送</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -3em;">aws ec2 create-spot-datafeed-subscription --bucket clickhouse-spot-instance-data-feed
+
+{
+    "SpotDatafeedSubscription": {
+        "Bucket": "clickhouse-spot-instance-data-feed",
+        "OwnerId": "111111111111",
+        "Prefix": "",
+        "State": "Active"
+    }
+}
+</code></p>
+</section>
+
+<section class="slide">
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/spot.png" style="width: 100%;"/>
+</section>
+
+<section class="slide">
+<h2>S3Queue 示例</h2>
+
+<p style="margin-top: -1em;">预览数据：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; margin-right: -3em; overflow: scroll; height: 24em;">SELECT *
+FROM s3('https://clickhouse-spot-instance-data-feed.s3.amazonaws.com/*.gz', LineAsString)
+LIMIT 10
+
+Query id: 78026e69-1cc2-4c82-8be1-c114b1a15a09
+
+┌─line────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ #Version: 1.0                                                                                                                                                                                   │
+│ #Fields: Timestamp UsageType Operation InstanceID MyBidID MyMaxPrice MarketPrice Charge Version                                                                                                 │
+│ 2023-09-01 03:31:20 UTC       SpotUsage:c5a.8xlarge   RunInstances:SV001      i-00b91fe65059b4880     sir-s2eemc1k    1.2320000000 USD        1.0130000000 USD        0.0368620570 USD        1 │
+│ 2023-09-01 03:27:01 UTC       SpotUsage:c5a.8xlarge   RunInstances:SV001      i-02fd64d9c11effa34     sir-4ydpp3kj    1.2320000000 USD        1.0130000000 USD        0.0371436710 USD        1 │
+│ 2023-09-01 03:11:06 UTC       SpotUsage:c5a.8xlarge   RunInstances:SV001      i-0a4c1c90ac125800e     sir-haxppnmk    1.2320000000 USD        1.0130000000 USD        0.0371436710 USD        1 │
+│ 2023-09-01 03:07:10 UTC       SpotUsage:c5d.9xlarge   RunInstances:SV006      i-04a2d1d907f42badc     sir-haxpmkzg    1.7280000000 USD        0.6275000000 USD        0.2680818050 USD        1 │
+│ 2023-09-01 03:15:17 UTC       SpotUsage:c5d.9xlarge   RunInstances:SV006      i-05c084023a8e866f6     sir-t54ppm5k    1.7280000000 USD        0.6275000000 USD        0.1809289575 USD        1 │
+│ 2023-09-01 03:45:26 UTC       SpotUsage:c5d.9xlarge   RunInstances:SV006      i-08269560fb6a7444c     sir-p6qyq3cg    1.7280000000 USD        0.6275000000 USD        0.6275000000 USD        1 │
+│ 2023-09-01 03:41:11 UTC       SpotUsage:c5d.9xlarge   RunInstances:SV006      i-09d71d667650f5c9a     sir-m9spnjsj    1.7280000000 USD        0.6275000000 USD        0.0261460425 USD        1 │
+│ 2023-09-01 03:04:51 UTC       SpotUsage:c5d.9xlarge   RunInstances:SV006      i-0a94a38b2190e6717     sir-31feqd4g    1.7280000000 USD        0.6275000000 USD        0.0803551400 USD        1 │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+</code></p>
+</section>
+
+<section class="slide">
+<h2>S3Queue 示例</h2>
+
+<p style="margin-top: -1em;">原样处理数据：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; margin-right: -3em; overflow: scroll; height: 24em;">WITH
+    parseDateTimeBestEffort(c1) AS time,
+    extractGroups(c2, '^(\w+):(.+)$') AS item_type,
+    item_type[1] AS item,
+    item_type[2] AS type,
+    c4 AS id,
+    CAST(extract(c6, '^\S+') AS Decimal(10, 6)) AS max_price,
+    CAST(extract(c7, '^\S+') AS Decimal(10, 6)) AS market_price,
+    CAST(extract(c8, '^\S+') AS Decimal(10, 6)) AS charge,
+    charge / market_price AS hours
+SELECT
+    type,
+    count() AS c,
+    sum(hours) AS h,
+    sum(charge) AS cost
+FROM s3('https://clickhouse-spot-instance-data-feed.s3.amazonaws.com/*.gz', TSV)
+GROUP BY type ORDER BY h DESC
+SETTINGS input_format_tsv_skip_first_lines = 2, schema_inference_make_columns_nullable = 0
+
+┌─type─────────────┬──────c─┬────────────h─┬─────────cost─┐
+│ c6id.8xlarge     │    875 │   379.432492 │   345.468028 │
+│ m7g.4xlarge      │    912 │   362.599616 │   120.957285 │
+│ m6idn.2xlarge    │    712 │   331.768934 │    87.381505 │
+│ m5d.2xlarge      │    693 │   262.129137 │    65.735759 │
+│ r5b.2xlarge      │    483 │   232.865149 │    59.732247 │
+│ r6g.2xlarge      │    647 │   195.560188 │    42.264367 │
+│ c6a.4xlarge      │    343 │    172.48896 │    46.570093 │
+│ r6id.4xlarge     │    247 │    152.03035 │    77.222521 │
+│ m6i.8xlarge      │    338 │   151.313531 │   105.488635 │
+│ m5zn.2xlarge     │    313 │   146.439172 │     37.66433 │
+│ m7a.8xlarge      │    279 │   128.709207 │   131.700535 │
+│ m5dn.2xlarge     │    206 │   100.624052 │    25.753932 │
+│ r6gd.2xlarge     │    364 │    84.635927 │    23.849737 │
+│ r6id.2xlarge     │    126 │    78.014559 │    19.587254 │
+│ r5ad.2xlarge     │    143 │    69.243293 │    17.757915 │
+│ m5ad.8xlarge     │    122 │    67.560744 │    69.316617 │
+│ r5d.4xlarge      │    172 │    58.593963 │    29.710109 │
+│ r5dn.2xlarge     │    112 │    48.394754 │    12.393548 │
+│ x2gd.2xlarge     │    125 │    45.796468 │    14.833519 │
+│ c6in.8xlarge     │     59 │     23.07633 │    23.274454 │
+│ r6g.4xlarge      │     31 │    16.225792 │     5.742319 │
+│ r5d.2xlarge      │     47 │     16.11658 │     4.121735 │
+│ m5d.8xlarge      │     55 │    14.517439 │     14.38119 │
+│ r6in.2xlarge     │     19 │    13.441091 │     3.444952 │
+│ r5ad.4xlarge     │     40 │    12.415226 │     6.759386 │
+│ c5n.9xlarge      │     28 │     9.814967 │    10.964834 │
+│ m5n.8xlarge      │     27 │     8.510248 │     8.424644 │
+│ m7i.8xlarge      │     33 │     8.375798 │     7.812783 │
+│ m6in.8xlarge     │     14 │     6.189432 │     6.338852 │
+│ m5a.8xlarge      │     19 │     5.311926 │     3.826214 │
+│ c5ad.4xlarge     │      8 │      5.29304 │     1.427534 │
+│ m6gd.4xlarge     │     39 │     4.673265 │     1.631628 │
+│ r6idn.2xlarge    │     10 │     3.247486 │     0.831033 │
+│ m5dn.8xlarge     │      7 │     2.976105 │     3.062444 │
+│ m7i-flex.8xlarge │      6 │     1.698884 │     1.173879 │
+│ m6id.8xlarge     │      2 │      0.27611 │      0.28293 │
+│ r7g.4xlarge      │      1 │     0.254999 │     0.134818 │
+│ m6in.2xlarge     │      1 │     0.148331 │     0.037958 │
+└──────────────────┴────────┴──────────────┴──────────────┘
+
+</code></p>
+</section>
+
+<section class="slide">
+<h2>S3Queue 示例</h2>
+
+<p style="margin-top: -1em;">订阅队列：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; margin-right: -3em; overflow: scroll; height: 24em;">CREATE TABLE queue
+ENGINE = <b style="color: green;">S3Queue</b>('https://clickhouse-spot-instance-data-feed.s3.amazonaws.com/*.gz', TSV)
+SETTINGS mode = 'unordered', s3queue_enable_logging_to_s3queue_log = 1,
+  input_format_tsv_skip_first_lines = 2, schema_inference_make_columns_nullable = 0;
+
+CREATE TABLE feed ENGINE = MergeTree ORDER BY time
+EMPTY
+AS WITH
+    parseDateTimeBestEffort(c1) AS time,
+    extractGroups(c2, '^(\w+):(.+)$') AS item_type,
+    item_type[1] AS item,
+    item_type[2] AS type,
+    c4 AS id,
+    extract(c6, '^\S+')::Decimal(10, 6) AS max_price,
+    extract(c7, '^\S+')::Decimal(10, 6) AS market_price,
+    extract(c8, '^\S+')::Decimal(10, 6) AS charge,
+    charge / market_price AS hours
+SELECT time, item, type, id, max_price, market_price, charge, hours
+FROM queue;
+
+CREATE MATERIALIZED VIEW consumer TO feed
+AS WITH
+    parseDateTimeBestEffort(c1) AS time,
+    extractGroups(c2, '^(\w+):(.+)$') AS item_type,
+    item_type[1] AS item,
+    item_type[2] AS type,
+    c4 AS id,
+    extract(c6, '^\S+')::Decimal(10, 6) AS max_price,
+    extract(c7, '^\S+')::Decimal(10, 6) AS market_price,
+    extract(c8, '^\S+')::Decimal(10, 6) AS charge,
+    charge / market_price AS hours
+SELECT time, item, type, id, max_price, market_price, charge, hours
+FROM queue;
+</code></p>
+</section>
+
+<section class="slide">
+<h2>S3Queue 示例</h2>
+
+<p style="margin-top: -1em;">监控队列：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; margin-right: -3em; overflow: scroll; height: 24em;">:) SELECT sum(rows_processed) FROM system.s3queue_log
+
+┌─sum(rows_processed)─┐
+│             1849211 │
+└─────────────────────┘
+
+:) DESCRIBE system.s3queue_log
+
+┌─name──────────────────┬─type─────────────────────────────────┬─default_type─┬─default_expression─┬─comment─┬─codec_expression─┬─ttl_expression─┐
+│ event_date            │ Date                                 │              │                    │         │                  │                │
+│ event_time            │ DateTime                             │              │                    │         │                  │                │
+│ table_uuid            │ String                               │              │                    │         │                  │                │
+│ file_name             │ String                               │              │                    │         │                  │                │
+│ rows_processed        │ UInt64                               │              │                    │         │                  │                │
+│ status                │ Enum8('Processed' = 0, 'Failed' = 1) │              │                    │         │                  │                │
+│ processing_start_time │ Nullable(DateTime)                   │              │                    │         │                  │                │
+│ processing_end_time   │ Nullable(DateTime)                   │              │                    │         │                  │                │
+│ ProfileEvents         │ Map(String, UInt64)                  │              │                    │         │                  │                │
+│ exception             │ String                               │              │                    │         │                  │                │
+└───────────────────────┴──────────────────────────────────────┴──────────────┴────────────────────┴─────────┴──────────────────┴────────────────┘
+</code></p>
+</section>
+
+<section class="slide">
+<h2>S3Queue 示例</h2>
+
+<p style="margin-top: -1em;">数据持续流入表中：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; margin-right: -3em; overflow: scroll; height: 24em;">:) SELECT * FROM feed LIMIT 25
+
+┌────────────────time─┬─item──────┬─type──────────┬─id──────────────────┬─max_price─┬─market_price─┬───charge─┬────hours─┐
+│ 2023-09-01 03:00:16 │ SpotUsage │ r6in.4xlarge  │ i-03eaee0ffa54380c1 │     1.394 │       0.5143 │  0.47187 │ 0.917499 │
+│ 2023-09-01 03:01:57 │ SpotUsage │ m7a.2xlarge   │ i-0c63ae42ec8e55a2e │     0.463 │       0.2565 │   0.2565 │        1 │
+│ 2023-09-01 03:02:22 │ SpotUsage │ c5d.9xlarge   │ i-0e299eb8d2d6b6fc5 │     1.728 │       0.6275 │ 0.157921 │ 0.251666 │
+│ 2023-09-01 03:03:03 │ SpotUsage │ i4g.2xlarge   │ i-0d66a79dc81c7ae43 │     0.617 │       0.2563 │ 0.020361 │ 0.079442 │
+│ 2023-09-01 03:03:10 │ SpotUsage │ m6a.4xlarge   │ i-0d04c29fff9fa827f │     0.691 │        0.496 │ 0.374893 │ 0.755832 │
+│ 2023-09-01 03:03:16 │ SpotUsage │ r5dn.4xlarge  │ i-08d6d2e38b6cc1d8f │     1.336 │          0.5 │ 0.207916 │ 0.415832 │
+│ 2023-09-01 03:04:11 │ SpotUsage │ m6a.4xlarge   │ i-08015b849286b0d88 │     0.691 │        0.496 │ 0.347475 │ 0.700554 │
+│ 2023-09-01 03:04:12 │ SpotUsage │ m6a.4xlarge   │ i-031d72c1f42ef8d3d │     0.691 │        0.509 │    0.509 │        1 │
+│ 2023-09-01 03:04:12 │ SpotUsage │ r5dn.4xlarge  │ i-0dd7c5f1e4ae54981 │     1.336 │       0.5017 │ 0.014911 │  0.02972 │
+│ 2023-09-01 03:04:13 │ SpotUsage │ m7a.4xlarge   │ i-0da7bb5b5cad27dfb │     0.927 │       0.5134 │   0.5134 │        1 │
+│ 2023-09-01 03:04:13 │ SpotUsage │ r6in.4xlarge  │ i-09677fc629e7bb177 │     1.394 │       0.5143 │   0.5143 │        1 │
+│ 2023-09-01 03:04:14 │ SpotUsage │ r6in.4xlarge  │ i-0be80b35d91b112fc │     1.394 │       0.5143 │ 0.126289 │ 0.245555 │
+│ 2023-09-01 03:04:51 │ SpotUsage │ c5d.9xlarge   │ i-0a94a38b2190e6717 │     1.728 │       0.6275 │ 0.080355 │ 0.128055 │
+│ 2023-09-01 03:05:13 │ SpotUsage │ m6a.4xlarge   │ i-04c756e5bc4550fdc │     0.691 │        0.509 │    0.509 │        1 │
+│ 2023-09-01 03:05:14 │ SpotUsage │ m7a.4xlarge   │ i-09a01aba465ddaf89 │     0.927 │       0.5134 │   0.5134 │        1 │
+│ 2023-09-01 03:05:14 │ SpotUsage │ r5n.4xlarge   │ i-0f895dcb4e96a20d4 │     1.192 │       0.5096 │   0.5096 │        1 │
+│ 2023-09-01 03:05:22 │ SpotUsage │ r5n.4xlarge   │ i-057e425617cdc86b2 │     1.192 │       0.4871 │ 0.017725 │ 0.036388 │
+│ 2023-09-01 03:05:32 │ SpotUsage │ r5dn.4xlarge  │ i-02c2a1a327e967b5d │     1.336 │       0.5017 │ 0.041111 │ 0.081943 │
+│ 2023-09-01 03:05:52 │ SpotUsage │ m6a.4xlarge   │ i-0f05728d26088e256 │     0.691 │        0.509 │ 0.022056 │ 0.043332 │
+│ 2023-09-01 03:06:10 │ SpotUsage │ r5n.4xlarge   │ i-0fa61797331b03cde │     1.192 │       0.4871 │ 0.213512 │ 0.438332 │
+│ 2023-09-01 03:06:18 │ SpotUsage │ m6idn.4xlarge │ i-0a9883f45dddac9dc │     1.272 │       0.5118 │ 0.457918 │  0.89472 │
+│ 2023-09-01 03:07:10 │ SpotUsage │ c5d.9xlarge   │ i-04a2d1d907f42badc │     1.728 │       0.6275 │ 0.268081 │  0.42722 │
+│ 2023-09-01 03:07:15 │ SpotUsage │ r5dn.4xlarge  │ i-0fcd109ec0a5d72c9 │     1.336 │       0.4926 │ 0.026271 │ 0.053331 │
+│ 2023-09-01 03:08:00 │ SpotUsage │ m5ad.2xlarge  │ i-0d03ba891a7be45ef │     0.412 │       0.2576 │ 0.010232 │  0.03972 │
+│ 2023-09-01 03:08:14 │ SpotUsage │ r5n.4xlarge   │ i-07cf673d6efc02bb8 │     1.192 │       0.4871 │ 0.017995 │ 0.036943 │
+└─────────────────────┴───────────┴───────────────┴─────────────────────┴───────────┴──────────────┴──────────┴──────────┘
+</code></p>
+</section>
+
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/autumn6.jpg); background-size: cover;">
+<h2>额外内容</h2>
+</section>
+
+<section class="slide">
+<h2>减小二进制文件体积</h2>
+<p>单二进制文件安装：</p>
+
+<p><code style="font-size: 18pt; line-height: 1.5;">curl https://clickhouse.com/ | sh</code></p>
+
+<p>此前： <b style="color: red;">超过 500 MB</b> :(</p>
+<p>现在： <b style="color: green;">107 MB</b> :)</p>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>dbt</b>:
+<br/>&mdash; 兼容 v1.5 和 v1.6；
+<br/>&mdash; 新增物化视图宏；
+</p>
+
+<p><b>Tableau</b>:
+<br/>&mdash; Tableau Online 可以使用 ClickHouse 了！
+<br/>&emsp; 通过 MySQL 兼容协议；
+</p>
+
+<p><b>Kafka Connector</b>:
+<br/>&mdash; 新增 StringConverter，以支持基于文本的格式（CSV、TSV）；
+<br/>&mdash; 新增对 Bytes 和 Decimal 数据类型的支持；
+<br/>&mdash; 识别可重试错误码</p>
+
+<p>更新 <b>Python</b>, <b>Node.js</b>以及 <b>Go</b> 客户端。</p>
+</section>
+
+<section class="slide">
+<h2>阅读园地</h2>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; <b>RAG</b> 与 ClickHouse 构建流水线；
+<br/>&mdash; <b>解耦</b> 云数据仓库；
+<br/>&mdash; <b>在 ClickHouse 中构建</b> 安全数据平台；
+<br/>&mdash; 增强 <b>Google Analytics</b>;</p>
+
+<p>视频录像： <a href="https://www.youtube.com/c/ClickHouseDB">https://www.youtube.com/c/ClickHouseDB</a></p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.11/pictures/autumn7.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/1HJdjOH4Eis" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
