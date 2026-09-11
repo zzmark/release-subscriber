@@ -44,44 +44,44 @@
 </section>
 <!--
 
-Small
+小功能
 
 pretty_print_type_names
 create_if_not_exists
 input_format_json_empty_as_default
 overlay
 DELETE ... IN PARTITION
-_headers in URL
+URL 中的 _headers
 system.projections
 arrayZipUnaligned
 
-Performance
+性能
 
-Array construction
-Partition pruning in Hive partitioning
-JOIN optimization
+数组构造
+Hive 分区中的分区裁剪
+JOIN 优化
 
-Main
+主要内容
 
-Iceberg on Azure and locally
-Multiple authentication methods
-APPEND mode for Refreshable Materialized Views
-Variants in schema inference
-Aggregate functions for distinct paths
+Azure 和本地的 Iceberg
+多种认证方法
+可刷新物化视图的 APPEND 模式
+结构推断中的 Variant
+针对不同路径的聚合函数
 
-Bonus
+额外内容
 
 VLDB
-chDB on Pandas
-Integrations
+基于 Pandas 的 chDB
+集成
 
-Reading
+阅读
 
-Postgres to ClickHouse
-DWH
+从 Postgres 到 ClickHouse
+数据仓库
 VLDB
 Salesforce
-Endpoints
+端点
 Redshift+InfluxDB
 
 -->
@@ -298,7 +298,7 @@ Received exception:
 DESCRIBE s3('s3://ookla-open-data/parquet/performance/**');
 SELECT _path, count() FROM s3('s3://ookla-open-data/parquet/performance/**') GROUP BY _path ORDER BY _path;
 SET use_hive_partitioning = 1;
-- columns are virtual:
+- 列是虚拟列：
 DESCRIBE s3('s3://ookla-open-data/parquet/performance/**');
 SELECT _path, count() FROM s3('s3://ookla-open-data/parquet/performance/**') WHERE _year = 2024 GROUP BY _path ORDER BY _path;
 SELECT *, _type, _year, _quarter, toTypeName(_type), toTypeName(_year), toTypeName(_quarter) FROM s3('s3://ookla-open-data/parquet/performance/**') LIMIT 1 FORMAT Vertical;
