@@ -30,4 +30,4 @@ features:
 | Logto | 1.43.0 | [查看](./logto/) |
 | Paseo | 0.7.2 | [查看](./paseo/) |
 | HyperDX | 2.37.0 | [查看](./hyperdx/) |
-| ClickHouse | 待首次回填 | [查看](./clickhouse/) |
+| ClickHouse | 26.8 | [查看](./clickhouse/) |
