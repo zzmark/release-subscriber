@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：23.4 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.4/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：23.4 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.4/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+         table, tr, td { border: 0; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：23.4 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2023-04-26。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.4/pictures/spring1.jpg); background-size: cover;">
+        <h1 style="margin-top: 80px; line-height: 150%; color: white; font-size: 64pt; text-shadow: 1px 1px 10px black;">ClickHouse<br/> 23.4 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>23.4 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 23.4 新内容。</p>
+<p>2.（10 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.4/pictures/spring2.jpg); background-size: cover;">
+<h2><span class="hilite">23.4 版本</span></h2>
+<p><span class="hilite">ClickHouse 春季版本。</span></p>
+<p><span class="hilite">— 15 项新功能 🌳</span></p>
+<p><span class="hilite">— 11 项性能优化 🛼</span></p>
+<p><span class="hilite">— 36 项缺陷修复 🦋</span></p>
+</section>
+
+<!--
+
+小功能：
+
+尾随逗号
+连字符
+quantileGK
+kolmogorovSmirnovTest
+soundex
+SHOW COLUMNS
+ParquetMetadata
+extractKeyValuePairs
+replace*
+mapConcat、mapSort、mapExists
+S3 的 use_environment_credentials
+
+性能：
+
+Parquet
+文件的并行处理
+并行副本
+对冲请求
+
+主要功能：
+
+数据湖
+bitCount、bitHammingDistance
+
+集成
+
+Looker
+待完成：Quicksight
+
+新网站
+
+云服务
+
+-->
+
+<section class="slide">
+<h2>FROM 前的尾随逗号</h2>
+
+<p><code>SELECT UserID,
+       SearchPhrase,
+       RegionID<b style="color: red;">,</b>
+FROM test.hits</code></p>
+
+<p>以前： <span style="color: gray;">Expected one of: token, Dot, OR, AND, BETWEEN, NOT BETWEEN, LIKE, ILIKE, NOT LIKE, NOT ILIKE, IN, NOT IN, GLOBAL IN, GLOBAL NOT IN, MOD, DIV, IS NULL, IS NOT NULL, alias, AS, Comma, FROM, PREWHERE, WHERE, GROUP BY, WITH, HAVING, WINDOW, ORDER BY, LIMIT, OFFSET, SETTINGS, UNION, EXCEPT, INTERSECT, INTO OUTFILE, FORMAT, end of query</span></p>
+
+<p>现在： <b style="color: green;">直接可用！</b></p>
+
+<p style="margin-top: 10em; color: gray; font-size: 14pt;">开发者：Nikolai Degterinskiy。</p>
+</section>
+
+<section class="slide">
+<h2>命令行设置中的 <span style="background-color: #DDD; padding: 0 0.25em;">-</span> 字符</h2>
+
+<p><code>clickhouse-client --max<b style="color: green;">_</b>threads 1 --query "SELECT 1"</code></p>
+<p><code>clickhouse-client --max<b style="color: red;">-</b>threads 1 --query "SELECT 1"</code></p>
+<p>以前： <span style="color: gray;">Code: 552. DB::Exception: Unrecognized option '--max-threads'.</span></p>
+<p>现在： <b style="color: green;">直接可用！</b></p>
+
+<p>额外惊喜：</p>
+<p><code>clickhouse-client <b>—max-threads</b> 1 --query "SELECT 1"</code></p>
+<p>— 这样也可以 👀</p>
+
+<p style="margin-top: 10em; color: gray; font-size: 14pt;">开发者：Alexey Golub。</p>
+</section>
+
+
+<section class="slide">
+<h2>quantileGK</h2>
+
+<p>我们已有很多分位数函数：</p>
+<p>— <b>quantile</b>, <b>quantileDeterministic</b>, <b>quantileExact</b>, <b>quantileExactWeighted</b>, <b>quantileTiming</b>, <b>quantileTDigest</b>, <b>quantileBFloat16</b>...</p>
+<p>所以，我们决定再加入 <b style="color: green;">Greenwald-Khanna</b> 算法，让你更加眼花缭乱……</p>
+<p style="margin-top: 2em;">演示</p>
+
+<!--
+
+SELECT quantile<tab>
+
+SELECT quantile(ResolutionWidth) FROM hits
+SELECT quantileExact(ResolutionWidth) FROM hits
+SELECT quantileTDigest(ResolutionWidth) FROM hits
+SELECT quantileTiming(ResolutionWidth) FROM hits
+SELECT quantileBFloat16(ResolutionWidth) FROM hits
+SELECT quantileGK(100)(ResolutionWidth) FROM hits
+
+SELECT RegionID, quantileExact(ResolutionWidth) FROM hits GROUP BY RegionID ORDER BY count() DESC LIMIT 10
+SELECT RegionID, quantileGK(100)(ResolutionWidth) FROM hits GROUP BY RegionID ORDER BY count() DESC LIMIT 10
+
+SELECT URL, quantileExact(ResolutionWidth) FROM hits GROUP BY ALL ORDER BY count() DESC LIMIT 10
+SELECT URL, quantileGK(100)(ResolutionWidth) FROM hits GROUP BY ALL ORDER BY count() DESC LIMIT 10
+
+-->
+
+<p style="margin-top: 7em; color: gray; font-size: 14pt;">开发者：TaiYang Li。</p>
+</section>
+
+
+<section class="slide">
+<h2>kolmogorovSmirnovTest</h2>
+
+<p><code style="font-size: 16pt;">SELECT kolmogorovSmirnovTest(ResolutionWidth, ResolutionHeight)
+FROM hits
+
+┌─kolmogorovSmirnovTest(ResolutionWidth, ResolutionHeight)─┐
+│ (0.9962541421161303,0)                                   │
+└──────────────────────────────────────────────────────────┘</code></p>
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：FFFFFFFHHHHHHH。</p>
+</section>
+
+
+<section class="slide">
+<h2>SOUNDEX</h2>
+
+<p>该算法发明于 <b>1918</b>年，如今各方面都已过时。</p>
+
+<p><code style="font-size: 16pt;">SELECT soundex('Hello, world!') AS x
+
+┌─x────┐
+│ H464 │
+└──────┘
+
+SELECT soundex('Hallo, wereld!') AS x
+
+┌─x────┐
+│ H464 │
+└──────┘</code></p>
+
+<p>……但为了兼容其他 SQL 数据库管理系统，我们仍然需要它。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：FriendLey。</p>
+</section>
+
+<section class="slide">
+<h2>SHOW COLUMNS</h2>
+
+<p><code style="margin-top: -1em; height: 18em; overflow-y: scroll; font-size: 12pt;">┌─field─────────────────┬─type─────┬─null─┬─key─────┬─default─┬─extra─┐
+│ AdvEngineID           │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ Age                   │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ BrowserCountry        │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ BrowserLanguage       │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ CLID                  │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ClientEventTime       │ DateTime │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ClientIP              │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ClientTimeZone        │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ CodeVersion           │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ConnectTiming         │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ CookieEnable          │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ CounterClass          │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ CounterID             │ Int32    │    0 │ PRI SOR │ ᴺᵁᴸᴸ    │       │
+│ DNSTiming             │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ DontCountHits         │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ EventDate             │ Date     │    0 │ PRI SOR │ ᴺᵁᴸᴸ    │       │
+│ EventTime             │ DateTime │    0 │ PRI SOR │ ᴺᵁᴸᴸ    │       │
+│ FUniqID               │ Int64    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ FetchTiming           │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ FlashMajor            │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ FlashMinor            │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ FlashMinor2           │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ FromTag               │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ GoodEvent             │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ HID                   │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ HTTPError             │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ HasGCLID              │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ HistoryLength         │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ HitColor              │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IPNetworkID           │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ Income                │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ Interests             │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IsArtifical           │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IsDownload            │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IsEvent               │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IsLink                │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IsMobile              │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IsNotBounce           │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IsOldCounter          │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IsParameter           │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ IsRefresh             │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ JavaEnable            │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ JavascriptEnable      │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ LocalEventTime        │ DateTime │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ MobilePhone           │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ MobilePhoneModel      │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ NetMajor              │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ NetMinor              │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ OS                    │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ OpenerName            │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ OpenstatAdID          │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ OpenstatCampaignID    │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ OpenstatServiceName   │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ OpenstatSourceID      │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ OriginalURL           │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ PageCharset           │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ParamCurrency         │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ParamCurrencyID       │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ParamOrderID          │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ParamPrice            │ Int64    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ Params                │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ Referer               │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ RefererCategoryID     │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ RefererHash           │ Int64    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ RefererRegionID       │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ RegionID              │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ RemoteIP              │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ResolutionDepth       │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ResolutionHeight      │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ResolutionWidth       │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ResponseEndTiming     │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ ResponseStartTiming   │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ Robotness             │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SearchEngineID        │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SearchPhrase          │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SendTiming            │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ Sex                   │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SilverlightVersion1   │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SilverlightVersion2   │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SilverlightVersion3   │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SilverlightVersion4   │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SocialAction          │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SocialNetwork         │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SocialSourceNetworkID │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ SocialSourcePage      │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ Title                 │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ TraficSourceID        │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ URL                   │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ URLCategoryID         │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ URLHash               │ Int64    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ URLRegionID           │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ UTMCampaign           │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ UTMContent            │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ UTMMedium             │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ UTMSource             │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ UTMTerm               │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ UserAgent             │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ UserAgentMajor        │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ UserAgentMinor        │ String   │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ UserID                │ Int64    │    0 │ PRI SOR │ ᴺᵁᴸᴸ    │       │
+│ WatchID               │ Int64    │    0 │ PRI SOR │ ᴺᵁᴸᴸ    │       │
+│ WindowClientHeight    │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ WindowClientWidth     │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ WindowName            │ Int32    │    0 │         │ ᴺᵁᴸᴸ    │       │
+│ WithHash              │ Int16    │    0 │         │ ᴺᵁᴸᴸ    │       │
+└───────────────────────┴──────────┴──────┴─────────┴─────────┴───────┘
+</code></p>
+
+<p>SELECT * FROM system.columns 的较差版本。
+<br/>这兼容 MySQL，但并不美观。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Robert Schulze。</p>
+</section>
+
+<section class="slide">
+<h2>ParquetMetadata 格式</h2>
+
+<p><code>SELECT * FROM file('hits.parquet', ParquetMetadata)
+FORMAT PrettyJSONEachRow</code></p>
+
+<p>以表的形式展示行组和列统计信息的元数据。</p>
+
+<p>演示</p>
+
+<!--
+
+SELECT * FROM file('hits.parquet', ParquetMetadata);
+DESCRIBE file('hits.parquet', ParquetMetadata);
+SELECT * FROM file('hits.parquet', ParquetMetadata) FORMAT PrettyJSONEachRow;
+
+-->
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>extractKeyValuePairs</h2>
+
+<p><code>SELECT extractKeyValuePairs(
+    'hello="world", abc="def"',
+    '=',
+    ', ',
+    '"') AS x
+
+┌─x─────────────────────────────┐
+│ {'hello':'world','abc':'def'} │ <span style="color: gray">Map(String, String)</span>
+└───────────────────────────────┘
+</code></p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Arthur Passos。</p>
+</section>
+
+<section class="slide">
+<h2>使用非常量查找模式进行替换</h2>
+
+<p><code>SELECT replaceAll('Hello, world',
+    number % 2 ? 'Hello' : 'world',
+    number % 3 ? 'Goodbye' : 'Greetings') AS x
+FROM numbers(2)
+
+┌─x────────────────┐
+│ Hello, Greetings │
+│ Goodbye, world   │
+└──────────────────┘</code></p>
+
+<p>&mdash; replaceOne, replaceAll, replaceRegexpOne, replaceRegexpAll...</p>
+<p>&mdash; 这两个参数—— <b>needle</b> 和 <b>replacement</b> ——都可以是非常量。</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Robert Schulze。</p>
+</section>
+
+
+<section class="slide">
+<h2>性能优化</h2>
+</section>
+
+<section class="slide">
+<h2>更快的 Parquet 读取</h2>
+
+<img style="float: right; margin-top: -1em; width: 40%; image-rendering: pixelated;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.4/pictures/parquet.png"/>
+<p>从 S3 和 URL 读取。</p>
+<p><b>速度达到原来的 100 倍。</b></p>
+
+<p style="margin-top: 2em;">演示。</p>
+
+<!--
+clickhouse-local
+SELECT AdvEngineID, COUNT(*) AS c FROM url(https://clickhouse-public-datasets.s3.amazonaws.com/hits_compatible/hits.parquet) GROUP BY AdvEngineID ORDER BY c DESC LIMIT 10;
+
+programs/server/clickhouse-23.2 local
+SELECT AdvEngineID, COUNT(*) AS c FROM url(https://clickhouse-public-datasets.s3.amazonaws.com/hits_compatible/hits.parquet) GROUP BY AdvEngineID ORDER BY c DESC LIMIT 10;
+-->
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Michael Kolupaev。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 36pt;">异步连接副本</h2>
+
+<p>此前： <b>connect_timeout_with_failover_ms</b> = 50.</p>
+<p>支持在副本不可用时快速故障转移。
+<br/><span style="color: gray;">但跨洲连接需要调优。</span></p>
+<p>现在： <b>connect_timeout_with_failover_ms</b> = 1000,
+<br/>但 <b>hedged_connection_timeout_ms</b> = 50.</p>
+
+<p>50 毫秒后开始连接其他副本， <br/>同时保留与首个副本的连接尝试，
+<br/>继续连接多个副本， <b style="color: green;">并行执行</b>。</p>
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+
+<section class="slide">
+<h2>数据湖</h2>
+
+<p>支持 <b>Iceberg v2</b>。</p>
+<p>支持已分区和未分区的 <b>Iceberg</b>、 <b>Hudi</b> 和 <b>DeltaLake</b>。</p>
+<p>利用 <b>Delta</b> 格式的检查点优化读取。</p>
+<p>跟踪数据变化。</p>
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Kseniia Sumarokova。</p>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.4/pictures/looker.png" style="height: 90%; margin-top: -1em;"/>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>Looker</b>：</p>
+<p>&mdash; 通过 MySQL 协议使用 ClickHouse。<br/>
+<span style="color: gray;">&mdash; 下一步：Quicksight？</span></p>
+
+<p><b>Kafka 连接器</b></p>
+<p>&mdash; 新增可空类型支持</p>
+<p>&mdash; 新增连接错误重试机制</p>
+<p>&mdash; 发布到 Confluent Hub</p>
+
+<p>更新了 <b>Metabase</b>、 <b>Golang</b>、 <b>Python</b>和 <b>Java</b> 驱动。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.4/pictures/website.png); background-size: cover;">
+</section>
+
+<section class="slide">
+<h2>阅读园地</h2>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p>&mdash; 深入了解 ClickHouse 与 Apache Parquet</p>
+<p>&mdash; 深入了解 ClickHouse 中的 JOIN 算法</p>
+<p>&mdash; 一位连续创业产品经理的故事</p>
+
+<p><a href="https://github.com/ClickHouse/NoiSQL">https://github.com/ClickHouse/NoiSQL</a></p>
+<p>&mdash; 使用 ClickHouse 中的 SQL 查询生成音乐</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.4/pictures/cloud.jpg); background-size: cover;">
+<h2><span class="hilite">ClickHouse Cloud</span></h2>
+
+<p><span class="hilite">&mdash; 免费试用 30 天，提供 300 美元额度，支持最多 10 TB 数据；</span></p>
+<p><span class="hilite">&mdash; 面向开发者的经济型集群，具备完整高可用性 &lt; 100 美元/月</span></p>
+<p><span class="hilite">试试看！ <a href="https://clickhouse.cloud/">https://clickhouse.cloud/</a>。</span></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.4/pictures/spring3.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/4rrf6bk_mOg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
