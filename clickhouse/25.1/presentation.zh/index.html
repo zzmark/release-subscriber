@@ -44,54 +44,54 @@
 </section>
 <!--
 
-Small
+小功能
 
-script_line_number, script_query_number
-subcolumns in keys
-Parallel DDL
-Min-max indices by default
-Better SETTINGS in CREATE query
-JSON is pretty by default
-Prompt for binary formats in the terminal
-Trailing spaces
-Multi-line fields
-Autodetect compression in CLI
-Cut column names
-Squash pretty
-Fallback to Vertical
+script_line_number、script_query_number
+键中的子列
+并行 DDL
+默认使用 min-max 索引
+改进 CREATE 查询中的 SETTINGS
+JSON 默认采用易读格式
+在终端中提示二进制格式
+尾随空格
+多行字段
+CLI 自动检测压缩格式
+截短列名
+合并 Pretty 输出
+回退到 Vertical
 
-Performance
+性能
 
-trace_log is symbolized
-In-memory index cache
-Speed-up parallel hash JOIN
-Faster parallel replicas
+trace_log 符号解析
+内存索引缓存
+加快并行哈希连接
+更快的并行副本
 
-Main
+主要功能
 
-Lightweight Updates
+轻量级更新
 generateSerialID
-Better merge tables
-Streaming results over HTTP
-Partition pruning for Iceberg
+改进 Merge 表
+通过 HTTP 流式返回结果
+Iceberg 分区裁剪
 
-Bonus
+额外内容
 
-Roadmap 2025
+2025 年路线图
 chDB
-Compute-compute separation
+计算与计算分离
 
-Integrations
+集成
 
 
-Reading
+阅读
 
-Evolution of the Cloud
-Compute-compute separation
+云架构演进
+计算与计算分离
 Graviton
 BuzzHouse
-Medalion architecture for BlueSky
-Evidence with ClickHouse
+BlueSky 的奖章架构
+Evidence 与 ClickHouse
 
 -->
 
@@ -559,7 +559,7 @@ FROM numbers(1e9) GROUP BY k WITH TOTALS FORMAT JSONEachRowWithProgress"
 
 https://play.clickhouse.com/
 
-Progress:
+进度：
 
 SELECT number, sleep(.2) FROM numbers(1e6) WHERE number % 100000 = 123
 
@@ -567,7 +567,7 @@ SELECT count() FROM github_events WHERE actor_login = 'alexey-milovidov'
 SELECT repo_name, firstLine(body) FROM github_events WHERE actor_login = 'alexey-milovidov' AND body != '' AND repo_name NOT LIKE '%ClickHouse%'
 SELECT repo_name, firstLine(body) FROM github_events WHERE actor_login = 'nickitat' AND body != '' AND repo_name NOT LIKE '%ClickHouse%'
 
-Cancellation:
+取消：
 
 -->
 
@@ -648,10 +648,10 @@ Cancellation:
     <div class="progress"></div>
     <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
 
-    <!--Video plugin-->
+    <!--视频插件-->
     <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
     <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
-    <!--/Video plugin-->
+    <!--/视频插件-->
 <footer class="badge">
     <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
 </footer>
