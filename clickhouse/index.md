@@ -13,6 +13,7 @@
 
 | 版本 | 类型 | 发布时间 | 更新总结 | 原始 Changelog | 中文 Changelog | Release 演示 |
 | --- | --- | --- | --- | --- | --- | --- |
+| 26.8 | LTS | 2026-08-27 | [查看](./26.8/) | [English](./26.8/changelog.md) | [简体中文](./26.8/changelog.zh.md) | [原始](https://presentations.clickhouse.com/2026-release-26.8/) · <a href="./26.8/presentation.zh/index.html">中文</a> |
 | 26.7 | 常规 | 2026-07-22 | [查看](./26.7/) | [English](./26.7/changelog.md) | [简体中文](./26.7/changelog.zh.md) | [原始](https://presentations.clickhouse.com/2026-release-26.7/) · <a href="./26.7/presentation.zh/index.html">中文</a> |
 | 26.6 | 常规 | 2026-06-25 | [查看](./26.6/) | [English](./26.6/changelog.md) | [简体中文](./26.6/changelog.zh.md) | [原始](https://presentations.clickhouse.com/2026-release-26.6/) · <a href="./26.6/presentation.zh/index.html">中文</a> |
 | 26.5 | 常规 | 2026-05-21 | [查看](./26.5/) | [English](./26.5/changelog.md) | [简体中文](./26.5/changelog.zh.md) | [原始](https://presentations.clickhouse.com/2026-release-26.5/) · <a href="./26.5/presentation.zh/index.html">中文</a> |

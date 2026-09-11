@@ -32,6 +32,9 @@ export default defineConfig({
   description: '软件版本更新、原始 Changelog 与中文更新总结',
   base: '/release-subscriber/',
   cleanUrls: true,
+  ignoreDeadLinks: [
+    /^\/docs\/operations\/query-condition-cache$/,
+  ],
   lastUpdated: true,
   sitemap: {
     hostname: 'https://zzmark.github.io/release-subscriber/'

@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：26.8 版本发布会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://presentations.clickhouse.com/2026-release-26.8/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse: Release 26.8 Call">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://presentations.clickhouse.com/2026-release-26.8/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+        .zoomable { cursor: zoom-in; }
+        .zoomable.zoomed { position: fixed; left: 0; top: 0; width: 100% !important; height: 100%; object-fit: contain; background: #000; z-index: 50; cursor: zoom-out; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：26.8 版本发布会</h1>
+        <p>作者：Alexey Milovidov，2026-08-27。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 15px; line-height: 110%; font-size: 56pt; color: #FF0; text-align: center;">ClickHouse 26.8 LTS 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 26.8 版本</h2>
+<p>1.（50 分钟）ClickHouse 26.8 有哪些新内容。</p>
+<p>2.（10 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">26.8 LTS 版本</span></h2>
+<p><span class="hilite">&mdash; 98 项新功能 🍇</span></p>
+<p><span class="hilite">&mdash; 128 项性能优化 🌠</span></p>
+<p><span class="hilite">&mdash; 556 项缺陷修复 🐝</span></p>
+<p style="margin-top: 1em;"><span class="hilite">长期支持版本。</span></p>
+</section>
+<!-- Feature count = 48 New Feature + 48 Experimental Feature + 2 new-feature backward-incompatible
+     changes (VALID FOR interval in CREATE USER #110171; Date32 extended range #111534).
+     Counted from master CHANGELOG.md on 2026-08-25 — the section was still marked "in progress",
+     recount from the final changelog near the release day. -->
+<!--
+
+Small And Nice
+
+run_query_in_background
+VALID FOR
+default_session_user
+system.user_query_log
+URL database engine and its usage in clickhouse-local
+Atomic POPULATE
+GROUPS frame for window functions
+mergedJSONPatch
+Array subscripts
+
+Interfaces
+
+CREATE HANDLER
+API for query construction
+Sorting, filtering, and paginating in the web UI
+Framing formats
+parseQueryToJSON and formatQueryFromJSON
+clickhouse_json dialect
+Pipelined SQL
+New chdig features
+
+Performance
+
+Adaptive aggregator
+Fused aggregation and topK
+Faster aggregation by strings
+Faster merging of aggregation states
+Faster uniq/uniqExact without key
+Adaptive codecs
+Lazy reading in Parquet
+Dictionary-based filtering in Parquet
+Spatial pruning for GeoParquet
+Lower memory usage for a huge number of parts
+Faster DISTINCT and window functions in partitioned tables
+
+Joins
+
+Column statistics are enabled by default - show versions benchmark
+IEJoin algorithm
+parallel_full_sorting_merge algorithm
+Cascades optimizer
+
+Data Lakes
+
+S3 Tables
+Horizon
+Puffin
+Prefetching manifest files in Iceberg
+Table function bigquery
+
+Text Search
+
+japanese, chinese, icu, splitByRegexp
+Text indexes: faster answers
+
+Bonus
+
+Animated PNG
+Introspection port
+On-disk storage for keeper
+Postgres protocol improvements
+chdb WASM
+ClickBench Playground
+New ClickHouse Fiddle
+Embeddings.info
+
+Meetups
+
+Open House Roadshow
+
+Reading Corner: ClickBench Playground, ClickGap, Shopify, Jump Trading, Musinsa, Mercado Libre, Andy Pavlo and ClickHouse Labs,
+
+-->
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back3.jpg); background-size: cover;">
+<h2 style="color: black;"><span class="hilite">小而实用的功能</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>在后台运行查询</h2>
+
+<p style="margin-top: -0.3em;">发出后无需等待：服务器接受查询并立即返回，
+<br/>随后运行至完成 &mdash; <b>无论连接发生什么</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">INSERT INTO backup_table SELECT * FROM huge_table
+SETTINGS <b style="color: green;">run_query_in_background = 1</b>;
+<span style="color: gray;">-- returns instantly; the INSERT keeps running on the server</span>
+
+SELECT query_id, elapsed FROM system.processes;  <span style="color: gray;">-- track it</span>
+</code></p>
+
+<p>&mdash; 对于耗时较长的 <b>INSERT &hellip; SELECT</b>、<b>CREATE TABLE &hellip; AS SELECT</b>、
+<br/>&emsp; <b>CREATE MATERIALIZED VIEW &hellip; POPULATE</b> &mdash; 这些操作必须继续
+<br/>&emsp; 即使连接已断开。
+<br/>&mdash; 可在 <b>system.processes</b> 中按 <b>query_id</b> 和查询日志进行跟踪。</p>
+
+<!-- Demo:
+
+clickhouse client --query_id bg_demo_1 -q "INSERT INTO big SELECT sipHash64(number) FROM numbers(2000000000) SETTINGS run_query_in_background = 1"
+-- returns immediately
+SELECT query_id, query FROM system.processes WHERE query_id = 'bg_demo_1';  -- still running
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Miсhael Stetsyuk。</p>
+</section>
+
+<section class="slide">
+<h2>CREATE USER ... VALID FOR</h2>
+
+<p style="margin-top: -0.3em;">无需手动计算日期的限时凭据：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE USER bot IDENTIFIED BY '&hellip;' <b style="color: green;">VALID FOR INTERVAL 30 DAY</b>;
+
+SHOW CREATE USER bot;
+<span style="color: gray;">-- CREATE USER bot ... VALID UNTIL '2026-09-25 12:34:56'</span>
+
+ALTER USER bot <b style="color: green;">VALID FOR INTERVAL 90 DAY</b>;  <span style="color: gray;">-- extend from now</span>
+</code></p>
+
+<p>&mdash; <b>VALID UNTIL</b> 的简写：截止时间会计算为
+<br/>&emsp; 执行时的当前时间加上该时间间隔。</p>
+
+<!-- Demo:
+
+CREATE USER app_user IDENTIFIED WITH no_password VALID FOR INTERVAL 30 DAY;
+SHOW CREATE USER app_user;   -- VALID UNTIL '2026-09-24 ...'
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>default_session_user</h2>
+
+<p style="margin-top: -0.5em;">连接<b>没有用户名</b>时使用哪个用户？
+<br/>过去固定为 <b>default</b>，现在可以自行选择：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.2;"><span style="color: gray;">$ cat config.d/default_session_user.yaml</span>
+
+<b style="color: green;">default_session_user</b>: anonymous  <span style="color: gray;"># instead of 'default'</span>
+
+protocols:
+  mysql_guests:
+    type: mysql
+    port: 9106
+    <b style="color: green;">default_session_user</b>: mysql_guest  <span style="color: gray;"># override per port</span>
+</code></p>
+
+<p style="margin-top: 0.1em;">&mdash; 原生、HTTP、MySQL 和 PostgreSQL 协议现在会接受
+<br/>&emsp; 接受空用户名，而不是拒绝连接。
+<br/>&mdash; 将其设为空字符串即可禁止匿名连接。
+</p>
+
+<!-- Demo (config as on the slide; users anonymous and mysql_guest created):
+
+curl -s 'http://127.0.0.1:8123/?query=SELECT%20currentUser()'   -- anonymous
+# MySQL protocol with a truly empty user name (CLI clients substitute the OS user, use pymysql):
+python3 -c "
+import pymysql
+for port in (9106, 9004):
+    conn = pymysql.connections.Connection(host='127.0.0.1', port=port, user='x', password='', defer_connect=True)
+    conn.user = b''; conn.connect()
+    cur = conn.cursor(); cur.execute('SELECT currentUser()'); print(port, '->', cur.fetchone()[0])"
+# 9106 -> mysql_guest    9004 -> anonymous
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>system.user_query_log</h2>
+
+<p style="margin-top: -0.3em;">每位用户都能查看<b>自己的</b>查询历史 &mdash;
+<br/>无需访问完整查询日志：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: gray;">-- as user 'analyst', with no special grants:</span>
+SELECT user, query FROM <b style="color: green;">system.user_query_log</b> LIMIT 1;
+<span style="color: gray;">-- analyst │ SELECT count() FROM default.hits — own queries only</span>
+
+SELECT count() FROM system.query_log;
+<span style="color: gray;">-- ACCESS_DENIED — as before</span>
+</code></p>
+
+<p>&mdash; 无需他人协助即可调试自己的慢查询。</p>
+
+<!-- Demo:
+
+CREATE USER analyst IDENTIFIED WITH no_password; GRANT SELECT ON default.hits TO analyst;
+clickhouse client --user analyst -q "SELECT count() FROM default.hits"
+clickhouse client --user analyst -q "SELECT user, query FROM system.user_query_log WHERE type = 'QueryFinish' ORDER BY event_time DESC LIMIT 3"   -- sees only own queries
+clickhouse client --user analyst -q "SELECT count() FROM system.query_log"   -- ACCESS_DENIED
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Yue Ni、Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>URL 数据库引擎</h2>
+
+<p style="margin-top: -0.5em;">从 26.7 起，<b>url</b> 表函数支持多协议操作，
+<br/>并会将 file://、s3:// 等协议分派给对应实现。</p>
+
+<p style="margin-top: -0.5em;">在 26.8 中，可以创建 <b>URL</b> 数据库：</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE DATABASE web <b style="color: green;">ENGINE = URL</b>('https://example.com/data/');
+USE web; SELECT count() FROM "sales/2026.parquet";
+</code></p>
+
+<p>在 clickhouse-local 中，默认数据库是 URL <b>Overlay</b>：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM 'hits.tsv'; <span style="color: gray;">-- select from local files</span>
+SELECT * FROM 'https://example.com/hits.tsv'; <span style="color: gray;">-- select from URLs</span>
+SELECT * FROM 's3://mybucket/hits.tsv'; <span style="color: gray;">-- select from S3</span>
+SELECT * FROM table; <span style="color: gray;">-- regular tables in the default database</span>
+</code></p>
+
+<!-- Demo:
+
+SELECT * FROM '/tmp/demo_local.csv';
+SELECT town, price FROM 'https://datasets-documentation.s3.eu-west-3.amazonaws.com/house_parquet/house_0.parquet' ORDER BY price DESC LIMIT 3;
+CREATE DATABASE web ENGINE = URL('https://datasets-documentation.s3.eu-west-3.amazonaws.com/');
+SELECT count() FROM web.`house_parquet/house_0.parquet`;   -- 2772030
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>原子化 POPULATE</h2>
+
+<p style="margin-top: -0.5em;"><b>CREATE MATERIALIZED VIEW &hellip; POPULATE</b> 过去会遗漏
+<br/>视图填充期间插入的记录。现在不会了：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;"><span style="color: gray;">-- 30 concurrent INSERTs racing the CREATE:</span>
+CREATE MATERIALIZED VIEW mv ENGINE = SummingMergeTree ORDER BY ()
+<b style="color: green;">POPULATE</b> AS SELECT sum(v) AS total FROM events;
+
+SELECT (SELECT sum(v) FROM events) AS source,
+       (SELECT sum(total) FROM mv) AS materialized;
+<span style="color: gray;">-- 20300000 = 20300000 — nothing lost, nothing duplicated</span>
+</code></p>
+
+<p style="margin-top: 0em;">&mdash; <b>POPULATE</b> 现在也支持与 <b>TO</b> 搭配，用于回填目标。
+<br/>&mdash; 对同一台本地服务器上的插入而言，订阅是原子的
+<br/>&emsp;（分布式原子订阅仍待实现）。</p>
+
+
+<!-- Demo:
+
+CREATE TABLE events (id UInt64, v UInt64) ENGINE = MergeTree ORDER BY id;
+INSERT INTO events SELECT number, 1 FROM numbers(20000000);
+for i in $(seq 1 30); do clickhouse client -q "INSERT INTO events SELECT $i * 1000000000 + number, 1 FROM numbers(10000)" & done
+sleep 0.05
+clickhouse client -q "CREATE MATERIALIZED VIEW mv ENGINE = SummingMergeTree ORDER BY () POPULATE AS SELECT sum(v) AS total FROM events"
+wait
+clickhouse client -q "SELECT (SELECT sum(v) FROM events) AS source, (SELECT sum(total) FROM mv) AS materialized, source = materialized AS consistent"
+-- 20300000, 20300000, 1
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>窗口函数的 GROUPS 框架</h2>
+
+<p style="margin-top: -0.3em;">一个不常使用的 <b>SQL:2011</b> 功能：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT ts, price, avg(price) OVER (
+    PARTITION BY symbol ORDER BY ts
+    <b style="color: green;">GROUPS BETWEEN 1 PRECEDING AND CURRENT ROW</b>)
+FROM trades;
+</code></p>
+
+<p>&mdash; <b>GROUPS</b> 表示：<b>ORDER BY</b> 值相同的连续行组
+<br/>&mdash; <b>N PRECEDING</b> = 当前行所在组之前的 N 个同值组，
+<br/>&emsp;而不是 N 个物理行（ROWS）或 ORDER BY 值距离（RANGE）。</p>
+
+<!-- Demo:
+
+SELECT number AS n, intDiv(number, 3) AS grp, sum(n) OVER (ORDER BY grp GROUPS BETWEEN 1 PRECEDING AND CURRENT ROW) AS s FROM numbers(9);
+-- groups of 3 rows; s = sum of the current and the previous peer group
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Nihal Z. Miaji。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">用于合并 JSON 的聚合函数</h2>
+
+<p style="margin-top: -0.3em;">按排序键顺序合并 <b>JSON</b> 值，
+<br/>遵循 RFC 7396 风格 &mdash; 每条路径的最新值生效：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">mergedJSONPatch</b>(x, seq) FROM VALUES('seq UInt64, x JSON',
+    (1, '{"database": "mongodb"}'),
+    (2, '{"is_good": "true"}'),
+    (3, '{"database": "ClickHouse"}'))
+
+{"database":"ClickHouse","is_good":"true"}
+</span>
+</code></p>
+
+<p>&mdash; 从部分更新流中得到实体的当前状态。
+<br/>&mdash; 可在 <b>AggregatingMergeTree</b> 中使用 &mdash; 合并时保持状态最新。</p>
+
+<!-- Demo:
+
+SELECT mergedJSONPatch(j, ts) FROM (SELECT 1 AS ts, '{"name":"alice","age":30}'::JSON AS j UNION ALL SELECT 2, '{"age":31,"city":"Berlin"}'::JSON UNION ALL SELECT 3, '{"vip":true}'::JSON);
+-- {"age":31,"city":"Berlin","name":"alice","vip":true}
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Larry Luo。</p>
+</section>
+
+<section class="slide">
+<h2>用数组作为数组下标</h2>
+
+<p style="margin-top: -0.3em;">下标运算符接受一个<b>索引数组</b>
+<br/>并返回所有给定位置上的元素：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT ['a', 'b', 'c', 'd', 'e']<b style="color: green;">[[1, 3, 5]]</b>;
+<span style="color: gray;">-- ['a', 'c', 'e']</span>
+
+SELECT scores<b style="color: green;">[top_indexes]</b> FROM results;
+<span style="color: gray;">-- same as arrayMap(i -&gt; scores[i], top_indexes)</span>
+</code></p>
+
+<p>&mdash; 在一个表达式中收集、重排或采样数组元素 &mdash;
+<br/>&emsp;与 <b>arraySort</b> 和 <b>topK</b> 类函数结合使用更加方便。</p>
+
+<!-- Demo:
+
+SELECT ['a','b','c','d','e'][[1,3,5]], [10,20,30][materialize([2,3])];   -- ['a','c','e'], [20,30]
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1.5em;">开发者：folly。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">接口</span></h2>
+</section>
+
+<section class="slide">
+<h2>CREATE HANDLER</h2>
+
+<p style="margin-top: -0.5em;">从 <b>SQL</b> 定义自定义 HTTP 端点：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><b style="color: green;">CREATE HANDLER</b> top_pages <b style="color: green;">URL</b> '/top_pages' AS
+SELECT path, sum(hits) AS total FROM hits
+GROUP BY path ORDER BY total DESC LIMIT 5;
+</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">$ curl http://server:8123<b style="color: green;">/top_pages</b>
+/page19  254500
+/page18  254000
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; 支持参数化：<b>{p:String}</b> 可从 URL 参数、表单字段、
+<br/>&emsp;请求头或路径中命名的正则捕获组中获取。
+<br/>&mdash; INSERT 处理器读取 POST 请求体。
+<br/>&mdash; 支持 ALTER/DROP HANDLER、授权和 <b>system.handlers</b>。</p>
+
+<!-- Demo:
+
+CREATE HANDLER top_pages URL '/top_pages' METHODS (GET) AS SELECT path, sum(hits) AS total FROM default.hits GROUP BY path ORDER BY total DESC LIMIT 5;
+curl -s 'http://localhost:8123/top_pages'
+CREATE HANDLER page_stats URL '/stats' AS SELECT path, count() AS n, sum(hits) AS total FROM default.hits WHERE path = {p:String} GROUP BY path;
+curl -s 'http://localhost:8123/stats?p=/page3'
+SELECT name, url, methods FROM system.handlers;
+-- verified: handlers survived a server restart
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>查询构建 API</h2>
+
+<p style="margin-top: -0.5em;">新的 HTTP 设置会为你<b>组合查询</b> &mdash; 并将 HTTP
+<br/>接口变成面向表的 REST 风格 API：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;"><span style="color: gray;">-- enable `http_allow_path_requests` in the server configuration
+-- and `http_allow_table_as_file` in settings profile</span>
+GET /hits.tsv.gz <span style="color: gray;">-- requests a table, format, and compression</span>
+GET /hits?format=RowBinary <span style="color: gray;">-- the <b>format</b> setting also works</span>
+GET /hits.tsv?select=a,b
+GET /hits.tsv?query=SELECT+a,b
+<span style="color: gray;">-- enable `http_allow_database_as_path`</span>
+GET /db/hits.parquet
+GET /db/hits.parquet?filter=x>1&amp;order=c+DESC&amp;limit=100&amp;page=2
+<span style="color: gray;">-- enable `http_allow_filters_as_unrecognized_url_parameters`</span>
+GET /db/hits.parquet?x=1&amp;y>2&amp;sort=-c
+<span style="color: gray;">-- http_allow_filters_as_path</span>
+GET /x=1/db/hits.parquet
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>结果修改 API</h2>
+
+<p style="margin-top: -0.5em;">&mdash; 新的查询设置：<b>filter</b>、<b>select</b>、<b>sort</b>、<b>order</b>、<b>page</b>、<b>compression</b>、
+<br/>&emsp;以及已有的 <b>limit</b>、<b>offset</b>，用于带外修改结果；</p>
+
+<p>&mdash; 新增设置 <b>format</b>、<b>input_format</b>、<b>output_format</b>
+<br/>&emsp;可显式覆盖输入/输出数据格式。</p>
+
+<p>这些设置会包装查询，以便为不同工具调整结果呈现。
+<br/>它们在只读模式下安全可用，也可以按需限制。</p>
+
+<p>&mdash; <b>database</b> 和 <b>default_format</b> 现在成为普通设置
+<br/>&emsp;而不再局限于 HTTP 接口；</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<!-- Sorting, filtering, and pagination in the Web UI — shown live on play.clickhouse.com:
+     Hacker News stories, sorted by the score column (arrows in the header), filtered to by = 'pg'
+     (the filter chip), with the server-side pager below. All shaped server-side via the
+     order/filter/limit/page settings; the state travels in the URL.
+     Collage of two screenshots of https://play.clickhouse.com/play?user=play (dark theme):
+     SELECT title, by, score, time FROM hackernews WHERE type = 'story'
+     — then sort desc on score; filter input on `by`: = 'pg'; the pager strip is from the
+     unfiltered sorted result (3.7M rows -> pages of 1000). -->
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/play_collage.png) center / contain no-repeat; background-color: #111;">
+<a href="https://play.clickhouse.com/play?user=play&amp;sort_columns=%5B%7B%22name%22%3A%22score%22%2C%22desc%22%3Atrue%7D%5D&amp;filters=%7B%22by%22%3A%22%3D%20%27pg%27%22%7D#U0VMRUNUIHRpdGxlLCBieSwgc2NvcmUsIHRpbWUgRlJPTSBoYWNrZXJuZXdzIFdIRVJFIHR5cGUgPSAnc3Rvcnkn" target="_blank" style="display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></a>
+</section>
+
+<section class="slide">
+<h2>分帧格式</h2>
+
+<p style="margin-top: -0.5em;">一个 HTTP 响应流现在可以承载<b>所有内容</b>：数据、进度、
+<br/>总计、profile 事件、服务器日志和异常 &mdash; 以多路复用方式传输：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">$ curl 'http://server:8123/?query=...&amp;<b style="color: green;">framing_output_format=EventStream</b>'
+event: data
+data: {"number":"0"}
+event: <b style="color: green;">progress</b>
+data: {"read_rows":"3","elapsed_ns":"7496990",...}
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; <b>EventStream</b>：HTTP 服务器发送事件，浏览器内置的
+<br/>&emsp;<b>EventSource</b> API 可直接消费。
+<br/>&mdash; <b>JSONEachPacketString</b> / <b>JSONEachPacketBase64</b>：每个数据包一个 JSON。</p>
+<p>实时进度条和流式结果，可包装任意数据格式。</p>
+
+<!-- Demo:
+
+curl -s 'http://localhost:8123/?query=SELECT+number+FROM+numbers(3)&framing_output_format=EventStream&default_format=JSONEachRow'
+curl -s 'http://localhost:8123/?query=SELECT+number+FROM+numbers(3)&framing_output_format=JSONEachPacketString&default_format=CSV'
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<!-- The Metrics tab of the Play UI in action — it is fed by the multiplexed framing stream:
+     the GitHub events query on play.clickhouse.com (dark theme), reading 9.74 billion rows
+     at 17.94 GB/sec, with live values, rates, and sparklines per profile event.
+     The link restores the exact query with the repo_name column colorized (categorical). -->
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/play_metrics.png) center / contain no-repeat; background-color: #111;">
+<a href="https://play.clickhouse.com/play?user=play&amp;color_modes=%7B%22repo_name%22%3A%22categorical%22%7D&amp;tab=GitHub%20Events#U0VMRUNUIGNyZWF0ZWRfYXQsIGFjdG9yX2xvZ2luLCByZXBvX25hbWUsCiAgICAnaHR0cHM6Ly9naXRodWIuY29tLyd8fHJlcG9fbmFtZXx8KGV2ZW50X3R5cGUgTElLRSAnSXNzdWUlJyA/ICcvaXNzdWVzLycgOiAnL3B1bGwvJyl8fG51bWJlciBBUyB1cmwsCiAgICB0aXRsZQpGUk9NICJkZWZhdWx0Ii4iZ2l0aHViX2V2ZW50cyIKV0hFUkUgKHRpdGxlIElMSUtFICclQ2xpY2tIb3VzZSUnIE9SIGJvZHkgSUxJS0UgJyVDbGlja0hvdXNlJScpIEFORCByZXBvX25hbWUgTk9UIExJS0UgJ0NsaWNrSG91c2UvJScKT1JERVIgQlkgY3JlYXRlZF9hdCBERVNDIExJTUlUIDEwMA==" target="_blank" style="display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></a>
+</section>
+
+<section class="slide">
+<h2>查询转 JSON</h2>
+
+<p style="margin-top: -0.3em;">查询的 AST 以 JSON 表示 &mdash; 支持双向转换：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25;">SELECT <b style="color: green;">parseQueryToJSON</b>('SELECT number FROM numbers(10) WHERE number &gt; 5');
+<span style="color: gray;">{"type":"SelectWithUnionQuery", ... "where":{"type":"Function","name":"greater",
+ "arguments":{...[{"type":"Identifier","name":"number"},
+                  {"type":"Literal","value":{"field_type":"UInt64","value":5}}]}}...}</span>
+
+SELECT <b style="color: green;">formatQueryFromJSON</b>(json);   <span style="color: gray;">-- and back to SQL</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; <b>以编程方式</b>分析、验证、重写并生成查询 &mdash;
+<br/>&emsp;可从任何带 JSON 库的语言完成这些操作。
+<br/>&mdash; 往返转换安全。</p>
+
+<!-- Demo:
+
+SELECT parseQueryToJSON('SELECT number FROM numbers(10) WHERE number > 5');
+SELECT formatQueryFromJSON(parseQueryToJSON('SELECT count() FROM hits WHERE status=404 GROUP BY path'));
+-- SELECT count() FROM hits WHERE status = 404 GROUP BY path
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov、Nikita Fomichev。</p>
+</section>
+
+<section class="slide">
+<h2>clickhouse_json 方言 🧪</h2>
+
+<p style="margin-top: -0.3em;">完全跳过 SQL：将查询以 <b>JSON AST</b> 发送：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">SET enable_json_ast_dialect = 1, <b style="color: green;">dialect = 'clickhouse_json'</b>;
+
+{"type":"SelectWithUnionQuery","list_of_selects":{
+    "type":"ExpressionList","children":[{"type":"SelectQuery",
+    "select":{"type":"ExpressionList","children":[
+        {"type":"Literal","value":{"field_type":"UInt64","value":42}}]}}]}}
+<span style="color: gray;">-- 42</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; 适用于机器生成的查询：无需字符串拼接，
+<br/>&emsp;无需处理转义错误，也没有注入面。
+<br/>&mdash; 以结构化方式构建树 &mdash; 服务器直接执行。</p>
+
+<!-- Demo:
+
+SET enable_json_ast_dialect = 1, dialect = 'clickhouse_json';
+{"type":"SelectWithUnionQuery","list_of_selects":{"type":"ExpressionList","children":[{"type":"SelectQuery","select":{"type":"ExpressionList","children":[{"type":"Literal","value":{"field_type":"UInt64","value":42}}]}}]}}
+-- 42
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov、Nikita Fomichev。</p>
+</section>
+
+<section class="slide">
+<h2>管道式 SQL</h2>
+
+<p style="margin-top: -0.5em;">从上到下编写查询，每一步都接在上一步之后：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">FROM hits
+<b style="color: green;">|&gt;</b> WHERE status = 404
+<b style="color: green;">|&gt;</b> AGGREGATE sum(hits) AS total GROUP BY path
+<b style="color: green;">|&gt;</b> ORDER BY total DESC
+<b style="color: green;">|&gt;</b> LIMIT 3;
+</code></p>
+
+<p>管道可以应用于任何普通查询：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT region_id, user_id, sum(session_length) AS total_duration
+FROM hits GROUP BY user_id
+<b style="color: green;">|&gt;</b> AGGREGATE avg(total_duration) GROUP BY region_id
+<b style="color: green;">|&gt;</b> ORDER BY 1 DESC
+<b style="color: green;">|&gt;</b> LIMIT 100;
+</code></p>
+
+
+<!-- Demo:
+
+FROM numbers(100) |> WHERE number % 7 = 0 |> AGGREGATE count() AS c, sum(number) AS s;   -- 15, 735
+FROM system.numbers |> LIMIT 10 |> WHERE number > 5;   -- 6 7 8 9
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>chdig 新功能</h2>
+
+<p style="margin-top: -0.5em;"><b>chdig</b> &mdash; 用于集群检查的终端用户界面（TUI）。</p>
+
+<img class="zoomable" style="width: 60%; display: block;" src="https://presentations.clickhouse.com/2026-release-26.8/pictures/chdig_overview.gif" alt="chdig：查询、CPU 火焰图和 tmux 风格窗格中的服务器日志" onclick="this.classList.toggle('zoomed'); event.stopPropagation();"/>
+
+<!-- The animation is Documentation/images/overview.gif from github.com/azat/chdig at v26.8.1 (MIT license):
+     a configured pane layout (queries + CPU flamegraph + server logs), filtering, EXPLAIN, pane zoom.
+     v26.8.1 highlights kept for Q&A: rewritten on ratatui (flicker-free, near-zero idle CPU);
+     tmux-style split panes (Alt+= / Alt+-); tmuxinator-style startup layouts and per-view settings;
+     auto-refreshing flamegraphs that highlight changes; shared logs keep colors. -->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Azat Khuzhin。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>自适应聚合器</h2>
+
+<p>并行执行 GROUP BY 有两种相反的方式：
+<br/>&mdash; <b>合并式聚合器</b>：在不同线程中并行独立聚合任意数据子集，然后并行合并。
+<br/>&mdash; <b>拆分式聚合器</b>：根据聚合键哈希将数据分发到各线程，使不同线程负责不同键的聚合，从而无需合并阶段。
+</p>
+
+<p>这两种方法都在 2016 年之前就已在 ClickHouse 中实现。
+<br/><span style="color: gray; font-size: 11pt;">ClickHouse 的两级哈希表并行合并后来被 DuckDB（2022 年）和 Datafusion（2023 年）采用。</p>
+
+<p>现在我们有了用于并行 GROUP BY 的<b>新算法</b>，可自适应地结合两种方法，在不同数据分布下都表现良好！</p>
+
+<p style="float: right;">演示。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Nihal Z. Miaji。</p>
+
+<!--
+
+SELECT URL, count() FROM hits GROUP BY URL ORDER BY count() DESC LIMIT 100
+SETTINGS enable_adaptive_aggregator = 0
+
+-->
+</section>
+
+<section class="slide">
+<h2>融合聚合与 topK</h2>
+
+<p style="margin-top: -0.3em;">26.7 将 GROUP BY 与 ORDER BY LIMIT 融合，适用于<b>按键排序的表</b>。
+<br/><b>26.8</b> 则适用于<b>任意读取顺序</b>：聚合期间使用有界堆
+<br/>剪除不可能出现在结果中的分组：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT k, count() FROM events
+GROUP BY k <b style="color: green;">ORDER BY k LIMIT 10</b>;
+<span style="color: gray;">-- only ~10 groups are kept per thread, not 500 million</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">示例：5 亿行、约 5 亿个不同键：</p>
+<p><b>26.7：<span style="color: red;">2.32</span> 秒，内存 <span style="color: red;">19.9 GB</span>。</b>
+<br/><b>26.8：<span style="color: green;">0.22</span> 秒，内存 <span style="color: green;">2.3 MB</span>。</b></p>
+
+<!-- Demo:
+
+Q="SELECT k, count() AS c FROM (SELECT sipHash64(number) AS k FROM numbers_mt(500000000)) GROUP BY k ORDER BY k LIMIT 10 FORMAT Null"
+clickhouse local --time --memory-usage --max_threads=32 -q "$Q"
+-- 26.7: 2.32s / 19.93 GB    26.8: 0.22s / 2.33 MB
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Dmitriy Terenichev、Konstantin Bogdanov。</p>
+</section>
+
+<section class="slide">
+<h2>字符串聚合加速</h2>
+
+<p style="margin-top: -0.3em;">使用单个 <b>String</b> 键的 GROUP BY 现在使用更小的
+<br/>哈希表单元：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT user_id, count() FROM events GROUP BY user_id;
+<span style="color: gray;">-- user_id String — the most common aggregation shape there is</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">示例：2 亿行、1000 万个不同的 16 字节键：</p>
+<p><b>26.7：<span style="color: red;">1.60</span> 秒。</b> &nbsp; <b>26.8：<span style="color: green;">0.88</span> 秒。</b>（1.8 倍）</p>
+
+<p style="margin-top: 0.3em;">&mdash; 默认开启（<b>enable_packed_string_keys_in_aggregation</b>）；
+<br/>&emsp;对于基数非常低、
+<br/>&emsp;且键长度超过 11 字节的聚合，旧方法仍可能更快。</p>
+
+<!-- Demo:
+
+Q="SELECT s, count() FROM (SELECT concat('user_id_', toString(number % 10000000)) AS s FROM numbers_mt(200000000)) GROUP BY s FORMAT Null"
+# interleaved runs, min of 5: 26.7: 1.60s    26.8: 0.88s
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Harikrishnan Prabakaran。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">更快地合并聚合状态</h2>
+
+<p style="margin-top: -0.3em;">在并行 GROUP BY 中，每个线程都会构建自己的哈希表 &mdash;
+<br/>最终合并可能成为单线程瓶颈：</p>
+
+<p style="margin-top: 0.3em;">&mdash; <b style="color: green;">并行单层合并</b>：当各线程的表较小时，
+<br/>&emsp;按哈希拆分键空间并由所有线程合并 &mdash;
+<br/>&emsp;任意两个线程都不会处理同一个键。
+</p><p>&mdash; 各线程状态从单层到两层的<b>转换</b>
+<br/>&emsp;也实现并行化 &mdash; 修复重型状态的 2&ndash;3 倍性能回归
+<br/>&emsp;（例如 COUNT(DISTINCT &hellip;)) 在超多核心机器上的问题。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Nihal Z. Miaji。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">无键时更快的 uniq / uniqExact</h2>
+
+<p style="margin-top: -0.3em;">对整张表执行普通 <b>uniq</b>、<b>uniqExact</b> 和 <b>uniqHLL12</b>
+<br/>现在加入了一批微优化：</p>
+
+<p style="margin-top: 0.3em;">&mdash; <b style="color: green;">末值缓存</b>：连续相等的值
+<br/>&emsp;（已排序或聚簇的输入）完全跳过哈希查找。
+<br/>&mdash; 更好的去虚拟化和批量插入内联。
+<br/>&mdash; 为 uniqExact 哈希集合进行内存<b>预取</b>。</p>
+
+<p style="margin-top: 0.5em;">示例：5 亿行、值成段相等时的 uniqExact：</p>
+<p><b>26.7：<span style="color: red;">1.82</span> 秒。</b> &nbsp; <b>26.8：<span style="color: green;">1.22</span> 秒。</b>（1.5 倍，单线程）</p>
+
+<!-- Demo:
+
+Q="SELECT uniqExact(intDiv(number, 100)) FROM numbers(500000000) FORMAT Null"
+clickhouse local --time --max_threads=1 -q "$Q"   # 26.7: 1.82s   26.8: 1.22s
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Anton Popov。</p>
+</section>
+
+<section class="slide">
+<h2>自适应编解码器 🧪</h2>
+
+<p style="margin-top: -0.5em;">合并时现在可以为使用默认 codec 的列按 block 选择<b>最佳 codec</b>，
+<br/>以提升压缩效果：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">CREATE TABLE t (ts DateTime, id UInt64, price Float64, msg String)
+ENGINE = MergeTree ORDER BY ts
+SETTINGS <b style="color: green;">enable_adaptive_codec_selection</b> = 1;
+
+<span style="color: gray;">-- inspect what the merge chose, with another 26.8 feature:</span>
+SELECT column, sumMap(codec_block_counts)
+FROM <b style="color: green;">mergeTreeCodecBlockCounts</b>(currentDatabase(), 't') GROUP BY column;
+<span style="color: gray;">-- ts: {'T64':611}, id: {'T64':1221}, price: {'LZ4':1221}, msg: {'LZ4':1832}</span>
+</code></p>
+
+<p>适合包含大量数值数据的表。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Raufs Dunamalijevs。</p>
+</section>
+
+<section class="slide">
+<h2>Parquet 惰性读取</h2>
+
+<p style="margin-top: -0.3em;">先读取 ORDER BY 列，
+<br/>其余列只读取通过 LIMIT 的记录：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">SELECT URL, Title
+FROM s3('s3://clickhouse-public-datasets/hits_compatible/<b>hits.parquet</b>')
+ORDER BY EventTime DESC <b style="color: green;">LIMIT 10</b>;
+<span style="color: gray;">-- 100 million rows, 14 GB</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">
+<b>26.7</b>：<span style="color: red;">4.9</span> 秒，读取 5.85 GB。
+<br/><b style="color: green;">26.8</b>：<span style="color: green;">1.7</span> 秒，读取 0.53 GB（少 11 倍）。
+</p>
+
+<!-- SET query_plan_optimize_lazy_materialization_for_object_storage = 0; -->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">Parquet 基于字典的过滤</h2>
+
+<p style="margin-top: -0.3em;">一种针对等值和 IN 条件<b>跳过整组行</b>的新方式：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">SELECT count()
+FROM s3('s3://clickhouse-public-datasets/hits_compatible/<b>hits.parquet</b>')
+WHERE MobilePhoneModel = 'GT-C3262';
+<span style="color: gray;">-- 200 rows out of 100 million; the value is read from the dictionary page:</span>
+<span style="color: gray;">-- if it is not in the dictionary, the whole row group is skipped</span>
+</code></p>
+
+<p style="margin-top: 0.2em;">示例：读取的行组：<b><span style="color: red;">226</span> &rarr; <span style="color: green;">12</span></b> &mdash; 仅读取包含该值的行组。</p>
+
+<p style="margin-top: 0.2em;">&mdash; 适用于 min/max 统计信息无法帮助的场景（每个行组
+<br/>&emsp;都涵盖该值），且不存在 bloom filter &mdash; 大多数 Parquet
+<br/>&emsp;写入器（包括生成 hits.parquet 的写入器）都不会写入 bloom filter。
+<br/>&mdash; 仅在列块完全使用字典编码时生效；
+<br/>&emsp;由 <b>input_format_parquet_dictionary_filter_push_down</b> 控制。</p>
+
+<!-- Demo (measured over real S3, master 26.9.1.62):
+
+clickhouse local --time --print-profile-events -q "SELECT count() FROM s3('s3://clickhouse-public-datasets/hits_compatible/hits.parquet') WHERE MobilePhoneModel = 'GT-C3262' FORMAT Null"
+-- 200; ParquetReadPages: 12 (the filter column has one page per row group)
+... SETTINGS input_format_parquet_dictionary_filter_push_down = 0    -- ParquetReadPages: 226
+The byte savings show up in decode work here (the filter column is tiny); when heavy columns are
+selected, the v3 reader's page-level filtering already narrows them, so bytes converge — the
+row-group skip is the stable metric.
+Verified with ParquetMetadata: bloom_filter_bytes = 0 for all columns (no bloom filters in the file);
+every row group's MobilePhoneModel range spans the value (min '' — the column is mostly empty).
+Other tested values: 'S720' -> 26 pages, 'GT-I9100T' -> 49, a value absent from the dataset -> 0.
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>GeoParquet 空间剪枝</h2>
+
+<p style="margin-top: -0.3em;">针对 <b>GeoParquet</b> 文件的地理空间查询会跳过
+<br/>不可能匹配的数据：</p>
+
+<p style="margin-top: 0.3em;">&mdash; <b style="color: green;">行组剪枝</b>：边界框不
+<br/>&emsp;与查询几何体重叠的行组会被完全跳过。
+<br/>&mdash; <b style="color: green;">页级剪枝</b>：<b>covering.bbox</b> 列索引
+<br/>&emsp;会跳过保留下来的行组中的无关页面。
+<br/>&mdash; 读取行时也会下推空间谓词。</p>
+
+<p style="margin-top: 0.5em;">从行星级文件中加载城市级切片 &mdash;
+<br/>无需读取整颗行星。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vasily Chekalkin。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">大量 part 的内存占用更低</h2>
+
+<p style="margin-top: -0.3em;">过去每个数据 part 都会保留一份自己的 schema 元数据副本：
+<br/>列列表、描述、序列化方式、子流 &mdash;
+<br/>这些内容在同一表的各个 part 之间基本相同。</p>
+
+<p style="margin-top: 0.3em;">现在同一表的各个 part <b style="color: green;">共享</b>一份不可变、引用计数的
+<br/>按列驻留的副本 &mdash; 仅部分列不同的 part
+<br/>（例如稀疏与密集）仍共享其余内容。</p>
+
+<p style="margin-top: 0.5em;">示例（来自 PR）：231 列 &times; 3000 个小 part：</p>
+<p><b>服务器实时内存：<span style="color: red;">~840</span> MiB &rarr; <span style="color: green;">~240</span> MiB</b>（3.5 倍）</p>
+
+<p style="margin-top: 0.3em;">&mdash; 对列很多且小 part 很多的宽表，效果最明显。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Raúl Marín。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 28pt;">更快的 DISTINCT 和窗口函数</h2>
+
+<p style="margin-top: -0.3em;">当分区键是 DISTINCT
+<br/>（或窗口 PARTITION BY）列的函数时，每个分区现在都会
+<br/>在自己的流中处理 &mdash; 无需跨线程重排，也无需最终合并：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.2;">SELECT DISTINCT uid, ev FROM pt;                     <span style="color: gray;">-- PARTITION BY uid % 64</span>
+SELECT row_number() OVER (PARTITION BY uid ORDER BY ts) FROM pt;
+</code></p>
+
+<p style="margin-top: 0.3em;">示例：2 亿行、64 个分区：</p>
+<p>DISTINCT：<b><span style="color: red;">16.6</span> s，<span style="color: red;">13.3</span> GB &rarr; <span style="color: green;">0.49</span> s，<span style="color: green;">2.5</span> GB</b>（34 倍！）
+<br/>窗口函数：<b><span style="color: red;">2.2</span> s &rarr; <span style="color: green;">0.46</span> s</b>（4.8 倍）</p>
+
+<p style="margin-top: 0.2em;">&mdash; 构建 <b>IN (subquery)</b> 的集合时同样适用。</p>
+
+<!-- Demo:
+
+CREATE TABLE pt (uid UInt64, ev UInt32, ts UInt64) ENGINE = MergeTree PARTITION BY uid % 64 ORDER BY uid;
+INSERT INTO pt SELECT rand64() % 20000000, number % 100, number FROM numbers_mt(200000000);
+SELECT count() FROM (SELECT DISTINCT uid, ev FROM pt) FORMAT Null;                              -- 16.6s/13.3GB -> 0.49s/2.5GB
+SELECT max(rn) FROM (SELECT row_number() OVER (PARTITION BY uid ORDER BY ts) AS rn FROM pt) FORMAT Null;  -- 2.2s -> 0.46s
+-- Needs enough partitions relative to max_threads (heuristic); 16 partitions at 32 threads did not activate it, 64 did.
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Nihal Z. Miaji。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">JOIN</span></h2>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">INSERT 时启用列统计信息</h2>
+
+<p>列统计信息提供值分布信息
+<br/>查询优化器利用这些信息
+<br/>驱动 JOIN 重排等优化。</p>
+
+<p><b>23.11</b>：首次实现统计信息，需手动选择
+<br/><b>25.9</b>：提供使用统计信息进行 JOIN 重排的选项
+<br/><b>25.10</b>：自动选择列的统计信息
+<br/><b>25.12</b>：默认使用统计信息进行优化
+<br/><b>26.2</b>：高效紧凑的统计信息存储格式和缓存
+<br/><b>26.3</b>：磁盘格式稳定，功能正式可用
+<br/><b>26.4</b>：默认在后台合并时构建统计信息
+<br/><span style="color: green;"><b>26.8</b>：默认在小表 INSERT 时构建统计信息</span>
+</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Han Fei、Anton Popov、Rober Schulze、Alexey Milovidov 等。</p>
+</section>
+
+<!-- The official versions benchmark (benchmark.clickhouse.com/versions), TPC-H + TPC-DS hot runs,
+     versions master (= 26.8, 2026-08-13) vs 26.7, 26.6, 26.5: overall, master is x1.08 vs x1.68-1.71 —
+     about 1.6x faster; in the TPC-H table, Q5 and Q8 time out (skulls) on 26.5-26.7 and run in ~0.5 s
+     on master, Q2 is ~50x faster, most queries are 4-6x faster — driven by statistics-based join
+     reordering. The slide links to the benchmark with this exact selection encoded in the URL. -->
+<section class="slide">
+<a href="https://benchmark.clickhouse.com/versions/">
+<img style="width: 100%" src="https://presentations.clickhouse.com/2026-release-26.8/pictures/versions_benchmark.png">
+<img style="height: 65%; float: left; padding-right: 1em;" src="https://presentations.clickhouse.com/2026-release-26.8/pictures/versions_benchmark2.png">
+</a>
+<p><h3 style="line-height: 1.5; margin-top: -1em;">默认启用列统计信息</h3></p>
+<p><b style="color: green;">29%</b> 的<b>整体</b>基准测试性能提升。</p>
+<p>在 TPC-H 上提升 <b style="color: green;">4.5</b> 倍
+<br/>（一种较老的 JOIN 合成基准测试）。</p>
+</section>
+
+<section class="slide">
+<h2>IEJoin：快速不等值 JOIN</h2>
+
+<p style="margin-top: -0.3em;">条件包含<b>两个不等式</b>的 JOIN &mdash; 区间重叠、
+<br/>范围内点、时态窗口 &mdash; 过去会作为带过滤条件的 CROSS JOIN 执行。
+<br/>现在默认使用基于排序的 <b>IEJoin</b> 算法：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT count() FROM trades t JOIN quotes q
+ON t.time <b style="color: green;">&gt;</b> q.window_start AND t.time <b style="color: green;">&lt;</b> q.window_end;
+</code></p>
+
+<p style="margin-top: 0.3em;">示例：200K &times; 200K 行：</p>
+<p><b>26.7：<span style="color: red;">112</span> 秒。</b>（CROSS JOIN + 过滤）
+<br/><b>26.8：<span style="color: green;">1.06</span> 秒。</b>（快 105 倍！）</p>
+
+<p style="margin-top: 0.3em;">&mdash; 支持 INNER、LEFT、RIGHT、FULL、SEMI 和 ANTI JOIN。</p>
+
+<!-- Demo:
+
+CREATE TABLE trades (sym UInt32, t UInt64, px Float64) ENGINE = Memory;
+CREATE TABLE quotes (sym UInt32, t1 UInt64, t2 UInt64) ENGINE = Memory;
+INSERT INTO trades SELECT number % 100, rand64() % 1000000, 1 FROM numbers(200000);
+INSERT INTO quotes SELECT number % 100, rand64() % 1000000, (rand64() % 1000000) + 500 FROM numbers(200000);
+SELECT count() FROM trades t JOIN quotes q ON t.t > q.t1 AND t.t < q.t2 FORMAT Null;
+-- 26.7: 112.096s   26.8: 1.059s (measured at max_threads=32)
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Vladimir Cherkasov。</p>
+</section>
+
+<section class="slide">
+<h2>parallel_full_sorting_merge JOIN</h2>
+
+<p style="margin-top: -0.5em;">在<b>所有核心</b>上运行的合并 JOIN：输入按键哈希
+<br/>分片为相互独立的逐分片合并 JOIN：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SET join_algorithm = '<b style="color: green;">parallel_full_sorting_merge</b>';
+</code></p>
+
+<p style="margin-top: 0.3em;">示例：1 亿 &times; 1.5 亿行 INNER JOIN，32 个线程：</p>
+
+<table style="font-size: 15pt; width: 90%; margin-top: 0.3em; line-height: 1.15;">
+<tr><th>算法</th><th>耗时</th><th>峰值内存</th></tr>
+<tr><td>full_sorting_merge</td><td>5.9 s</td><td>2.1 GB</td></tr>
+<tr><td><b style="color: green;">parallel_full_sorting_merge</b></td><td><b style="color: green;">1.5 s</b></td><td><b style="color: green;">2.3 GB</b></td></tr>
+<tr><td>parallel_hash</td><td>20.4 s</td><td>14.1 GB</td></tr>
+</table>
+
+<p style="margin-top: 0.4em;">合并 JOIN 全速运行时兼具流式处理和低内存占用。</p>
+
+<!-- Demo:
+
+Q="SELECT count() FROM (SELECT number AS k, number AS v FROM numbers_mt(100000000)) AS l JOIN (SELECT intDiv(number, 2) AS k, number AS w FROM numbers_mt(150000000)) AS r ON l.k = r.k FORMAT Null"
+clickhouse local --time --memory-usage --max_threads=32 -q "$Q SETTINGS join_algorithm = 'full_sorting_merge'"           # 5.916s / 2.08 GB
+clickhouse local --time --memory-usage --max_threads=32 -q "$Q SETTINGS join_algorithm = 'parallel_full_sorting_merge'"  # 1.472s / 2.30 GB
+clickhouse local --time --memory-usage --max_threads=32 -q "$Q SETTINGS join_algorithm = 'parallel_hash'"                # 20.427s / 14.11 GB
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>Cascades 优化器 🧪</h2>
+
+<p style="margin-top: -0.5em;">面向<b>分布式查询计划</b>的基于成本的优化器：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.2;">SET make_distributed_plan = 1, <b style="color: green;">enable_cascades_optimizer = 1</b>;
+
+EXPLAIN SELECT &hellip; FROM hits h JOIN dim d ON h.path = d.path GROUP BY &hellip;
+└──GatherExchange
+   └──JoinLogical (<b style="color: green;">Broadcast HashJoin</b>)
+      │  Join: h<b style="color: green;">[10000]</b> ⋈ d<b style="color: green;">[20]</b>       <span style="color: gray;">-- cardinality estimates</span>
+      ├──ReadFromMergeTree (ParallelRead default.hits)
+      └──BuildRuntimeFilter (Build runtime join filter on path)
+         └──ReadFromMergeTree (<b style="color: green;">ReplicatedRead</b> default.dim)
+</code></p>
+
+<p style="margin-top: 0.2em;">&mdash; 根据估算成本选择：shuffle / broadcast / replicated / local JOIN，
+<br/>&emsp;单阶段或两阶段聚合、两阶段 top-N、并行读取 &mdash;
+<br/>&emsp;按需插入 exchange 运算符。</p>
+
+<!-- Demo:
+
+EXPLAIN SELECT h.path, d.owner, sum(h.hits) FROM hits h JOIN dim d ON h.path = d.path GROUP BY h.path, d.owner
+SETTINGS make_distributed_plan = 1, enable_cascades_optimizer = 1, distributed_plan_execute_locally = 1, distributed_plan_workers_num = 4;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexander Gololobov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">数据湖</span></h2>
+</section>
+
+<section class="slide">
+<h2>S3 Tables</h2>
+
+<p style="margin-top: -0.3em;">用于 <b>AWS S3 Tables</b>（Amazon 托管的 Iceberg 存储桶）的 catalog：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">CREATE DATABASE tables ENGINE = DataLakeCatalog(
+    'https://s3tables.us-east-1.amazonaws.com/iceberg')
+SETTINGS <b style="color: green;">catalog_type = 's3tables'</b>, region = 'us-east-1',
+    warehouse = 'arn:aws:s3tables:us-east-1:1234567890:bucket/analytics';
+
+SHOW TABLES FROM tables;
+SELECT &hellip; FROM tables.`ns.events`;
+<b style="color: green;">INSERT INTO</b> tables.`ns.events` VALUES (&hellip;);   <span style="color: gray;">-- writes work now</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; 读取功能早已支持；26.8 带来<b>可用的 INSERT</b> &mdash;
+<br/>&emsp;现在还可以创建自己的表。
+<br/>&mdash; 请求使用 SigV4 签名，并支持 IAM 角色。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2>Snowflake Horizon</h2>
+
+<p style="margin-top: -0.3em;">查询并<b>写入</b>由以下 catalog 管理的 Iceberg 表：
+<br/><b>Snowflake Horizon</b> 目录：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">CREATE DATABASE horizon ENGINE = DataLakeCatalog(
+    'https://&lt;org&gt;-&lt;account&gt;.snowflakecomputing.com/polaris/api/catalog')
+SETTINGS <b style="color: green;">catalog_type = 'horizon'</b>, warehouse = 'ICEBERG_DB',
+    catalog_credential = '&lt;PAT&gt;', vended_credentials = 1;
+
+SELECT &hellip; FROM horizon.`schema.trades`;   <span style="color: gray;">-- reads Iceberg directly</span>
+INSERT INTO horizon.`schema.trades` &hellip;;    <span style="color: gray;">-- commits via the catalog</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; ClickHouse 连接 Snowflake 托管的 Iceberg REST 端点 &mdash;
+<br/>&emsp;数据文件直接从对象存储读取，
+<br/>&emsp;无需消耗 Snowflake 计算额度。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Melvyn Peignon。</p>
+</section>
+
+<section class="slide">
+<h2>Puffin</h2>
+
+<p style="margin-top: -0.3em;">支持 <b>Puffin</b> 文件格式 &mdash; Iceberg 用于统计信息和
+<br/><b>删除向量</b>的旁车文件：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">SELECT * FROM s3('&hellip;/data/delete-0001.puffin');
+<span style="color: gray;">┌─referenced_data_file──────────┬─deleted_rows──────┐
+│ s3://bucket/data/f1.parquet   │ [4, 17, 23, 1042] │
+└───────────────────────────────┴───────────────────┘</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; 精确查看每个数据文件中<b>哪些行被删除</b> &mdash;
+<br/>&emsp;这就是 Iceberg v3 删除向量背后的物理事实。
+<br/>&mdash; 支持 <b>file</b>、<b>url</b>、<b>s3</b> 及其他表函数；
+<br/>&emsp;元数据模式会列出 blob：类型、偏移量和属性。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">Iceberg 清单文件预取</h2>
+
+<p style="margin-top: -0.3em;">Iceberg 查询规划需要遍历清单文件链 &mdash;
+<br/>过去逐个读取，每个文件都要付出对象存储延迟：</p>
+
+<p style="margin-top: 0.3em;">&mdash; 解析当前清单时，下一份清单现在会被<b style="color: green;">预取</b>
+<br/>&emsp;提前读取 &mdash; I/O 与 CPU 工作重叠。
+</p><p>&mdash; <b>删除清单</b>会并发读取和解码
+<br/>&emsp;（<b>iceberg_delete_manifest_decode_concurrency</b>，默认 4）&mdash;
+<br/>&emsp;包含大量删除文件的表启动速度大幅提升。
+</p><p>&mdash; 此外：S3 存储桶区域缓存现在也适用于数据湖 catalog，
+<br/>&emsp;每个请求可节省一次区域解析往返。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Asya Shneerson、Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2>bigquery 表函数</h2>
+
+<p style="margin-top: -0.3em;">用于 <b>Google BigQuery</b> 的表函数和表引擎：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT corpus, count() FROM <b style="color: green;">bigquery</b>(
+    'my-project', 'samples', 'shakespeare',
+    service_account_key = '{"type": "service_account", ...}')
+GROUP BY corpus;
+
+CREATE TABLE bq_events <b style="color: green;">ENGINE = BigQuery</b>('my-project', 'events', 'log');
+INSERT INTO bq_events VALUES (...);   <span style="color: gray;">-- writes work, too</span>
+</code></p>
+
+<p>&mdash; 根据 BigQuery 表 schema 推断结构。
+<br/>&mdash; 包含公共数据集。
+<br/>&mdash; 身份验证：OAuth 访问令牌、服务账号密钥（JSON），
+<br/>&emsp;或带刷新令牌的 OAuth 客户端。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back8.jpg); background-size: cover;">
+<h2><span class="hilite">文本搜索</span></h2>
+</section>
+
+<section class="slide">
+<h2>支持更多语言</h2>
+
+<p style="margin-top: -0.5em;">为 <b>tokens</b> 函数和<b>文本索引</b>新增四种分词器：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.2;">SELECT tokens('ClickHouse是一个快速的开源数据库', <b style="color: green;">'chinese'</b>);
+<span style="color: gray;">-- ['ClickHouse','是','一个','快速','的','开源','数据库'] — dictionary + HMM</span>
+
+SELECT tokens('日本語の形態素解析エンジン', <b style="color: green;">'japanese'</b>);
+<span style="color: gray;">-- ['日本語','の','形態','素','解析','エンジン'] — the MeCab morphological analyzer</span>
+
+SELECT tokens('こんにちは世界。データベースです。', <b style="color: green;">'icu'</b>, 'ja');
+<span style="color: gray;">-- ['こんにちは','世界','データベース','です'] — locale-aware Unicode segmentation</span>
+
+SELECT tokens('C++ and C# are languages', <b style="color: green;">'splitByRegexp'</b>, '[^\p{L}\p{N}#+]+');
+<span style="color: gray;">-- ['C++','and','C#','are','languages'] — tokens other tokenizers would break</span>
+</code></p>
+
+<!-- Demo:
+
+SELECT tokens('ClickHouse是一个快速的开源数据库', 'chinese');
+SELECT tokens('こんにちは世界。データベースです。', 'icu', 'ja');
+SELECT tokens('สวัสดีชาวโลก', 'icu', 'th');   -- Thai works too: ['สวัสดี','ชาว','โลก']
+SELECT tokens('C++ and C# are programming languages', 'splitByRegexp', '[^\\p{L}\\p{N}#+]+');
+
+japanese needs a MeCab dictionary in the server config (tested with the minimal fixture from
+tests/integration/test_japanese_tokenizer; use a full UniDic/IPADIC in production — the minimal
+dictionary splits 形態素 as 形態+素 and falls back to per-character for unknown words):
+<tokenizer><japanese>
+    <dictionary_location>file:///path/to/dic.tar.gz</dictionary_location>
+    <dictionary_sha>7477c765961bc60186bb517665194d6ee0d484071d3d06182de78f6d3da553f5</dictionary_sha>
+</japanese></tokenizer>
+SELECT tokens('日本語の形態素解析エンジン', 'japanese');   -- ['日本語','の','形態','素','解析','エンジン']
+
+-->
+
+<p style="color: gray; font-size: 13pt; margin-top: 5em;">开发者：Robert Schulze、Amos Bird、Jimmy Aguilar Mena。</p>
+</section>
+
+<section class="slide">
+<h2>文本索引：更快得到答案</h2>
+
+<p style="margin-top: -0.3em;"><b>count()</b> 直接根据<b>索引基数元数据</b>返回结果：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT count() FROM docs WHERE hasAnyTokens(body, ['fox']);
+<span style="color: gray;">-- 1 million rows matched; rows actually read: <b style="color: green;">1</b></span>
+</code></p>
+
+<p style="margin-top: 0.5em;">&mdash; 倒排列表现在按打包 block 粒度<b style="color: green;">惰性</b>解码，
+<br/>&emsp;而不是预先物化为位图。
+</p><p>&mdash; 可选缓存索引中<b>缺失</b>的 token。
+</p><p>&mdash; 默认使用 v2 磁盘格式（包含短语搜索位置）；
+<br/>&emsp;滚动升级时由 <b>text_index_version</b> 控制。</p>
+
+<!-- Demo:
+
+CREATE TABLE docs (id UInt64, body String, INDEX idx body TYPE text(tokenizer = 'splitByNonAlpha')) ENGINE = MergeTree ORDER BY id;
+INSERT INTO docs SELECT number, arrayStringConcat(arrayMap(x -> ['red','green','blue','fast','slow','fox','dog','cat','runs','sleeps'][(number * 7 + x * 3) % 10 + 1], range(20)), ' ') FROM numbers(1000000);
+clickhouse client --print-profile-events -q "SELECT count() FROM docs WHERE hasAnyTokens(body, ['fox'])"
+-- count = 1000000, SelectedRows: 1
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Elmi Ahmadov、Anton Popov、Rory Shanks。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back9.jpg); background-size: cover;">
+<h2><span class="hilite">其他亮点</span></h2>
+</section>
+
+<section class="slide">
+<h2>动画 PNG</h2>
+
+<p style="margin-top: -0.5em;"><b>PNG</b> 输出格式现在可以生成<b>动画</b>：
+<br/>添加 <b style="color: green;">t</b> 列 &mdash; 结果就会成为动画帧：</p>
+
+<p style="margin-top: -0.3em;"><code style="font-size: 11pt; line-height: 1.15;">WITH 480 AS W, 360 AS H, 60 AS T, 48 AS ITER,
+    number % W AS px, intDiv(number, W) % H AS py, intDiv(number, W * H) AS <b style="color: green;">t</b>,
+    2 * pi() * t / T AS theta,
+    0.7885 * cos(theta) AS cx, 0.7885 * sin(theta) AS cy,   <span style="color: gray;">-- c orbits the circle</span>
+    (px - W / 2) / (H / 2.6) AS x0, (py - H / 2) / (H / 2.6) AS y0,
+    arrayFold((acc, i) -&gt; if(acc.3 &gt;= 0, acc,               <span style="color: gray;">-- z ← z² + c</span>
+        if(acc.1 * acc.1 + acc.2 * acc.2 &gt; 4.0, (acc.1, acc.2, i),
+           (acc.1 * acc.1 - acc.2 * acc.2 + cx, 2 * acc.1 * acc.2 + cy, -1))),
+        range(ITER), (x0, y0, -1)::Tuple(Float64, Float64, Int64)) AS res,
+    if(res.3 &lt; 0, ITER, res.3) / ITER AS v, sqrt(v) AS w
+SELECT px AS x, py AS y, <b style="color: green;">t</b>, least(1.0, 2.2 * w * w) AS r,
+    least(1.0, greatest(0., 1.8 * w - 0.35)) AS g,
+    least(1.0, greatest(0., w &lt; 0.6 ? 0.4 + 1.2 * w : 2.2 - 2.4 * w)) AS b
+FROM numbers_mt(480 * 360 * 60)
+SETTINGS <b style="color: green;">output_format_image_width</b> = 480, <b style="color: green;">output_format_image_height</b> = 360
+<b style="color: green;">FORMAT PNG</b></code></p>
+
+<!-- Demo: see pictures/julia.png — rendered by exactly this query with
+     output_format_image_width = 480, output_format_image_height = 360, output_format_image_time_divisor_seconds = 12.
+     Also: output_format_image_streaming_animation streams frames as the query produces them,
+     and output_format_image_terminal_mode = 'auto' draws images right in the terminal (iTerm/kitty/sixel). -->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide" style="background: black; padding: 0;">
+<img style="width: 100%; height: 100%; object-fit: contain;" src="https://presentations.clickhouse.com/2026-release-26.8/pictures/julia.png" alt="由 ClickHouse 渲染为动画 PNG 的变形 Julia 集"/>
+</section>
+
+<section class="slide">
+<h2>动画 PNG 实战</h2>
+
+<p style="margin-top: -0.5em;">通过 <span style="color: gray">Guess it</span> 国际机场一年的空中交通 &mdash; 2400 万条
+<br/>来自 <a href="https://adsb.exposed/">adsb.exposed</a> 的 ADS-B 轨迹，每周一帧，按航空公司着色：</p>
+
+<p style="margin-top: -0.5em;"><code style="font-size: 10pt; line-height: 1.1;">WITH 1280 AS W, 960 AS H, 650 AS px,                <span style="color: gray;">-- a ~7 km viewport</span>
+    toUInt32(4294967295 * ((55.361 + 180) / 360)) - intDiv(W, 2) * px AS x0,
+    toUInt32(4294967295 * (1/2 - log(tan(((25.253 + 90) / 360) * pi()))
+                               / (2 * pi()))) - intDiv(H, 2) * px AS y0,
+    <span style="color: gray;">-- the frame number: one per week, 0..51</span>
+    dateDiff('week', toStartOfWeek(subtractWeeks(now(), 51)), toStartOfWeek(time)) AS <b style="color: green;">t</b>,
+    cityHash64(substring(aircraft_flight, 1, 3)) AS airline,        <span style="color: gray;">-- color by airline code</span>
+    pow(least(count() / 12, 1), 0.1) AS alpha,
+    avg(airline % 256) AS r0, avg(intDiv(airline, 256) % 256) AS g0,
+    avg(intDiv(airline, 65536) % 256) AS b0, greatest(r0, g0, b0, 1) AS m
+SELECT intDiv(mercator_x - x0, px) AS x, intDiv(mercator_y - y0, px) AS y, <b style="color: green;">t</b>,
+       r0 / m * alpha AS r, g0 / m * alpha AS g, b0 / m * alpha AS b
+FROM planes_mercator
+WHERE mercator_x &gt;= x0 AND mercator_x &lt; x0 + W * px
+  AND mercator_y &gt;= y0 AND mercator_y &lt; y0 + H * px
+  AND time &gt;= toStartOfWeek(subtractWeeks(now(), 51)) AND aircraft_flight != ''
+GROUP BY x, y, t
+SETTINGS <b style="color: green;">output_format_image_width</b> = 1280, <b style="color: green;">output_format_image_height</b> = 960,
+         <b style="color: green;">output_format_image_time_divisor_seconds</b> = 10   <span style="color: gray;">-- 10 frames per second</span>
+<b style="color: green;">FORMAT PNG</b></code></p>
+
+<!-- Demo: pictures/dxb_airlines.png is produced by exactly this query (52 frames at 10 fps, a 5.2 s loop),
+     run in clickhouse local (26.8+) against the adsb.exposed backend — with credentials, replace the FROM
+     clause with remoteSecure('kvzqttvc2n.eu-west-1.aws.clickhouse-staging.com:9440', default.planes_mercator,
+     '<user>', '<password>') for a single-query render; the public 'website' user works too, but its 1.05M
+     result-row cap requires fetching week by week and rendering from the concatenated TSV.
+     Frames are weeks: 52 of them, ending with the current week. Weekly frames expose the real coverage
+     variance of the dataset (7K-47K traces/week over DXB in late 2025 vs ~1M recently, verified server-side) —
+     the flicker and the brightening through the loop are the data, not an artifact.
+     Viewport: center 25.253, 55.361, ~7.0 x 5.3 km; 1280x960 reads best (1px traces dim when downscaled).
+     The coloring formula follows the site's "All Airlines" mode. -->
+
+<p style="color: gray; font-size: 11pt; margin-top: -0.5em;">数据：adsb.exposed &mdash; © adsb.lol（ODbL v1.0）、© airplanes.live、© adsbexchange.com。</p>
+</section>
+
+<section class="slide" style="background: black; padding: 0;">
+<a href="https://adsb.exposed/?dataset=Planes&amp;zoom=15&amp;lat=25.2536&amp;lng=55.3637&amp;query=9ba733743fe7e64053f55d92b4ac1fc0" target="_blank" style="display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%;"><img id="adsb-anim-img" src="https://presentations.clickhouse.com/2026-release-26.8/pictures/dxb_airlines.png" alt="机场一年的空中交通，每周一帧，按航空公司着色" style="width: 100%; height: 100%; object-fit: contain;"/></a>
+<div id="adsb-anim-week" style="position: absolute; left: 24px; bottom: 18px; font-family: monospace; font-size: 12pt; color: gray; background: rgba(0, 0, 0, 0.6); padding: 4px 14px; border-radius: 6px; pointer-events: none;">截至 2025-08-31 的周</div>
+<script>
+(() => {
+    /// The date label is synchronized with the animated PNG by restarting the animation
+    /// (re-setting img.src makes it play from frame 0) and running the label off the same
+    /// wall clock. Browsers expose no API for the current APNG frame, so this restart-based
+    /// sync is re-armed whenever the slide becomes active or the tab becomes visible again.
+    const img = document.getElementById('adsb-anim-img');
+    const label = document.getElementById('adsb-anim-week');
+    const FRAMES = 52, MS_PER_FRAME = 100;                       /// 10 fps, 5.2 s loop
+    const LAST_WEEK = new Date(2026, 7, 23);                     /// the week of the last frame; update when re-rendering the PNG
+    let t0 = performance.now();
+    const resync = () => { const url = img.src; img.src = ''; img.src = url; t0 = performance.now(); };
+    const pad = n => String(n).padStart(2, '0');
+    const tick = () => {
+        const frame = Math.floor(((performance.now() - t0) % (FRAMES * MS_PER_FRAME)) / MS_PER_FRAME);
+        const d = new Date(LAST_WEEK);
+        d.setDate(d.getDate() - (FRAMES - 1 - frame) * 7);
+        label.textContent = 'week of ' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+        requestAnimationFrame(tick);
+    };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) resync(); });
+    const section = img.closest('section');
+    new MutationObserver(() => { if (section.classList.contains('active')) resync(); })
+        .observe(section, { attributes: true, attributeFilter: ['class'] });
+    tick();
+})();
+</script>
+</section>
+
+<section class="slide">
+<h2>Keeper 磁盘存储 🧪</h2>
+
+<p style="margin-top: -0.3em;">ClickHouse Keeper 过去始终将完整的协调状态保存在内存中。
+<br/>现在可以将其保存在<b>磁盘上的自定义 LSM 树</b>中：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: gray;">$ cat keeper_config.d/on_disk_storage.yaml</span>
+
+keeper_server:
+    coordination_settings:
+        <b style="color: green;">storage_memory_only</b>: false
+    <b style="color: green;">data_storage_path</b>: /var/lib/keeper-data
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; 性能与内存存储相近。
+<br/>&mdash; 状态不再受 RAM 限制 &mdash; 甚至可以存储在 S3 上
+<br/>&emsp;（将 <b>data_storage_disk</b> 指向 <b>s3_plain</b> 磁盘）。</p>
+
+<!-- Note: the changelog has a TODO — the enabling setting (use_new_storage in the PR) will be renamed
+     ("new" is forbidden in names). Verify the final setting names before presenting. -->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Michael Kolupaev。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">PostgreSQL 协议改进</h2>
+
+<p style="margin-top: -0.5em;">连接 ClickHouse 时，<b>psql</b> 现在更加得心应手：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25;">$ psql "host=&hellip; port=9005 user=pg dbname=default"
+default=&gt; <b style="color: green;">\dt</b>                        <span style="color: gray;">-- lists ClickHouse tables</span>
+default=&gt; SELECT count() FROM hits WHERE path <b style="color: green;">~</b> 'page1[0-9]';  <span style="color: gray;">-- 5000</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; psql 的 <b>\d</b>、<b>\dt</b>、<b>\dv</b> 命令现在可用。
+<br/>&mdash; PostgreSQL 风格的正则运算符可用于任何查询，
+<br/>&emsp;支持任何协议：<b>~</b>、<b>~*</b>、<b>!~</b>、<b>!~*</b>。
+<br/>&mdash; 查询失败不再终止连接。
+<br/>&mdash; 匿名连接遵循 <b>default_session_user</b>。</p>
+
+<!-- Demo (against the ClickHouse server's PostgreSQL port):
+
+CREATE USER pg IDENTIFIED WITH plaintext_password BY 'demo' DEFAULT DATABASE default; GRANT SELECT ON default.* TO pg;
+PGPASSWORD=demo psql "host=127.0.0.1 port=9005 user=pg dbname=default sslmode=disable" -c '\dt'
+PGPASSWORD=demo psql "host=127.0.0.1 port=9005 user=pg dbname=default sslmode=disable" -c "SELECT count() FROM hits WHERE path ~ 'page1[0-9]'"
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.7em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>WASM 中的 chDB</h2>
+
+<p style="margin-top: -0.3em;"><b>clickhouse</b> 二进制现在可以构建为 <b style="color: green;">WebAssembly</b>
+<br/>（wasm64，通过 Emscripten）&mdash; <b>chDB</b> 可将它带到浏览器中：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><b style="color: green;">https://wasm.chdb.io</b>   <span style="color: gray;">-- a full SQL shell, no server, no cloud</span>
+
+chdb :) CREATE TABLE t (x UInt64) ENGINE = <b style="color: green;">MergeTree</b> ORDER BY x;
+chdb :) INSERT INTO t SELECT number FROM numbers(1000000);
+chdb :) SELECT sum(x) FROM t;   <span style="color: gray;">-- everything runs in the browser tab</span>
+</code></p>
+
+<p style="margin-top: 0.3em;">&mdash; <b>clickhouse local</b> 可在 Node.js ≥ 24 和浏览器中运行，
+<br/>&emsp;包括真正的 MergeTree 表；CI 任务会固定构建版本。
+<br/>&mdash; SQL 解析器也可以独立构建（<b>utils/wasm-parser</b>）&mdash;
+<br/>&emsp;为 Web UI 和新版 Fiddle 提供语法高亮。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.5em;">开发者：Auxten Wang（chDB）、Alexey Milovidov（解析器）。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/chdb_wasm.png) center / contain no-repeat; background-color: #111;">
+<a href="https://wasm.chdb.io/" target="_blank" style="display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></a>
+</section>
+
+<section class="slide">
+<h2>ClickBench Playground</h2>
+
+<p style="margin-top: -0.3em;">ClickBench 现在提供<b>实验场</b>：直接运行临时 SQL
+<br/>对比 <b style="color: green;">110 多个数据库系统</b>，一切都在浏览器中完成：</p>
+
+<p style="margin-top: 0.3em;"><b><a href="https://benchmark.clickhouse.com/playground/">benchmark.clickhouse.com/playground</a></b></p>
+
+<p style="margin-top: 0.3em;">&mdash; 每个系统都预加载了 1 亿行 ClickBench 数据集 &mdash;
+<br/>&emsp;可以创建表、插入数据并运行任意查询。
+<br/>&mdash; <b style="color: green;">竞赛模式</b>：选择多个系统进行比拼
+<br/>&emsp;在同一查询上运行并比较结果正确性。
+<br/>&mdash; 运行在 Firecracker 微型虚拟机上 &mdash; 隔离性强、启动快速。</p>
+
+<p style="margin-top: 0.5em;">演示 &rarr;</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/clickbench_playground.png) center / contain no-repeat; background-color: #fdf6ec;">
+<a href="https://benchmark.clickhouse.com/playground/" target="_blank" style="display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></a>
+</section>
+
+<section class="slide">
+<h2>新版 ClickHouse Fiddle</h2>
+
+<p style="margin-top: -0.3em;">社区最喜欢用来分享可运行 SQL 片段的工具
+<br/>迎来重大升级 &mdash; 并迁入 ClickHouse 组织：</p>
+
+<p style="margin-top: 0.3em;"><b><a href="https://fiddle.clickhouse.com/">fiddle.clickhouse.com</a></b></p>
+
+<p style="margin-top: 0.3em;">&mdash; 使用 <b style="color: green;">Click-UI</b> 设计系统构建的新 UI，语法
+<br/>&emsp;高亮使用与 Web UI 相同的 WASM 词法分析器。
+<br/>&mdash; 可在<b>任意 ClickHouse 版本</b>中运行查询 &mdash; 现在还包括
+<br/>&emsp; <b style="color: green;">debug 和 sanitizer 构建</b>（非常适合提交错误报告！）。
+<br/>&mdash; 分享查询及其结果的链接。
+<br/>&mdash; 提供二进制输出的十六进制查看器，以及支持框线绘制的字体。</p>
+
+<p style="margin-top: 0.5em;">演示 &rarr;</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">由 Igor Baliuk 创建，后由 Nikita Mikhaylov 和 Alexey Milovidov 继续维护。</p>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/fiddle.png) center / contain no-repeat; background-color: #111;">
+<a href="https://fiddle.clickhouse.com/" target="_blank" style="display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></a>
+</section>
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/embeddings.png) center / contain no-repeat; background-color: #000;">
+<a href="https://embeddings.info/" target="_blank" style="display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></a>
+</section>
+
+<section class="slide">
+<h2>Embeddings.info</h2>
+
+<p>包含 1 亿张照片、5000 万条评论，以及整个互联网
+<br/>&mdash; 可以在 ClickHouse 中作为向量嵌入进行探索！</p>
+
+<p style="margin-top: 0.5em;"><a href="https://embeddings.info/" target="_blank">演示</a>。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0.3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/wing.jpg); background-size: cover;">
+<h2>线下活动</h2>
+<p style="line-height: 1.3; margin-top: -2.2em; font-size: 18pt;">
+<br/><span class="hilite">&mdash; 🇺🇸 旧金山：Better Days 黑客松，8 月 28 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 波士顿：Data Party 知识问答夜，8 月 31 日</span>
+<br/><span class="hilite">&mdash; 🇩🇪 柏林：Agentic 数据栈，9 月 2 日</span>
+<br/><span class="hilite">&mdash; 🇬🇧 伦敦：Agentic 数据栈早餐会，9 月 11 日</span>
+<br/><span class="hilite">&mdash; 🇳🇱 阿姆斯特丹 Adyen 聚会，9 月 15 日</span>
+<br/><span class="hilite">&mdash; 🇿🇦 开普敦：AI 构建者与数据库，9 月 15 日</span>
+<br/><span class="hilite">&mdash; 🇫🇷 巴黎 + 🇨🇭 苏黎世：Agentic 数据栈，9 月 17 日</span>
+<br/><span class="hilite">&mdash; 🇦🇺 悉尼：构建更好的 LLM 应用，9 月 17 日</span>
+<br/><span class="hilite">&mdash; 🇸🇪 斯德哥尔摩 + 🇩🇰 哥本哈根：培训，9 月 23&ndash;24 日</span>
+<br/><span class="hilite">&mdash; 🇫🇷 巴黎：AI 构建者与数据库，9 月 29 日</span>
+<br/><span class="hilite">&mdash; 🇬🇧 伦敦：查询优化工作坊，9 月 29 日</span>
+</p>
+</section>
+
+<section class="slide">
+<h2 style="margin-top: -0.5em;">Open House 巡回活动</h2>
+
+<img class="zoomable" style="margin-left: -100px; margin-right: -100px; margin-top: -1.5em; width: calc(100% + 200px); display: block;" src="https://presentations.clickhouse.com/2026-release-26.8/pictures/openhouse_tour.jpg" alt="ClickHouse Open House——面向 AI 的实时数据库大会" onclick="this.classList.toggle('zoomed'); event.stopPropagation();"/>
+
+<p style="line-height: 1.45; font-size: 16pt; text-align: center; margin-top: 1.5em;">🇳🇱 阿姆斯特丹，9 月 1 日 &nbsp;·&nbsp; 🇺🇸 纽约，9 月 10 日 &nbsp;·&nbsp; 🇮🇳 班加罗尔，9 月 22 日
+<br/>🇬🇧 伦敦，9 月 30 日 &nbsp;·&nbsp; 🇩🇪 慕尼黑，10 月 6 日</p>
+</section>
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<a href="https://clickhouse.com/blog/clickbench-playground"><img style="float: right; width: 20%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://presentations.clickhouse.com/2026-release-26.8/pictures/qr_clickbench.png" alt="二维码：clickhouse.com/blog/clickbench-playground"/></a>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5; margin-right: -5em;">
+&mdash; 我创建了一个支持 110 个数据库系统的实验场
+<br/>&mdash; ClickGap：ClickHouse 自动化质量保证
+<br/>&mdash; Andy Pavlo 领导的 ClickHouse Labs
+<br/>&mdash; Jump Trading 如何将 ClickHouse 与 Iceberg 结合使用
+<br/>&mdash; Shopify：全球规模电商的可观测性
+<br/>&mdash; Mercado Libre：快 50 倍的 trace 查询
+<br/>&mdash; Musinsa 扩展受众引擎并将 TCO 降低 71%
+<br/>&mdash; Sony LIV：十亿行规模的直播分析
+<br/>&mdash; 确保大规模 OpenTelemetry 摄取可靠
+</p>
+</section>
+
+
+<section class="slide" style="background: url(https://presentations.clickhouse.com/2026-release-26.8/pictures/back10.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问答</h2>
+</section>
+
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/5A9gRYE0v2M" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse Theater</a>
+</footer>
+</body>
+</html>
