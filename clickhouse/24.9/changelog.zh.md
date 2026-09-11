@@ -35,7 +35,7 @@
 * 为 `arrayAUC` 新增参数 `scale`（默认 `true`），允许跳过归一化步骤（问题 [#69609](https://github.com/ClickHouse/ClickHouse/issues/69609)）。 [#69717](https://github.com/ClickHouse/ClickHouse/pull/69717) ([gabrielmcg44](https://github.com/gabrielmcg44)).
 
 <h4 id="experimental-feature-2">
-  Experimental feature
+  实验性功能
 </h4>
 
 * 新增 `input_format_try_infer_variants`：文本格式结构推断中，若列或数组元素有多个可能类型，允许推断为 `Variant`。 [#63798](https://github.com/ClickHouse/ClickHouse/pull/63798) ([Shaun Struwig](https://github.com/Blargian)).
