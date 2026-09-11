@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：24.6 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：24.6 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：24.6 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2024-07-02。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 0px; line-height: 100%; font-size: 56pt; color: white; text-align: center;">ClickHouse 24.6 版本</h1>
+        <p style="position: absolute; right: 5px; bottom: 0; color: white; font-size: 6pt; text-shadow: black 1px 1px 1px; background-color: rgba(0, 0, 0, 0.5);">摄影：Eduard Gordeev， <a style="color: #8CF" href="https://www.shutterstock.com/image-photo/amsterdam-town-autumn-november-rain-1571566054">https://www.shutterstock.com/image-photo/amsterdam-town-autumn-november-rain-1571566054</a></p>
+    </section>
+
+<section class="slide">
+<h2>24.6 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 24.6 新内容。</p>
+<p>2.（5 分钟）嘉宾演讲。</p>
+<p>2.（5 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">24.6 版本</span></h2>
+<p><span class="hilite">ClickHouse 夏季版本。</span></p>
+<p><span class="hilite">— 23 项新功能 🏖️</span></p>
+<p><span class="hilite">— 24 项性能优化 🍉</span></p>
+<p><span class="hilite">— 59 项缺陷修复 🍦</span></p>
+<p style="position: absolute; right: 5px; bottom: 0; color: white; font-size: 6pt; text-shadow: black 1px 1px 1px; background-color: rgba(0, 0, 0, 0.5);">摄影：Eduard Gordeev， <a style="color: #8CF" href="https://www.shutterstock.com/image-photo/amsterdam-night-city-autumn-october-1571585038">https://www.shutterstock.com/image-photo/amsterdam-night-city-autumn-october-1571585038</a></p>
+</section>
+<!--
+
+Small
+
+Empty tuples
+snowflakeID
+base64 for URL
+parseReadableSize
+editDistanceUTF8
+_time virtual column
+http_response_headers
+IPv4 and IPv6 can be compared
+
+Security
+
+Protection from a large number of tables
+Logging privileges in the query_log
+
+Usability
+
+Inline documentation for system tables
+Footers
+
+Performance
+
+Reordering
+No materialization on INSERT
+Native Parquet reader
+
+Main
+
+Named collections in Keeper
+Hilbert curves
+
+Experimental
+
+Statistics for Replicated tables
+
+Bonus
+
+chDB 2.0
+UI query insights
+Horizontal scaling
+OSS Trust Center
+VLDB
+
+Integrations
+
+Spark connector
+The new Java driver
+
+Reading
+
+Azure
+Prefect, Trip.com, CommonRoom ...
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">精巧实用的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>空元组</h2>
+
+<p>几乎没什么用，但为保证完整性仍然需要。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT <b style="color: green;">()</b>;
+
+CREATE TABLE test (x String) ORDER BY <b style="color: green;">()</b>;
+
+ALTER TABLE test DETACH PARTITION <b style="color: green;">()</b>;
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+SELECT (), [], ([],), [()], [([],[])]
+SELECT * APPLY toTypeName FROM (SELECT (), [], ([],), [()], [([],[])])
+
+SELECT (),()
+SELECT ()||()
+SELECT ()+()
+SELECT ()*()
+SELECT (*),(*)
+SELECT [(*),(*)]
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Amos Bird。</p>
+</section>
+
+
+<section class="slide">
+<h2>generateSnowflakeID</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">generateSnowflakeID()</b> FROM numbers(3)
+
+   ┌─generateSnowflakeID()─┐
+1. │   7201822390320365568 │
+2. │   7201822390320365569 │
+3. │   7201822390320365570 │
+   └───────────────────────┘
+</code></p>
+
+<p>生成单调的 64 位唯一标识符。</p>
+<p>类似 UUID，但更小且单调。</p>
+<p style="color: gray; font-size: 14pt;">与 Snowflake Inc. 无关。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Danila Puzov。</p>
+</section>
+
+<section class="slide">
+<h2>snowflakeID 函数</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT generateSnowflakeID() AS x,
+          <b style="color: green;">snowflakeIDToDateTime(x)</b>,
+          <b style="color: green;">snowflakeIDToDateTime64(x)</b>
+
+Row 1:
+──────
+x:                          7213775618830237696
+snowflakeIDToDateTime(x):   2024-07-02 07:28:52
+snowflakeIDToDateTime64(x): 2024-07-02 07:28:52.999
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Robert Schulze 和 Jasine。</p>
+</section>
+
+
+
+<section class="slide">
+<h2>适用于 URL 的 Base64</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT
+    '🌞🏖️🍉🏊🍦⛱️🏝️🌴🌊' AS x,
+    base64Encode(x) AS a,
+    <b style="color: green;">base64URLEncode(x)</b> AS b,
+    base64Decode(a) AS x1,
+    <b style="color: green;">base64URLDecode(b)</b> AS x2  <span style="color: gray;">-- also, tryBase64URLDecode</span>
+
+Row 1:
+──────
+x:  🌞🏖️🍉🏊🍦⛱️🏝️🌴🌊
+a:  8J<b style="color: red">+</b>MnvCfj5bvuI<b style="color: red">/</b>wn42J8J<b style="color: red">+</b>PivCfjabim7HvuI<b style="color: red">/</b>wn4<b style="color: red">+</b>d77iP8J<b style="color: red">+</b>MtPCfjIo<b style="color: red">=</b>
+b:  8J<b style="color: green">-</b>MnvCfj5bvuI<b style="color: green">_</b>wn42J8J<b style="color: green">-</b>PivCfjabim7HvuI<b style="color: green">_</b>wn4<b style="color: green">-</b>d77iP8J<b style="color: green">-</b>MtPCfjIo
+x1: 🌞🏖️🍉🏊🍦⛱️🏝️🌴🌊
+x2: 🌞🏖️🍉🏊🍦⛱️🏝️🌴🌊
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Mikhail Gorshkov。</p>
+</section>
+
+
+
+<section class="slide">
+<h2>parseReadableSize</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green">parseReadableSize</b>('1GB'), <b style="color: green">parseReadableSize</b>('1 GiB')
+
+   ┌─parseReadableSize('1GB')─┬─parseReadableSize('1 GiB')─┐
+1. │               1000000000 │                 1073741824 │
+   └──────────────────────────┴────────────────────────────┘
+
+:) SELECT <b style="color: green">parseReadableSizeOrNull</b>(arrayJoin(['1.1 MiB', 'Hello'])) AS x
+
+   ┌───────x─┐
+1. │ 1153434 │
+2. │    ᴺᵁᴸᴸ │
+   └─────────┘
+</code></p>
+
+<p>以下函数的逆操作： <b>formatReadableSize</b>.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Francisco J. Jurado Moreno。</p>
+</section>
+
+
+<section class="slide">
+<h2>editDistanceUTF8</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) WITH
+    'Hôtel Genève' AS a,
+    'Hotel Geneve' AS b
+SELECT
+    editDistance(a, b),
+    editDistanceUTF8(a, b)
+
+   ┌─editDistance(a, b)─┬─editDistanceUTF8(a, b)─┐
+1. │                  4 │                      2 │
+   └────────────────────┴────────────────────────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Liu Neng。</p>
+</section>
+
+
+<section class="slide">
+<h2>虚拟列 _time</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT _path, _file, _time FROM file('*', One)
+
+   ┌─_path──────────────────────┬─_file──────┬───────────────_time─┐
+1. │ ...release_24.6/LICENSE.md │ LICENSE.md │ 2024-05-30 15:53:13 │
+2. │ ...release_24.6/index.html │ index.html │ 2024-07-02 08:07:36 │
+   └────────────────────────────┴────────────┴─────────────────────┘
+</code></p>
+
+<p>适用于所有类文件表函数：file、url、s3、hdfs、azureBlobStorage……</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Ilya Golshtein。</p>
+</section>
+
+
+<section class="slide">
+<h2>比较 IPv4 与 IPv6</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT toIPv4('127.0.0.1') == toIPv6('::ffff:127.0.0.1')
+
+1
+
+:) SELECT toIPv4('127.0.0.1') == toIPv6('::1')
+
+0
+
+:) SELECT toIPv4('127.0.0.1') == toIPv6('::127.0.0.1')
+
+0
+</code></p>
+
+<p>IPv4 视为与相应的 IPv4 映射 IPv6 地址相等。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Francisco J. Jurado Moreno。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">枯燥的安全功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>在 query_log 中记录权限</h2>
+
+<p><code style="font-size: 12pt; line-height: 1.2; margin-left: -2em; margin-right: -2em; overflow-x: hidden;">:) SELECT query, <b style="color: green;">used_privileges</b>, <b style="color: green;">missing_privileges</b> FROM system.query_log
+   WHERE type IN ('QueryFinish', 'ExceptionBeforeStart') AND event_time >= now() - 300
+
+Row 1:
+──────
+query:              DESCRIBE system.query_log
+used_privileges:    ['<b style="color: green;">SHOW COLUMNS ON system.query_log</b>']
+missing_privileges: []
+
+Row 2:
+──────
+query:              SELECT query, used_privileges, missing_privileges FROM system.query_log
+                    WHERE type IN ('QueryFinish', 'ExceptionBeforeStart') AND event_time >= now() - 300
+used_privileges:    ['<b style="color: green;">SELECT(query, used_privileges, missing_privileges, type, event_time)
+                      ON system.query_log</b>']
+missing_privileges: []
+</code></p>
+
+<p>可以将这些内容粘贴到 GRANT 查询中。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Katsman。</p>
+</section>
+
+<section class="slide">
+<h2>表数量限制</h2>
+
+<p>新的服务器设置：</p>
+<p><b>max_database_num_to_warn</b>, <b>max_table_num_to_warn</b>
+<br/>&mdash; 用户将在客户端收到警告。</p>
+<p><b>max_database_num_to_throw</b>, <b>max_table_num_to_throw</b>
+<br/>&mdash; 用户尝试创建下一个超出限制的<br/>&emsp; 数据库或表时，将收到异常。</p>
+
+<p style="color: gray;">一个问题：理性的人会在 ClickHouse 中创建多少张表？</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Xu Jia。</p>
+</section>
+
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">易用性改进</span></h2>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">系统表的内联文档</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -2em;">:) SELECT table, comment FROM system.tables WHERE database = 'system'
+
+Row 1:
+──────
+table:   aggregate_function_combinators
+comment: Contains a list of all available aggregate function combinators,
+which could be applied to aggregate functions and change the way they work.
+
+Row 2:
+──────
+table:   asynchronous_insert_log
+comment: Contains a history for all asynchronous inserts executed on
+the current server.
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Nikita Mikhailov。</p>
+</section>
+
+
+<section class="slide">
+<h2>Pretty 格式更加美观</h2>
+
+<p>演示</p>
+<!--
+
+SELECT table, comment FROM system.tables WHERE database = 'system'
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Shaun Struwig。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>最优表排序</h2>
+
+<p>MergeTree 表的物理存储顺序
+<br/>由其 ORDER BY 键定义。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -2em;">CREATE TABLE hits
+(CounterID UInt32, UserID UInt64, EventTime DateTime, URL String)
+<b>ORDER BY (CounterID, UserID)</b>;
+</code></p>
+
+<p>它有三个用途：
+<br/>&mdash; 提供 <b>索引</b> 用于范围查询（可指定为 PRIMARY KEY）；
+<br/>&mdash; 提供 <b>合并键</b> 用于 AggregatingMergeTree 或 ReplacingMergeTree 等合并模式；
+<br/>&mdash; 通过聚集存放数据 <b>提高压缩率</b> ；
+</p>
+
+<p style="color: green;">能否自动选择获得最佳压缩效果的顺序？</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Igor Markelov。</p>
+</section>
+
+<section class="slide">
+<h2>最优表排序</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -2em;">CREATE TABLE hits
+(CounterID UInt32, UserID UInt64, EventTime DateTime, URL String)
+ENGINE = MergeTree ORDER BY (CounterID, UserID)
+<b style="color: green;">SETTINGS optimize_row_order = true</b>;
+</code></p>
+
+<p>&mdash; 按 ORDER BY 键排序后，它将自动对数据进一步排序，
+<br/>&emsp; 尽力获得最优压缩率！</p>
+
+<p>演示</p>
+
+<!--
+
+cd ~/work/newswire
+wc -c *.json
+ch
+
+SET schema_inference_make_columns_nullable = 0
+CREATE TABLE newswire ENGINE = MergeTree ORDER BY () EMPTY AS SELECT * FROM '*.json'
+CREATE TABLE newswire_optimal ENGINE = MergeTree ORDER BY () SETTINGS optimize_row_order = 1 EMPTY AS SELECT * FROM '*.json'
+SET max_insert_threads = 64
+INSERT INTO newswire SELECT * FROM '*.json'
+INSERT INTO newswire_optimal SELECT * FROM '*.json'
+SELECT name, total_rows, total_bytes, total_bytes_uncompressed, total_bytes_uncompressed / total_bytes AS ratio FROM system.tables WHERE database = 'default'
+
+SELECT year, count() AS c, bar(c, 0, max(c) OVER (), 80) FROM newswire WHERE arrayExists(x -> x LIKE '%Churchill%', people_mentioned.person_name) GROUP BY year ORDER BY year;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Igor Markelov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 30pt;">插入时跳过二级索引的选项</h2>
+
+<p>加快 INSERT，并将二级索引
+<br/>的计算推迟到后台合并时：</p>
+
+<p><code style="line-height: 1.5;">SET materialize_skip_indexes_on_insert = 0;
+SET materialize_statistics_on_insert = 0;</code></p>
+
+<p>存在大量索引时很有用。</p>
+<p>不会显著影响 SELECT 性能。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Anton Popov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back6.jpg); background-size: cover;">
+<h2 style="color: white; margin-top: 1em;">一些有趣的功能</h2>
+</section>
+
+<section class="slide">
+<h2>Keeper 中的命名集合</h2>
+
+<p style="margin-top: -1em;">在集群中共享存储命名集合：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">$ cat /etc/clickhouse-server/config.d/collections.yaml
+
+named_collections_storage:
+    type: keeper
+    path: '/named_collections'
+    update_timeout_ms: 1000  <span style="color: gray;"># Optional</span>
+</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE NAMED COLLECTION <b>mydb</b> AS host = 'example.test', port = 3306,
+    user = 'business', password = 'xyz', db = 'test';
+GRANT NAMED COLLECTION ON <b>mydb</b> TO viewer;
+SELECT * FROM system.named_collections;
+
+SELECT * FROM mysql(<b>mydb</b>, table = 'mytable');</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Kseniia Sumarokova</p>
+</section>
+
+<section class="slide">
+<h2>Hilbert 曲线</h2>
+
+<p>新函数： <b>hilbertEncode</b>, <b>hilbertDecode</b>.</p>
+<p>类似于 <b>mortonEncode</b>, <b>mortonDecode</b>，但使用不同的曲线。</p>
+
+<p>当两个键相似且希望混合它们的顺序时使用：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE t (x UInt32, y UInt32, ...)
+ORDER BY hilbertEncode(x, y);</code></p>
+
+<!--
+
+SELECT 1234 AS x, 5678 AS y, mortonEncode(x, y) AS z1, hilbertEncode(x, y) AS z2, hilbertDecode(2, z2)
+
+WITH number MOD 256 AS x, number DIV 256 AS y SELECT x, y FROM numbers(65536) ORDER BY hilbertEncode(x, y) LIMIT 100
+
+WITH number MOD 256 AS x, number DIV 256 AS y SELECT row_number() over (), x FROM numbers(65536) ORDER BY hilbertEncode(x, y)
+FORMAT JSONCompactColumns
+
+WITH number MOD 64 AS x, number DIV 64 AS y SELECT x, y, number FROM numbers(4096) ORDER BY hilbertEncode(x, y)
+
+reversedns.space
+
+(echo 'P3 4096 4096 255'; ch "
+WITH
+    number / 16777216 AS angle,
+    trunc(angle * 6) AS sector,
+    angle * 6 - trunc(angle * 6) AS v,
+
+    CASE WHEN sector = 0 THEN (v, 0, 1)
+         WHEN sector = 1 THEN (1, 0, 1 - v)
+         WHEN sector = 2 THEN (1, v, 0)
+         WHEN sector = 3 THEN (1 - v, 1, 0)
+         WHEN sector = 4 THEN (0, 1, v)
+         WHEN sector = 5 THEN (0, 1 - v, 1)
+         ELSE (0, 0, 0)
+    END AS rgb,
+
+    round(rgb.1 * 255) AS r,
+    round(rgb.2 * 255) AS g,
+    round(rgb.3 * 255) AS b,
+
+    mortonDecode(2, number) AS z,
+    z MOD 4096 AS x,
+    z DIV 4096 AS y
+
+SELECT r, g, b FROM numbers(16777216) ORDER BY x, y
+") | pnmtopng > image_hilbert_hsv.png
+
+-->
+
+<p>演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Artem Mustafin</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back10.jpg); background-size: cover;">
+<h2><span class="hilite">额外内容</span></h2>
+</section>
+
+
+<section class="slide">
+<h2 style="float: right;"><a href="https://chdb.io/">https://chdb.io/</a></h2>
+<h2>chdb 2.0</h2>
+<p style="margin-top: -1em;">pip install chdb==2.0.0b0</p>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/chdb.png" style="width: 100%;"/>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/insights.png); background-size: cover;">
+<h2><span class="hilite">查询洞察</span></h2>
+</section>
+
+<section class="slide">
+<h2>开源信任中心</h2>
+<p><a href="https://trust.clickhouse.com/">https://trust.clickhouse.com/</a></p>
+<p>提前通知开源 ClickHouse 发行版中的漏洞。</p>
+<p>额外消息：ClickHouse, Inc. 现已成为 CVE 编号分配机构（CNA）。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 14pt;">第 50 届国际 <b>超大型数据库会议</b>，2024 年 8 月 26–30 日，中国广州。</h2>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/vldb.png" style="width: 80%;"/>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back8.jpg); background-size: cover;">
+<h2><span class="hilite">集成</span></h2>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/java1.png); background-size: cover;">
+</section>
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/java2.png); background-size: cover;">
+</section>
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/java3.png); background-size: cover;">
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<p>支持 <b>Metabase 0.50</b> 和 <b>DBT 1.8</b>.</p>
+<p>以下连接器 <b>Spark</b> 现已获得官方支持：<br/><a href="https://github.com/ClickHouse/spark-clickhouse-connector">https://github.com/ClickHouse/spark-clickhouse-connector</a>.</p>
+
+<p>更新了 <b>Node.JS</b> 和 <b>Go</b> 客户端，
+<br/>以及 <b>Kafka</b> 连接器， <b>Grafana</b>和 <b>OTEL</b>.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">+ 感谢贡献者提供的众多修复：
+<br/>the4thamigo-uk, gogingersnap777, andy1xx8, sylph-eu, Holi0317, dmitryax.</p>
+</section>
+
+<section class="slide">
+<img style="float: right; width: 30%; margin-right: -3em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/azure.png"/>
+<h2>阅读园地</h2>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; 我们如何在 Azure 上推出 ClickHouse Cloud；
+<br/>&mdash; Trip.com 如何使用 ClickHouse 处理 50 PB 数据；
+<br/>&mdash; Java 客户端……续篇？！；
+<br/>&mdash; 构建查询洞察界面；
+<br/>&mdash; Shopee、CommonRoom 等；
+<br/>&mdash; ClickHouse 开源信任中心；
+</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.6/pictures/back9.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/BK-x8lpvOQw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
