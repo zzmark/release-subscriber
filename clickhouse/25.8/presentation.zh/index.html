@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.8 版本发布会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.8 版本发布会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.8 版本发布会</h1>
+        <p>作者：Alexey Milovidov，2025-08-28。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 25px; line-height: 110%; font-size: 56pt; color: white; text-shadow: black 1px 0 10px; text-align: center;">ClickHouse 25.8 LTS 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 25.8 LTS 版本</h2>
+<p>1.（55 分钟）ClickHouse 25.8 的新变化。</p>
+<p>2.（5 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">25.8 版本</span></h2>
+<p><span class="hilite">ClickHouse 长期支持版本。</span></p>
+<p><span class="hilite">— 45 项新功能 🌻</span></p>
+<p><span class="hilite">— 47 项性能优化 🐝</span></p>
+<p><span class="hilite">— 119 项缺陷修复 🐝</span></p>
+</section>
+<!--
+
+Small
+
+_table virtual column
+External disks for temporary data
+Arrow Flight
+PostgreSQL protocol completeness with COPY support
+SYSTEM RESTORE DATABASE REPLICA
+Writes with hive-style partitioning
+Hash output format
+
+Security
+
+Grants for S3 URL patterns
+S3 auth with IAM roles
+OAuth for GCP
+Views defined by temporary users
+
+Performance
+
+Parquet reader v3
+Azure is no shit
+Secondary indices are used in the right order
+Faster subcolumns in compact parts
+Faster regexps
+Faster JOINs when the r.h.s. is unique
+Faster GROUP BY
+
+Main
+
+PromQL
+Lightweight updates is Beta
+Positional and Condition deletes
+Delete from Iceberg
+Iceberg and Delta Lake improvements
+All catalogs are Beta
+Vector similarity search is GA
+Binary quantization
+Correlated subqueries are Beta
+Vector search in GA + binary quantization
+
+Integrations
+
+MongoDB CDC is in Private Preview https://clickhouse.com/docs/integrations/clickpipes/mongodb
+Vertical Scaling for streaming ClickPipes to adjust the instance type for suitable workload https://clickhouse.com/docs/cloud/manage/billing/overview#what-are-the-clickpipes-public-prices
+Azure Blob Storage connector is GA
+Postgres CDC: compatibility with ClickHouse JSON
+Published AWS Glue connector https://clickhouse.com/blog/clickhouse-connector-aws-glue
+
+Python client:
+enhanced SQLAlchemy 2
+performance improvements with Arrow-backed DataFrames
+
+Bonus
+
+ClickStack in ClickHouse Cloud
+DeltaLake CDC open-source
+
+Reading
+
+Comparison of LLM chat UIs
+Agentic BI in Slack
+
+
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">实用小功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>所有表都有 _table 虚拟列</h2>
+
+<!--
+
+CREATE TABLE a (s String) ORDER BY ();
+CREATE TABLE b (s String) ORDER BY ();
+INSERT INTO a VALUES ('Hello');
+INSERT INTO b VALUES ('World');
+SELECT *, _table FROM merge('^(a|b)$');
+SELECT *, _table FROM a UNION ALL SELECT *, _table FROM b;
+
+-->
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE a (s String) ORDER BY ();
+CREATE TABLE b (s String) ORDER BY ();
+INSERT INTO a VALUES ('Hello');
+INSERT INTO b VALUES ('World');
+
+<span style="color: gray;">-- This already worked:</span>
+SELECT *, <b>_table</b> FROM merge('^(a|b)$');
+
+<span style="color: gray;">-- This is new in 25.8:</span>
+SELECT *, <b style="color: green;">_table</b> FROM a UNION ALL SELECT *, <b style="color: green;">_table</b> FROM b;
+
+   ┌─s─────┬─_table─┐
+1. │ Hello │ a      │
+2. │ World │ b      │
+   └───────┴────────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Xiaozhe Yu。</p>
+</section>
+
+
+<section class="slide">
+<h2>使用外部磁盘存储临时数据</h2>
+
+<p>包含大型 GROUP BY、ORDER BY 或 JOIN 操作的查询，<br/>在内存无法容纳临时数据时，可使用磁盘空间。</p>
+
+<p>25.8 之前，ClickHouse 只能使用本地类型的磁盘<br/>存储临时数据。</p>
+
+<p>从 <b style="color: green;">25.8</b>起，任意磁盘类型均可存储临时数据，包括 <b>S3</b>,
+<br/>，这对临时、无磁盘的机器尤其有用。</p>
+
+<p>额外好处：临时数据会自动压缩！</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Azat Khuzhin。</p>
+</section>
+
+
+<section class="slide">
+<h2>集成 Arrow Flight 🧪</h2>
+
+<p><b>Arrow Flight</b> &mdash; 是一种通过 GRPC 以 Apache Arrow 格式<br/>交换数据的协议。</p>
+<p>它保持数据的列式表示，因此适合列式数据库（类似 ClickHouse 原生协议）。</p>
+
+<p>现在 ClickHouse 可以查询其他 Arrow Flight <b>数据源</b>
+<br/>，使用的是 <b>arrowflight</b> 表函数。</p>
+
+<p>ClickHouse 本身也可以作为 Arrow Flight <b>服务器</b> 运行。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：zakr600、Vitaly Baranov。</p>
+</section>
+
+<section class="slide">
+<h2>集成 Arrow Flight 🧪</h2>
+
+<p>Arrow Flight <b>服务器</b> ，位于 ClickHouse 中。</p>
+<p><code style="font-size: 14pt; line-height: 1.5;"><span style="color: gray;">$ cat config.d/flight.yaml</span>
+
+arrowflight_port: 6379
+arrowflight:
+    enable_ssl: true
+    ssl_cert_file: '/etc/clickhouse-server/cert.pem'
+    ssl_key_file: '/etc/clickhouse-server/key.pem'
+</code></p>
+
+<p>同时支持 <b>put</b> 和 <b>get</b> 命令。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：zakr600、Vitaly Baranov。</p>
+</section>
+
+<section class="slide">
+<h2>集成 Arrow Flight 🧪</h2>
+
+<p>Arrow Flight <b>客户端</b> ，位于 ClickHouse 中。</p>
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT * FROM <b style="color: green;">arrowflight</b>('localhost:6379', 'dataset');
+</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">CREATE TABLE table_name
+ENGINE = <b style="color: green;">ArrowFlight</b>('localhost:6379', 'dataset');
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：zakr600、Vitaly Baranov。</p>
+</section>
+
+
+<section class="slide">
+<h2>Hash 输出格式</h2>
+
+<p>想快速计算查询结果的校验和？</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">:) SELECT number FROM numbers(10) FORMAT <b style="color: green;">Hash</b>
+
+c1df5386c5a4dfee17eee0e351914c83
+</code></p>
+
+<p>返回对顺序敏感的 128 位哈希值。</p>
+
+<p>使用场景：检查查询是否返回相同结果。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Robert Schulze。</p>
+</section>
+
+
+<section class="slide">
+<h2>按 Hive 风格分区写入</h2>
+
+<p>允许按表示分区键值的目录拆分数据。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">CREATE TABLE test (year UInt16, country String, counter UInt8)
+ENGINE = AzureBlobStorage(account_name = 'devstoreaccount1', ...,
+    format = 'Parquet', <b style="color: green">partition_strategy = 'hive'</b>)
+PARTITION BY (year, country);</code></p>
+
+<p>新增 <b>partition_strategy</b> 参数，可切换
+<br/>'hive' 与原有的 'wildcard' 模式。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Arthur Passos。</p>
+</section>
+
+
+<section class="slide">
+<h2>按 Hive 风格分区写入</h2>
+
+<p>允许按表示分区键值的目录拆分数据。</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; margin: 0 -3em;">:) INSERT INTO test VALUES (2020, 'Zimbabwe', 1), (2021, 'Brazil', 2);
+:) SELECT _path, * FROM test;
+
+   ┌─_path───────────────────────────────────────────────────────┬─year─┬─country──┬─counter─┐
+1. │ data/year=2020/country=Zimbabwe/7351305360873664512.parquet │ 2020 │ Zimbabwe │       1 │
+2. │ data/year=2021/country=Brazil/7351305360894636032.parquet   │ 2021 │ Brazil   │       2 │
+   └─────────────────────────────────────────────────────────────┴──────┴──────────┴─────────┘
+</code></p>
+
+<p>额外好处：
+<br/>&mdash; 可以决定是否将分区列写入数据文件；
+<br/>&mdash; <b>hive</b> 分区策略还使 SELECT 能访问分区列；
+</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Arthur Passos。</p>
+</section>
+
+
+<section class="slide">
+<h2>协议兼容性</h2>
+
+<p>ClickHouse 是多协议服务器，实现了：
+<br/>&mdash; 原生 TCP 协议；
+<br/>&mdash; HTTP(s) REST API；ODBC 和 JDBC 驱动；
+<br/>&mdash; GRPC 协议；
+<br/>&mdash; Arrow Flight 协议；
+<br/>&mdash; ZooKeeper 协议；
+<br/>&mdash; <b>MySQL</b> 网络协议；
+<br/>&mdash; <b>PostgreSQL</b> 网络协议；
+</p>
+
+<p>现在 PostgreSQL 协议支持 COPY 命令，
+<br/>MySQL 协议实现了相关信息表，
+<br/>使 C# MySQL 客户端能够与 ClickHouse 配合使用。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">SYSTEM RESTORE DATABASE REPLICA</h2>
+
+<p>类似 SYSTEM RESTORE REPLICA 的命令，
+<br/>用于 Replicated 数据库。</p>
+
+<p>当 Keeper 损坏或丢失时，
+<br/>可从本地状态重建 Keeper 中的元数据。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Konstantin Morozov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/back9.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">枯燥的安全功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>针对 S3 特定 URL 授权</h2>
+
+<p>25.6 及之前：</p>
+<p><code>GRANT S3 ON *.* TO user</code></p>
+
+<p>25.7：</p>
+<p><code>GRANT READ, WRITE ON S3 TO user</code></p>
+
+<p>25.8：</p>
+<p><code>GRANT READ ON S3(<b style="color: green;">'s3://foo/.*'</b>) TO user</code></p>
+
+<p>允许受限使用 S3 存储桶，防止数据外泄。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Artem Brustovetskii。</p>
+</section>
+
+
+<section class="slide">
+<h2>S3 使用自定义 IAM 角色</h2>
+
+<p><code style="font-size: 16pt; line-height: 1.5;">SELECT * FROM s3('s3://mybucket/path.csv', CSVWithNames,
+    extra_credentials(<b style="color: green;">role_arn</b> =
+'arn:aws:iam::111111111111:role/ClickHouseAccessRole-001'))</code></p>
+
+<p>直到不久前，此功能还仅在 <b>ClickHouse Cloud</b>.
+<br/>25.8 起，所有 ClickHouse 用户均可使用。</p>
+
+<p>额外消息：25.8 也提供了 GCP OAuth 认证！</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/back3.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>Parquet 读取器 v3 🧪</h2>
+
+<p>从零实现的全新、更快的 Parquet 读取器！</p>
+
+<img style="width: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/parquet1.png" />
+<div style="float: right;">
+<p style="color: gray; font-size: 14pt;">开发者：Michael Kolupaev。</p>
+<p style="margin-top: 3em;">演示</p>
+</div>
+<img style="height: 50%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/parquet2.png" />
+
+<!--
+
+ch
+SELECT * FROM 'hits.parquet' WHERE URL LIKE '%google%' ORDER BY EventTime LIMIT 10;
+SET input_format_parquet_use_native_reader_v3 = 1;
+SELECT * FROM 'hits.parquet' WHERE URL LIKE '%google%' ORDER BY EventTime LIMIT 10;
+
+-->
+
+</section>
+
+
+<section class="slide">
+<h2>Azure 的推测性重试</h2>
+
+<img style="width: 50%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/azure1.png" />
+<img style="width: 50%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/azure2.png" />
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexander Sapin。</p>
+</section>
+
+<section class="slide">
+<h2>Azure 的推测性重试</h2>
+
+<p>问题： <span style="color: red;">偶尔出现延迟尖峰，</span> 高达 5 秒、10 秒、15 秒……</p>
+<p>原因：AWS S3 和 Azure 是复杂的分布式系统，各有自己的特殊行为。</p>
+
+<p>几年前已通过以下方法解决 AWS 和 GCP 的这个问题：
+<br/>&mdash; 建立多个连接，访问多个端点；
+<br/>&mdash; 轮换端点，更均匀地分配负载；
+<br/>&mdash; 一到软超时就发起第二个请求；
+<br/>&mdash; 积极执行多次重试；</p>
+</section>
+
+<section class="slide">
+<h2>Azure 的推测性重试</h2>
+
+<p>问题： <span style="color: red;">偶尔出现延迟尖峰，</span> 高达 5 秒、10 秒、15 秒……</p>
+
+<p>问题已解决：
+<ol><li>将 Azure SDK 的 HTTP 客户端替换为我们自己的实现。
+</li><li>复用与 AWS S3 相同的积极重试逻辑。</li></ol></p>
+
+<p>结果：</p>
+<p>&mdash; <span style="color: green;">延迟尖峰消失了！</span></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexander Sapin。</p>
+</section>
+
+
+<section class="slide">
+<h2>通过二级索引更快过滤</h2>
+
+<p>示例：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">CREATE TABLE test
+(
+    time DateTime,
+    user UInt16,
+    text String,
+    INDEX ix1(user) TYPE set(1000) GRANULARITY 5,
+    INDEX ix2(text) TYPE bloom_filter GRANULARITY 10
+)
+ORDER BY time;</code></p>
+
+<p>如何决定读取和应用索引的顺序？</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Maruth Goyal。</p>
+</section>
+
+<section class="slide">
+<h2>通过二级索引更快过滤</h2>
+
+<p>如何决定读取和应用索引的顺序？</p>
+
+<p>25.8 起，按索引大小读取和应用，
+<br/>也就是说， <b style="color: green;">先处理轻量索引</b>.</p>
+
+<p>大小按磁盘上的压缩数据计算，
+<br/>对每个数据片段独立决策。</p>
+
+<p>因此有机会以更低的成本过滤数据！
+<br/>向表中添加重量级索引，<br/>不会影响主要依赖另一轻量索引过滤的查询。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Maruth Goyal。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/back4.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>轻量更新进入 Beta 阶段</h2>
+
+<p>功能完整的 UPDATE 语句：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">UPDATE my_table
+SET col1 = val1, col2 = val2, ...
+WHERE <i>condition</i>
+
+UPDATE hits SET Title = 'Updated Title'
+WHERE EventDate = today();
+
+UPDATE wikistat SET hits = hits + 1, time = now()
+WHERE path = 'ClickHouse';
+</code></p>
+
+<p>25.7 中为实验性功能。 <span style="color: green;">进入 Beta 的版本： <b>25.8</b></span>.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov。</p>
+</section>
+
+<section class="slide">
+<h2>相关子查询进入 Beta 阶段</h2>
+
+<p style="margin-top: -1em;">&mdash; 是依赖外部作用域列的子查询。</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">SELECT * FROM users AS <b style="color: brown;">u1</b> WHERE EXISTS <span style="color: blue;">(
+    SELECT * FROM users2 AS u2 WHERE <b style="color: brown;">u1.age</b> = u2.age)</span>
+</code></p>
+
+<p>可以出现在多种上下文：EXISTS、IN、标量……</p>
+<p>在 <b>25.4</b> 中，我们支持了位于 <b>WHERE</b> 子句中、使用 <b>EXISTS</b> 运算符的相关子查询。</p>
+<p>在 <b style="color: green;">25.5</b> 中，我们支持 <b style="color: green;">标量相关子查询</b> ，位于 <b>WHERE</b> 子句中，
+<br/>以及相关子查询 <b style="color: green;">出现在 SELECT 中</b>！</p>
+
+<p>现在无需修改查询，即可覆盖 <b>TPC-H</b> 测试套件。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Dmitry Novik。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/back4.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">数据湖</span></h2>
+</section>
+
+<section class="slide">
+<h2>数据湖改进</h2>
+<p>支持 <b style="color: green;">按位置删除</b> 和 <b style="color: green;">等值删除</b> ，适用于 Iceberg。</p>
+<p>可通过 <b style="color: green;">ALTER DELETE</b> 语句使用。</p>
+<p><b style="color: green;">写入 Iceberg</b> 支持 REST 和 Glue 目录。</p>
+<p>CREATE TABLE 可以 <b style="color: green;">创建新的 Iceberg</b> 表，不再仅能附加现有表。</p>
+<p>支持 <b style="color: green;">DROP TABLE</b> 适用于 REST 和 Glue 目录中的 Iceberg 表。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2>Delta Lake 改进</h2>
+<p>支持 <b style="color: green;">写入 Delta Lake</b> 表。</p>
+<p><b style="color: green;">时间旅行</b> 支持 Delta Lake 表。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide" style="background: black;">
+<img style="width: 90%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/iceberg.jpg"/>
+</section>
+
+<!--
+<section class="slide">
+<h2 style="font-size: 32pt;">Iceberg-Managed Tables in Unity Catalog</h2>
+
+<p>Now ClickHouse has full support for "uniform" tables
+<br/>with the Unity catalog.</p>
+
+<p>Demo</p>
+
+SHOW CREATE TABLE demo
+Now let's insert some data:
+INSERT INTO demo VALUES (1), (2), (3);
+Let's check what our table looks like:
+SELECT *
+FROM demo
+
+Query id: 0bd88134-616e-47f5-a6f1-9e330006ff5c
+
+   ┌─c1─┐
+1. │  1 │
+2. │  2 │
+3. │  3 │
+   └────┘
+
+3 rows in set. Elapsed: 0.143 sec.
+We forgot to add some columns:
+ALTER TABLE demo ADD column c2 Nullable(String);
+Ok let's add one row:
+INSERT INTO demo VALUES (4, 'Delta Kernel');
+
+INSERT INTO demo FORMAT Values
+
+Query id: 09ca8a80-f3da-4eaa-afe3-13e68311d907
+
+Ok.
+
+1 row in set. Elapsed: 0.308 sec.
+Ok so now we have 4 rows and only one with two columns:
+SELECT *
+FROM demo
+
+Query id: 18abb953-ec56-4212-a2e2-ef6a77b10c41
+
+   ┌─c1─┬─c2───────────┐
+1. │  4 │ Delta Kernel │
+2. │  1 │ ᴺᵁᴸᴸ         │
+3. │  2 │ ᴺᵁᴸᴸ         │
+4. │  3 │ ᴺᵁᴸᴸ         │
+   └────┴──────────────┘
+
+4 rows in set. Elapsed: 0.310 sec.
+Let's try to update the old one:
+ALTER TABLE demo
+    (UPDATE c2 = 'Equality delete' WHERE c1 = 1)
+
+Query id: f22986c0-0263-4942-b909-1cf5d3155ca8
+
+Ok.
+
+0 rows in set. Elapsed: 0.560 sec.
+And let's also update row number 2:
+ALTER TABLE demo
+    (UPDATE c2 = 'Time Travel' WHERE c1 = 2)
+
+Query id: f2298650-0263-4942-b909-1cf5d3155ca8
+
+Ok.
+
+0 rows in set. Elapsed: 0.560 sec.
+Wait? Time travel, let's check our Iceberg history:
+SELECT *
+FROM system.iceberg_history
+WHERE `table` = 'demo'
+ORDER BY made_current_at ASC
+
+Query id: a1ea93be-8658-48aa-a875-f1cbbd6172fd
+
+   ┌─database─┬─table─┬─────────made_current_at─┬─snapshot_id─┬────────────parent_id─┬─is_current_ancestor─┐
+1. │ default  │ demo  │ 2025-08-27 02:07:07.083 │   737434738 │ 18446744073709551615 │                   1 │
+2. │ default  │ demo  │ 2025-08-27 02:14:26.870 │   781148062 │            737434738 │                   1 │
+3. │ default  │ demo  │ 2025-08-27 02:16:13.962 │   730433804 │            781148062 │                   1 │
+4. │ default  │ demo  │ 2025-08-27 02:16:14.092 │  1518148320 │            730433804 │                   1 │
+5. │ default  │ demo  │ 2025-08-27 02:17:32.563 │   847294289 │           1518148320 │                   1 │
+6. │ default  │ demo  │ 2025-08-27 02:17:32.682 │   771482402 │            847294289 │                   1 │
+   └──────────┴───────┴─────────────────────────┴─────────────┴──────────────────────┴─────────────────────┘
+
+6 rows in set. Elapsed: 0.204 sec.
+Let's go back to our previous state, before time travel was added:
+SELECT *
+FROM demo
+SETTINGS iceberg_snapshot_id = 847294289
+
+Query id: bcd01847-107c-4aa4-a92a-0607231fd85c
+
+   ┌─c1─┬─c2──────────────┐
+1. │  1 │ Equality delete │
+2. │  2 │ ᴺᵁᴸᴸ            │
+3. │  3 │ ᴺᵁᴸᴸ            │
+4. │  4 │ Delta Kernel    │
+   └────┴─────────────────┘
+
+</section>
+-->
+
+<section class="slide">
+<h2>数据湖目录进入 Beta 阶段</h2>
+
+<p>ClickHouse 支持以下目录的数据库引擎：</p>
+<p>&mdash; Unity Catalog（25.3 起）；</p>
+<p>&mdash; REST Catalog（24.12 起）；</p>
+<p>&mdash; Glue Catalog（25.3 起）；</p>
+<p>&mdash; Hive Metastore Catalog（25.5 起）；</p>
+
+<p>现在所有数据湖目录都从实验性功能提升至 <b style="color: green;">Beta</b>.</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">额外消息</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>MongoDB CDC</b> 处于私有预览阶段</p>
+<p><b>纵向扩缩容</b> 适用于流式 ClickPipes<br/>可调整实例类型以适应工作负载</p>
+<p><b>Azure Blob Storage</b> 在 ClickPipes 中的连接器正式可用</p>
+<p><b>Postgres CDC</b>：兼容 JSON 数据类型</p>
+<p>ClickHouse 拥有官方 <b>AWS Glue 连接器</b></p>
+<p>Python 客户端改进：Arrow DataFrame 性能</p>
+</section>
+
+<section class="slide" style="background: black;">
+<h2 style="color: white;">ClickHouse Cloud 中的 ClickStack</h2>
+
+<img style="width: 100%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/clickstack.png"/>
+<!--
+
+https://console.clickhouse-staging.com/services/2195d48c-c09d-4646-b64b-5bcd86086069/dashboards
+
+-->
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流会</h2>
+<p style="line-height: 1.5">
+<span class="hilite">&mdash; 🇨🇦 多伦多，9 月 3 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 古尔冈/德里，9 月 4 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 罗利，9 月 4 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 纽约 AI，9 月 9 日</span>
+<br/><span class="hilite">&mdash; 🇮🇱 特拉维夫，9 月 9 日</span>
+<br/><span class="hilite">&mdash; 🇹🇭 曼谷，9 月 16 日</span>
+<br/><span class="hilite">&mdash; 🇦🇪 迪拜，9 月 16 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 波士顿，9 月 16 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 浦那，9 月 20 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 马德里，9 月 30 日</span>
+</p>
+</section>
+
+
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;">
+<br/>&mdash; LLM 聊天界面对比
+<br/>&mdash; 通过 ClickHouse MCP 在 Slack 中实现智能体 BI
+<br/>&mdash; 可观测性实践： <b>Character.AI</b> 使用 ClickStack
+<br/>&mdash; <b>文本搜索</b> 在 ClickHouse 中
+<br/>&mdash; LLM 现在能替代值班 SRE 吗？
+</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.8/pictures/back8.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/HB_-vji9RB0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
