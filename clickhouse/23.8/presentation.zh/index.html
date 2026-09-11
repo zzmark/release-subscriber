@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：23.8 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：23.8 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：23.8 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2023-08-31。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/photo1.jpg); background-size: cover;">
+        <h1 style="margin-top: 130px; line-height: 150%; color: white; font-size: 64pt; text-shadow: 1px 1px 1px black;">ClickHouse<br/> 23.8 LTS 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>23.8 版本网络研讨会</h2>
+<p>1.（55 分钟）ClickHouse 23.8 新内容。</p>
+<p>2.（5 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/photo6.jpg); background-size: cover;">
+<h2><span class="hilite">23.8 LTS 版本</span></h2>
+<p><span class="hilite">ClickHouse 八月版本。</span></p>
+<p><span class="hilite">— 29 项新功能 🌞</span></p>
+<p><span class="hilite">— 19 项性能优化 🕶️</span></p>
+<p><span class="hilite">— 63 项缺陷修复 ⛱️</span></p>
+</section>
+
+<!--
+
+向量算术
+简化 cluster/clusterAllReplicas 用法
+数据库和表名提示
+TRUNCATE DATABASE
+azureBlobStorageCluster
+tupleConcat
+
+兼容性
+
+INFORMATION SCHEMA
+
+性能：
+
+Parquet 中的数据跳过
+通过元数据计数
+跳过文件
+JIT
+
+主要内容：
+
+直接从归档导入
+S3Queue
+
+额外内容：
+
+UDF 中的 stderr
+仪表盘
+AWS Lambda 上的 ClickHouse
+实验性 HNSW
+SharedMergeTree
+s390x 构建
+
+集成
+
+PowerBI
+云服务中的 MySQL 协议
+
+阅读
+
+HuggingFace 与 ClickHouse
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/photo2.jpg); background-size: cover;">
+<h2><span class="hilite">平淡的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>向量算术</h2>
+
+<p>ClickHouse 23.7: 🤓</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT arrayMap((x, y) -> x + y, [1, 2, 3], [4, 5, 6])
+
+[5, 7, 9]
+</code></p>
+
+<p>ClickHouse 23.8: 😎</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">[1, 2, 3] + [4, 5, 6]</b>
+
+[5, 7, 9]
+</code></p>
+
+<p>支持 <b>&plus;</b> 和 <b>&minus;</b>。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+
+<section class="slide">
+<h2>元组拼接</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT (1, 2) || ('Hello', [3, 4]);
+
+(1, 2, 'Hello', [3, 4])
+
+:) SELECT concat((1, 2), ('Hello', [3, 4]));
+
+(1, 2, 'Hello', [3, 4])
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Nikolay Degterinsky。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 28pt;">cluster/clusterAllReplicas 的默认参数</h2>
+
+ClickHouse 23.7: 🥱
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT hostname(), version(), uptime()
+  FROM clusterAllReplicas(default, <b style="color: red;">system.one</b>);</code></p>
+
+ClickHouse 23.8: 😎
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT SELECT hostname(), version(), uptime()
+  FROM <b style="color: green;">clusterAllReplicas(default)</b>;
+
+SELECT hostname(), version(), uptime()
+  FROM <b style="color: green;">clusterAllReplicas()</b>;</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Yangkuan Liu。</p>
+</section>
+
+
+<section class="slide">
+<h2>数据库和表名提示</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT * FROM hecks
+
+Received exception from server (version 23.8.1):
+Code: 60. DB::Exception: Received from localhost:9000. DB::Exception:
+Table default.<b style="color: red;">hecks</b> does not exist.
+Maybe you meant <b style="color: green;">checks</b>?. (UNKNOWN_TABLE)
+</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT * FROM defail.checks
+
+Received exception from server (version 23.8.1):
+Code: 81. DB::Exception: Received from localhost:9000. DB::Exception:
+Database <b style="color: red;">defail</b> does not exist.
+Maybe you meant <b style="color: green;">default</b>?. (UNKNOWN_DATABASE)
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+<section class="slide">
+<h2>TRUNCATE DATABASE</h2>
+
+<p>删除数据库中的所有表，但保留数据库。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Bharat Nallan。</p>
+
+<h2>azureBlobStorageCluster</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT * FROM azureBlobStorageCluster(my_cluster, ...);
+</code></p>
+
+<p>利用 ClickHouse 集群中所有服务器的资源处理或导入 Azure 数据。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Smita Kulkarni。</p>
+</section>
+
+
+<section class="slide" class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/photo7.jpg); background-size: cover;">
+<h2><span class="hilite">性能优化</span></h2>
+</section>
+
+<section class="slide">
+<h2>通过元数据计数</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT count() FROM file('hits_*.parquet')
+</code></p>
+
+<p>23.7: <b style="color: red">0.118 秒</b>。</p>
+<p>23.8: <b style="color: green">0.022 秒</b>。</p>
+
+<p><b>5 倍</b> 提速！</p>
+
+<p>适用于大多数数据格式：Parquet、ORC、TSV、CSV、JSON……</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 36pt">跳过不需要读取的文件</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT count(), uniq(_file) FROM
+  url(<span style="color: gray;">'https://clickhouse-public-datasets.s3.amazonaws.com/
+hits_compatible/athena_partitioned/hits_{0..99}.parquet'</span>)
+WHERE <b style="color: green;">_file LIKE '%9%'</b>
+</code></p>
+
+<p><b>23.8</b>：耗时： <b style="color: green;">0.068</b> 秒。处理 <b style="color: green;">19.00</b> 百万行<br/>（每秒 2.7993 亿行。）</p>
+<p><b>23.7</b>：完全无法这样执行。</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 36pt">跳过文件中的数据</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT URL, count() FROM file('hits_*.parquet')
+WHERE CounterID = 155568 <span style="color: gray;">-- this utilizes min/max index for granules</span>
+GROUP BY 1 ORDER BY 2 DESC LIMIT 5
+</code></p>
+
+<p><b>23.7</b>：耗时： <b style="color: red;">0.722</b> 秒。处理 <b style="color: red;">99.89</b> 百万行，14.71 GB
+<br/>（每秒 1.3837 亿行，20.37 GB/s。）</p>
+<p><b>23.8</b>：耗时： <b style="color: green;">0.111</b> 秒。处理 <b style="color: green;">3.52</b> 百万行，386.20 MB
+<br/>（每秒 3171 万行，3.48 GB/s。）</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Michael Kolupaev。</p>
+</section>
+
+<section class="slide" style="background: black;">
+<div style="width: 120%; height: 100%; overflow-y: scroll; margin-left: -10%; margin-right: -10%;">
+    <img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/clickbench.png" style="width: 100%;"/>
+</div>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 36pt">ARM 的 JIT 编译</h2>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/jit.png" style="width: 100%; margin-top: -1em;" />
+
+<p style="margin-top: 0.5em; color: gray; font-size: 14pt;">开发者：Maksim Kita。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/photo4.jpg); background-size: cover;">
+<h2>一些有趣的功能</h2>
+</section>
+
+<section class="slide">
+<h2>直接从归档导入</h2>
+
+<p>ClickHouse 已支持读取和写入压缩文件：
+<br/>&mdash; zstd, lz4, snappy, gz, xz, bz2...</p>
+
+<p>现在还可以直接读取归档内的多个文件：
+<br/>&mdash; <b>zip</b>、 <b>7z</b>以及各种 <b>tar</b>归档。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT * FROM file('path/to/archive.zip :: path/inside/archive.csv')</code></p>
+
+<p>演示</p>
+
+<!--
+
+cd ~/Downloads
+clickhouse-local
+SELECT * FROM file('book-genome.zip :: book_dataset/raw/reviews.json', JSONLines) LIMIT 10
+SELECT * FROM file('book-genome.zip :: */raw/reviews.json', JSONLines) LIMIT 10
+SELECT * FROM file('book-genome.zip :: **/reviews.json', JSONLines) LIMIT 10
+SELECT DISTINCT _path FROM file('book-genome.zip :: **/*.csv') LIMIT 10
+DESCRIBE file('book-genome.zip :: book_dataset/scores/glmer.csv')
+SELECT * FROM file('book-genome.zip :: book_dataset/scores/glmer.csv') LIMIT 10
+SELECT tag, avg(score) FROM file('book-genome.zip :: book_dataset/scores/glmer.csv') GROUP BY tag ORDER BY count() DESC LIMIT 10
+-->
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Nikita Keba、Antonio Andelic、Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>从 S3 流式消费数据</h2>
+
+<p>使用 <b>S3Queue</b> 表引擎：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -3em;">CREATE TABLE <b>queue</b> ENGINE = <b style="color: green;">S3Queue</b>('https://clickhouse-public-datasets.s3.amazonaws.com/
+hits_compatible/athena_partitioned/hits_*.parquet') SETTINGS mode = 'unordered';
+
+CREATE TABLE <b>data</b>
+ENGINE = MergeTree ORDER BY ()
+EMPTY AS SELECT * FROM queue;
+
+CREATE MATERIALIZED VIEW <b>consumer</b> TO <b>data</b> AS SELECT * FROM <b>queue</b>;
+</code></p>
+
+<p>&mdash; 从 S3 上的一批文件消费数据。<br/>
+&mdash; 新文件出现后立即消费。<br/>
+&mdash; 支持并行和分布式消费。</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Sergei Katkovskiy、Kseniia Sumarokova。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/photo5.jpg); background-size: cover;">
+<h2>额外内容</h2>
+</section>
+
+<section class="slide">
+<h2>大型主机上的 ClickHouse</h2>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/s390x.jpg" style="width: 50%; float: left; margin-right: 1em;" />
+<p>ClickHouse 提供以下架构的构建： </p><p>&mdash; <b>x86_64</b>、 <br/>&mdash; <b>Aarch64</b>、 <br/>&mdash; <b>RISC-V 64</b>、 <br/>&mdash; <b>PowerPC 64LE</b>、 <br/>&mdash; 现在还有 <b style="color: green;">s390x</b>。</p>
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Yakov Olkhovskiy。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">AWS Lambda 上的无服务器 ClickHouse</h2>
+
+<p>让 S3 存储桶可以通过 ClickHouse 查询。</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5;"><span style="color: gray;"># your S3 bucket</span>
+https://bucket.s3.eu-central-1.amazonaws.com/data.csv
+
+<span style="color: gray;"># queryable datasets</span>
+curl -d "<b style="color: green;">SELECT * FROM table</b>" \
+  --aws-sigv4 "aws:amz:eu-central-1:lambda" \
+  --user 'AWS_ACCESS_KEY:AWS_SECRET_KEY' \
+  https://abcdef.lambda-url.eu-central-1.on.aws/bucket/data.csv
+</code></p>
+
+<p>类似于 S3 Select，但拥有 ClickHouse 的全部能力！</p>
+
+<p><a href="https://github.com/aws-samples/aws-lambda-clickhouse">https://github.com/aws-samples/aws-lambda-clickhouse</a>
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Roman Boiko（AWS）。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">AWS Lambda 上的无服务器 ClickHouse</h2>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/lambda.gif" style="width: 100%; margin-top: -1em;" />
+</section>
+
+<section class="slide">
+<h2>高级仪表盘更好用了</h2>
+<p>示例： <a href="https://play.clickhouse.com/dashboard">https://play.clickhouse.com/dashboard</a></p>
+<p>用户：play。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/cloud.jpg); background-size: cover;">
+<h2 style="color: white;">ClickHouse Cloud</h2>
+</section>
+
+<section class="slide">
+<h2>SharedMergeTree 表引擎</h2>
+<p>将在 ClickHouse Cloud 中默认使用的新表引擎，
+<br/>替代 ReplicatedMergeTree。</p>
+<p><b>优点：</b></p>
+<p>&mdash; 更好的扩展性；<br/>
+&mdash; 更高的 INSERT 性能；<br/>
+&mdash; 节省成本；<br/>
+&mdash; 服务器启动更快；<br/>
+&mdash; 降低运维复杂度；</p>
+<p>仅在 ClickHouse Cloud 和合作云服务商中提供。</p>
+<p><a href="https://clickhouse.com/blog/clickhouse-cloud-boosts-performance-with-sharedmergetree-and-lightweight-updates">https://clickhouse.com/blog/clickhouse-cloud-boosts-performance-with-sharedmergetree-and-lightweight-updates</a></p>
+</section>
+
+<section class="slide">
+<h2>MySQL 协议</h2>
+<p>ClickHouse 是支持多种协议的数据库 :)</p>
+<p>它支持 <b>HTTP (RESTful)</b>、 <b>原生 TCP</b>、
+<br/><b>GRPC</b>、 <b>MySQL</b>和 <b>PostgreSQL</b> 协议，<br/>
+以及 <b>ODBC</b> 和 <b>JDBC</b>。</p>
+<p>最近，我们开始在 ClickHouse Cloud 中支持 MySQL 协议！</p>
+<p>可申请启用。</p>
+<p style="color: gray;">下一步呢？Arrow Flight？ADBC？MongoDB 协议？Redis 接口？</p>
+</section>
+
+<section class="slide">
+<h2>PowerBI 连接器</h2>
+<p style="margin-top: -2em;"><a href="https://github.com/ClickHouse/power-bi-clickhouse">https://github.com/ClickHouse/power-bi-clickhouse</a></p>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/powerbi.png" style="width: 100%; margin-top: -0.5em;" />
+</section>
+
+
+<section class="slide">
+<h2>阅读园地</h2>
+<img style="float: right; margin-top: -1em; margin-right: -2em; width: 40%; image-rendering: pixelated;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/klaviyo.png"/>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; <b>HuggingFace</b> 拥抱 ClickHouse；
+<br/>&mdash; <b>Klaviyo</b>：我们如何不再担忧，<br/>&emsp; 并爱上 OLAP 数据库；
+<br/>&mdash; 数据工程与基础设施<br/>&emsp; —— <b>Instacart</b>的实践；
+<br/>&mdash; 异步插入；
+<br/>&mdash; <b>MessageBird</b> 和 <b>Ongage</b>的实践经验<br/>&emsp; ——使用 ClickHouse；</p>
+
+<p>视频回放： <a href="https://www.youtube.com/c/ClickHouseDB">https://www.youtube.com/c/ClickHouseDB</a></p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.8/pictures/photo3.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/d1_pyoWcydk" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
