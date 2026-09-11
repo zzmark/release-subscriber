@@ -44,81 +44,81 @@
 </section>
 <!--
 
-Small
+小功能
 
-Any keys in Map
+Map 中任意类型的键
 clamp
-NPy as an output format
-Direct reading from archives on S3
+NPy 输出格式
+直接读取 S3 上的归档文件
 generateSnowflakeID
 fromReadableSize
 
-Usability
+易用性
 
-Trailing commas in INSERT
-stdout compression autodetection
-positional argument
-English-style quotes
-width and ANSI sequences
+INSERT 中的尾随逗号
+自动检测标准输出压缩
+位置参数
+英文样式引号
+宽度和 ANSI 序列
 
-Performance
+性能
 
-Native Parquet reader
-DateTime vs DateTime64
-Indices of type Set
+原生 Parquet 读取器
+DateTime 与 DateTime64
+Set 类型索引
 -UTF8: substringUTF8, substringIndexUTF8, reverseUTF8, lowerUTF8, leftPadUTF8, rightPadUTF8
-Faster globs
-splitByRegexp when a single character
+更快的 glob
+单字符时的 splitByRegexp
 FixedHashTable
-Sparse columns, Vertical merge.
+稀疏列、垂直合并。
 
-Main
+主要内容
 
 Dynamic
-Azure - workload identity, backups
-Compressing cross join; cross join in external memory
-Inequal join
-Form data format
+Azure：工作负载身份、备份
+压缩 CROSS JOIN；外存中的 CROSS JOIN
+非等值连接
+表单数据格式
 
 chdb
-9 times faster processing of data frames
-custom readers
+DataFrame 处理速度提升至原来的 9 倍
+自定义读取器
 chdb-server
 
 
 
-Bonus
+额外内容
 
 loongarch64
 
-Integrations
+集成
 
-ClickPipes: Kinesis
-Kafka offsets
-Kafka meta-columns: key, timestamp, headers, topic, offset
+ClickPipes：Kinesis
+Kafka 偏移量
+Kafka 元数据列：key、timestamp、headers、topic、offset
 
-Metabase update: CSV uploads
+Metabase 更新：CSV 上传
 
-dbt: codecs
-Java, Go, Python
+dbt：编解码器
+Java、Go、Python
 Tableau
 
 https://github.com/rjoelnorgren - DBT
-https://github.com/Wang - Golang client
+https://github.com/Wang - Golang 客户端
 https://github.com/jirislav - Kafka Connector
 https://github.com/abhishekgahlot2 - Kafka Connector
-https://github.com/feychenie - Python client
+https://github.com/feychenie - Python 客户端
 https://github.com/calherries
 
-Reading
+阅读
 
 Graviton
-New SQL console
-API endpoints
-Configurable backups
+新的 SQL 控制台
+API 端点
+可配置的备份
 Kinesis
-Certification program
-Elasticsearch comparison
+认证计划
+与 Elasticsearch 对比
 
 -->
 
@@ -197,11 +197,11 @@ python3 -c "
    └───────────────────────┘
 </code></p>
 
-<p>Generates a monotonic 64-bit unique identifier.</p>
-<p>Similar to UUID, but smaller and monotonic.</p>
-<p style="color: gray; font-size: 14pt;">Has nothing to do with Snowflake Inc.</p>
+<p>生成单调递增的 64 位唯一标识符。</p>
+<p>类似 UUID，但更小且单调递增。</p>
+<p style="color: gray; font-size: 14pt;">与 Snowflake Inc. 无关。</p>
 
-<p style="color: gray; font-size: 14pt; margin-top: 2em;">Developer: Danila Puzov.</p>
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Danila Puzov。</p>
 </section>
 -->
 
@@ -330,12 +330,12 @@ SELECT ‘Hello, world’;
 <!--
 
 <section class="slide">
-<h2>Faster GROUP BY</h2>
+<h2>更快的 GROUP BY</h2>
 
-<p>When keys fit in 16 bits.</p>
-<p>By optimizing merging of lookup tables.</p>
+<p>适用于键可容纳于 16 位的情况。</p>
+<p>通过优化查找表的合并实现。</p>
 
-<p style="color: gray; font-size: 14pt; margin-top: 2em;">Developer: Jie Binn.</p>
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Jie Binn。</p>
 </section>
 
 -->
@@ -358,15 +358,15 @@ SELECT ‘Hello, world’;
 
 <!--
 <section class="slide">
-<h2>Faster Merges</h2>
+<h2>更快的合并</h2>
 
-<p>With sparse columns.</p>
+<p>针对稀疏列。</p>
 
-<p>Sparse columns &mdash; is a special data format used for<br/>columns with a high ratio of default values.</p>
+<p>稀疏列 &mdash; 是一种特殊的数据格式，用于<br/>默认值占比较高的列。</p>
 
-<p>The query engine automatically takes the benefit of the sparse format<br/>by optimizing functions and expressions.</p>
+<p>查询引擎通过优化函数和表达式，<br/>自动利用稀疏格式的优势。</p>
 
-<p style="color: gray; font-size: 14pt; margin-top: 2em;">Developer: Anton Popov.</p>
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Anton Popov。</p>
 </section>
 -->
 
