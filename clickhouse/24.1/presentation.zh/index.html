@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：24.1 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：24.1 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+
+        @keyframes changeColor {
+            0% { color: black; }
+            50% { color: red; }
+            100% { color: black; }
+        }
+
+        .animated {
+            animation: changeColor 15s infinite;
+        }
+</style>
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：24.1 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2024-01-30。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 60px; line-height: 150%; color: yellow; font-size: 56pt; text-shadow: 1px 1px 1px black;">ClickHouse 24.1 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>24.1 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 24.1 新内容。</p>
+<p>2.（10 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">24.1 版本</span></h2>
+<p><span class="hilite">ClickHouse 冬季版本。</span></p>
+<p><span class="hilite">— 26 项新功能 ☃️</span></p>
+<p><span class="hilite">— 22 项性能优化 ⛷️</span></p>
+<p><span class="hilite">— 47 项缺陷修复 🧊</span></p>
+<div style="position: absolute; bottom: 10px; right: 10px; font-size: 8pt; text-shadow: 1px 1px 1px white; color: gray;">摄影：Matthias v.d. Elbe，2010，CC-BY-SA-3.0</div>
+</section>
+<!--
+
+Small
+
+punycode
+shingles
+quantileDD
+string similarity
+output_format_compression_level, output_format_compression_zstd_window_log
+Compress block size for columns
+Skipping unavailable replicas for distributed DDL
+input_format_json_read_bools_as_strings
+Attach with a different partition expression
+Escape sequences
+
+sqidDecode, seriesDecomposeSTL
+system tables in clickhouse-local
+Comments in system tables
+transform for enum
+system.database_engines
+
+
+Performance
+
+HTTP speed-up
+Parallel replicas
+uniqExact for distributed queries
+Memory optimization for merging (1, 2)
+Memory optimization for Keeper
+SYSTEM JEMALLOC PURGE
+Speed-up FINAL
+array subscript
+multiIf
+min/max
+
+
+Main
+
+Variant
+Combinations of object storages
+
+
+Integrations
+
+Reading
+
+Feature Stores
+One billion row challenge
+Alexey Milovidov interview with CSDN
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">精巧实用的功能</span></h2>
+<div style="position: absolute; bottom: 10px; right: 10px; font-size: 8pt; text-shadow: 1px 1px 1px white; color: gray;">摄影：Tanya Hart，2011，CC-BY-SA-2.0</div>
+</section>
+
+<section class="slide">
+<h2>Punycode 函数</h2>
+
+<p><b>punycodeEncode</b>, <b>punycodeDecode</b>, <b>idnaEncode</b>, <b>idnaDecode</b></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green">punycodeEncode</b>('ClickHouse是一个很好的数据库')
+
+ClickHouse-zf2pypw92j24o7ldjpvw6hdrd236i
+
+:) SELECT <b style="color: green">idnaEncode</b>('ClickHouse.是一个不错的.数据库')
+
+clickhouse.xn--4gq0a0fy48indsd45b.xn--dxty1ibyb
+
+:) SELECT <b style="color: green">idnaDecode</b>('clickhouse.xn--4gq0a0fy48indsd45b.xn--dxty1ibyb')
+
+clickhouse.是一个不错的.数据库
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Robert Schulze。</p>
+<!--
+
+SELECT * FROM uk_price_paid ORDER BY ALL LIMIT 10
+SELECT * FROM uk_price_paid ORDER BY ALL DESC LIMIT 10
+SELECT toYear(date), medianExact(price) FROM uk_price_paid GROUP BY ALL ORDER BY ALL
+SELECT toYear(date), medianExact(price) AS m, bar(m, 0, max(m) OVER (), 20) AS b FROM uk_price_paid GROUP BY ALL ORDER BY ALL
+
+-->
+</section>
+
+<section class="slide">
+<h2>Punycode 函数</h2>
+
+<p>额外内容：
+
+<br/>&mdash; 互联网上最流行的国际化域名有哪些？</p>
+
+<p><a href="https://play.clickhouse.com/play?user=play#U0VMRUNUIHJhbmssIGlkbmFEZWNvZGUoZG9tYWluKSBGUk9NIHRyYW5jbyBXSEVSRSBkb21haW4gTElLRSAnJXhuLS0lJyBBTkQgZGF0ZSA9IHllc3RlcmRheSgpIE9SREVSIEJZIHJhbmsgTElNSVQgMTAwMA==">来查询一下……</a></p>
+
+<!--
+
+SELECT rank, idnaDecode(domain) FROM tranco WHERE domain LIKE '%xn--%' AND date = yesterday() ORDER BY rank LIMIT 1000
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Robert Schulze。</p>
+</section>
+
+<section class="slide">
+<h2>arrayShingles</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -3em;">:) SELECT
+    'ClickHouse is a good database' AS phrase,
+    tokens(phrase) AS tok,
+    <b style="color: green;">arrayShingles</b>(tok, 3) AS shingles
+
+Row 1:
+──────
+phrase:   ClickHouse is a good database
+tok:      ['ClickHouse','is','a','good','database']
+shingles: [['ClickHouse','is','a'],['is','a','good'],['a','good','database']]
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+WITH tokens(decodeHTMLComponent(extractTextFromHTML(text))) AS tok, arrayShingles(tok, 3) AS shingles SELECT arrayJoin(shingles), count() FROM hackernews WHERE length(tok) >= 3 AND text ILIKE '%databases%' GROUP BY ALL ORDER BY count() DESC LIMIT 100
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Zheng Miao。</p>
+</section>
+
+
+<section class="slide">
+<h2>quantileDD</h2>
+
+<p style="margin-top: -1em;"><b>quantileDD</b>, <b>quantile<u>s</u>DD</b>, <b>medianDD</b></p>
+
+<p><code style="font-size: 12pt; line-height: 1.25;">:) SELECT quantileExact(c), <b style="color: green;">quantileDD</b>(0.0001)(c), quantile(c),
+   quantileBFloat16(c), quantileTiming(c), quantileTDigest(c)
+FROM (
+   SELECT created_at::Date, count() AS c FROM github_events
+   WHERE repo_name = 'ClickHouse/ClickHouse'
+      AND event_type = 'PullRequestEvent' AND action = 'opened'
+   GROUP BY ALL)
+
+──────
+quantileExact(c):            19
+<b>quantileDD</b>(0.0001)(c):       19.001159522718307
+quantile(c):                 19
+quantileBFloat16(c):         19
+quantileTiming(c):           19
+quantileTDigest(c):          18.804445
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Srikanth Chekuri。</p>
+</section>
+
+<section class="slide">
+<h2>quantileDD</h2>
+
+<p><b>quantileDD</b>, <b>quantile<u>s</u>DD</b>, <b>medianDD</b></p>
+
+<p>速度快吗？</p>
+<p>演示</p>
+
+<!--
+
+SELECT OriginCityName, quantileDD(0.001, 0.9)(DepDelayMinutes) AS delay_p90, count() AS c, bar(delay_p90, 0, 100, 100) AS bar FROM ontime GROUP BY ALL ORDER BY c DESC LIMIT 100
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Srikanth Chekuri。</p>
+</section>
+
+
+<section class="slide">
+<h2>新的字符串相似度函数</h2>
+
+<p style="margin-top: -1em;"><span style="color: gray;">levenshteinDistance</span>, <b>damerauLevenshteinDistance</b>,<br/><b>jaroSimilarity</b>, <b>jaroWinklerSimilarity</b></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT word,
+          levenshteinDistance(word, 'clickhouse') AS d1,
+   <b style="color: green;">damerauLevenshteinDistance</b>(word, 'clickhouse') AS d2,
+               <b style="color: green;">jaroSimilarity</b>(word, 'clickhouse') AS d3,
+        <b style="color: green;">jaroWinklerSimilarity</b>(word, 'clickhouse') AS d4
+FROM (
+    SELECT DISTINCT arrayJoin(tokens(lower(title))) AS word
+    FROM hackernews)
+ORDER BY d1 ASC LIMIT 50
+</code></p>
+
+<p>演示。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Robert Schulze。</p>
+</section>
+
+
+<section class="slide">
+<h2>控制压缩级别</h2>
+
+<p>用于数据导出：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">:) SELECT text FROM hackernews INTO OUTFILE 'text.tsv.zst'
+   SETTINGS <b style="color: green;">output_format_compression_level</b> = 6;
+
+:) SELECT text FROM hackernews INTO OUTFILE 'text.tsv.zst'
+   SETTINGS output_format_compression_level = 6,
+            <b style="color: green;">output_format_compression_zstd_window_log</b> = 26;
+</code></p>
+
+<p>适用于本地文件、S3、HDFS 等。</p>
+
+<p>演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Duc Canh Le。</p>
+</section>
+
+
+<section class="slide">
+<h2>数据格式改进</h2>
+
+<p>新设置 <b>input_format_json_read_bools_as_strings</b>，默认启用。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT * FROM format(JSON, '{"x": <b>"Hello"</b>}, {"x": <b>false</b>}')
+
+┌─x─────┐
+│ Hello │
+│ false │
+└───────┘
+
+:) SET compatibility = '23.12'
+:) SELECT * FROM format(JSON, '{"x": "Hello"}, {"x": false}')
+
+<span style="color: gray;">Exception: Automatically defined type Bool for column 'x' in row 1
+differs from type defined by previous rows: String.</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">Replicated 数据库改进</h2>
+
+<p>SET distributed_ddl_output_mode = 'throw_only_active';
+<br/>SET distributed_ddl_output_mode = 'null_status_on_timeout_only_active';</p>
+
+<p>此前：</p>
+<p style="color: gray">Exception: Watching task /clickhouse/task_queue/ddl/query-0000151542<br/>is executing longer than distributed_ddl_task_timeout (=180) seconds. <br/>There are 1 unfinished hosts (0 of them are currently active),<br/>they are going to execute the query in background.</p>
+
+<p>现在：</p>
+<p style="color: green">不再等待非活跃副本。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Alexander Tokmakov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">性能改进</span></h2>
+<div style="position: absolute; bottom: 10px; right: 10px; font-size: 8pt; text-shadow: 1px 1px 1px black; color: gray;">摄影： <a href="https://www.flickr.com/photos/jbdodane/">jbdodane</a>, 2018, CC-BY-NC-2.0</div>
+</section>
+
+<section class="slide">
+<h2>加速 HTTP 输出</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">curl http://localhost:8123/ -d '
+  SELECT number FROM system.numbers_mt LIMIT 1000000000 FORMAT JSON
+' > /dev/null</code></p>
+
+<p style="font-family: monospace;">此前： <b style="color: red;">28 秒</b>，1.0 GB/秒。<br/>
+现在： <b style="color: green;">9.6 秒</b>，3.4 GB/秒。</p>
+
+<p>额外收获：加速只是新增功能带来的附带收益：
+<br/>为各个服务器接口分别统计网络流量指标
+<br/>&mdash; InterfaceHTTPSendBytes;
+<br/>&mdash; InterfaceHTTPReceiveBytes;
+<br/>&mdash; InterfaceNativeSendBytes;
+<br/>&mdash; ...
+</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Yakov Olkhovskiy。</p>
+</section>
+
+<section class="slide">
+<h2>加速并行副本</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5; margin-top: -1em;">SET allow_experimental_parallel_reading_from_replicas = 1,
+    max_parallel_replicas = 123;</code></p>
+
+<p>更好的缓存局部性：
+<br/>&mdash; 只要副本可用，就从相同副本读取相同范围。</p>
+
+<p>更低的尾延迟：
+<br/>&mdash; 较快的副本会从较慢副本窃取任务。</p>
+
+<p>示例：包含 100 个 pod、每个 pod 有 30 个 CPU 核心的集群：</p>
+
+<p><code style="line-height: 1.5;">Processed 38.23 billion rows, 570.69 GB
+(24.51 billion rows/s., <span class="animated">365.90</span> GB/s.)</code></p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Nikita Taranov。</p>
+</code></p>
+
+</section>
+
+<section class="slide">
+<h2>加速并行副本</h2>
+
+<p>追求更高目标：</p>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/fast.png" style="width: 100%;" />
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">加速分布式查询中的 uniqExact</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT uniqExact(WatchID) FROM remote('127.0.0.{1,2}', default.hits);</code></p>
+
+<p style="font-family: monospace;">23.12: <b style="color: red;">16.524 秒</b></p>
+<p style="font-family: monospace;">24.1: <b style="color: green;">4.545 秒</b>.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Nikita Taranov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">合并的内存优化</h2>
+
+<p>降低了 <b>横向</b> 合并算法的内存消耗
+<br/>（例如合并包含逐列 TTL 表达式的表）：</p>
+
+<p>&mdash; 在一张含 30 列、100 个数据片段的表上，<br/>&emsp; 内存占用对比为 <b style="color: green;">4.5 GiB</b> 对比 <b style="color: red;">9.1 GiB</b>!
+
+<p>降低了 <b>纵向</b> 合并算法的内存消耗
+<br/>（当存在大型值时减小数据块大小）：</p>
+
+<p>&mdash; 在一张含 Array(String) 的表上，每个数组有 1000 个 50 字节的元素，<br/>&emsp; 内存占用对比为 <b style="color: green;">90 MiB</b> 对比 <b style="color: red;">4.57 GiB</b>!
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">Keeper 的内存优化</h2>
+
+<p>降低启动时的内存消耗。</p>
+
+<p>运行时内存消耗降低 20..30%
+<br/>通过在内存中更紧凑地存放 znode 实现。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Antonio Andelic。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">更多内存优化</h2>
+
+<p><b>SYSTEM JEMALLOC PURGE</b></p>
+
+<p>释放分配器所缓存内存的命令，
+<br/>代价是损失性能。</p>
+
+<p>适用于 clickhouse-server；Keeper 则通过四字母命令提供。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Antonio Andelic。</p>
+</section>
+
+
+<section class="slide">
+<h2>FINAL 优化</h2>
+
+<p><b>FINAL</b> — 在 SELECT 查询中即时应用合并逻辑。</p>
+<p>适用于 Replacing-、Collapsing-、Aggregating-、Summing-，<br/> 以及其他 MergeTree 表。</p>
+<p>可实现唯一主键的行为，以及 OLTP 数据库中的 UPSERT、REPLACE、INSERT IGNORE 行为。</p>
+
+<p>可在查询中显式指定：
+<br/><span style="font-family: monospace;">SELECT ... FROM table FINAL</span><br/>
+或通过设置启用： <span style="font-family: monospace;">SET final = 1</span></p>
+
+<p>缺点：SELECT 会 <span style="color: red;">变慢</span>.</p>
+</section>
+
+<section class="slide">
+<h2>FINAL 优化</h2>
+
+<p>用于 ReplacingMergeTree 的纵向算法。</p>
+<p>类似于后台合并使用的纵向算法，
+<br/>&mdash; 具有更好的缓存局部性。</p>
+
+<p>Ahrefs 生产查询的示例：</p>
+
+<p style="font-family: monospace;">23.12: <b style="color: red;">8.7 秒</b>
+<br/>24.1: <b style="color: green;">3.2 秒</b>.</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Duc Canh Le。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">一些有趣的功能</span></h2>
+<div style="position: absolute; bottom: 10px; right: 10px; font-size: 8pt; text-shadow: 1px 1px 1px black; color: gray;">摄影： <a href="https://www.flickr.com/photos/jbdodane/">jbdodane</a>, 2018, CC-BY-NC-2.0</div>
+</section>
+
+
+<section class="slide">
+<h2>Variant 数据类型</h2>
+
+<p>一种能够存储不同类型值的新数据类型。</p>
+
+<p>示例： <b>Variant(UInt64, String, Array(UInt64))</b></p>
+
+<p><code style="font-size: 12pt; line-height: 1.5;">:) CREATE TABLE test (v <b style="color: green;">Variant</b>(UInt64, String, Array(UInt64))) ENGINE = Memory;
+:) INSERT INTO test VALUES (NULL), (42), ('Hello, World!'), ([1, 2, 3]);
+:) SELECT v FROM test;
+
+┌─v─────────────┐
+│ ᴺᵁᴸᴸ          │
+│ 42            │
+│ Hello, World! │
+│ [1,2,3]       │
+└───────────────┘
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>Variant 数据类型</h2>
+
+<p>允许创建包含不兼容类型的 <b>Array</b>、 <b>Map</b>，
+<br/>或在条件表达式中组合这些类型：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25;">:) SET allow_experimental_variant_type = 1, use_variant_as_common_type = 1;
+:) SELECT number % 2 ? 'Hello' : 123 AS x, toTypeName(x) AS t FROM numbers(3)
+
+┌─x─────┬─t──────────────────────┐
+│ 123   │ Variant(String, UInt8) │
+│ Hello │ Variant(String, UInt8) │
+│ 123   │ Variant(String, UInt8) │
+└───────┴────────────────────────┘
+
+:) SELECT map('Hello', 1, 'World', [2, 3]) AS x, toTypeName(x) AS t
+
+┌─x─────────────────────────┬─t─────────────────────────────────────────┐
+│ {'Hello':1,'World':[2,3]} │ Map(String, Variant(Array(UInt8), UInt8)) │
+└───────────────────────────┴───────────────────────────────────────────┘
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>Variant 数据类型</h2>
+
+<p>通过显式类型转换或子列读取：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25;">:) CREATE TEMPORARY TABLE test (x Variant(UInt64, String, Array(String)));
+:) INSERT INTO test VALUES (123), ('Hello'), (['World', 'Googbye']);
+:) SELECT x FROM test;
+
+┌─x───────────────────┐
+│ 123                 │
+│ Hello               │
+│ ['World','Googbye'] │
+└─────────────────────┘
+
+:) SELECT x::String FROM test;     <span style="color: gray;">│</span>    :) SELECT x.String FROM test;
+                                   <span style="color: gray;">│</span>
+┌─x───────────────────┐            <span style="color: gray;">│</span>    ┌─x.String─┐
+│ 123                 │            <span style="color: gray;">│</span>    │ ᴺᵁᴸᴸ     │
+│ Hello               │            <span style="color: gray;">│</span>    │ Hello    │
+│ ['World','Googbye'] │            <span style="color: gray;">│</span>    │ ᴺᵁᴸᴸ     │
+└─────────────────────┘            <span style="color: gray;">│</span>    └──────────┘
+</code></p>
+</section>
+
+
+<section class="slide">
+<h2>Variant 数据类型</h2>
+
+<p>从所有支持的半结构化格式（CSV、TSV、JSON 等）导入：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; margin-right: -2em;">:) SELECT v, variantElement(v, 'String') AS str,
+  variantElement(v, 'UInt64') AS num, variantElement(v, 'Float64') AS float,
+  variantElement(v, 'DateTime') AS date, variantElement(v, 'Array(UInt64)') AS arr
+FROM format(JSONEachRow, 'v Variant(String, UInt64, Float64, DateTime, Array(UInt64))',
+$$ <span style="color: #099;">{"v" : "Hello, World!"}, {"v" : 42}, {"v" : 42.42},
+   {"v" : "2020-01-01 00:00:00"}, {"v" : [1, 2, 3]}</span> $$)
+
+┌─v───────────────────┬─str───────────┬──num─┬─float─┬────────────────date─┬─arr─────┐
+│ Hello, World!       │ Hello, World! │ ᴺᵁᴸᴸ │  ᴺᵁᴸᴸ │                ᴺᵁᴸᴸ │ []      │
+│ 42                  │ ᴺᵁᴸᴸ          │   42 │  ᴺᵁᴸᴸ │                ᴺᵁᴸᴸ │ []      │
+│ 42.42               │ ᴺᵁᴸᴸ          │ ᴺᵁᴸᴸ │ 42.42 │                ᴺᵁᴸᴸ │ []      │
+│ 2020-01-01 00:00:00 │ ᴺᵁᴸᴸ          │ ᴺᵁᴸᴸ │  ᴺᵁᴸᴸ │ 2020-01-01 00:00:00 │ []      │
+│ [1,2,3]             │ ᴺᵁᴸᴸ          │ ᴺᵁᴸᴸ │  ᴺᵁᴸᴸ │                ᴺᵁᴸᴸ │ [1,2,3] │
+└─────────────────────┴───────────────┴──────┴───────┴─────────────────────┴─────────┘
+
+</code></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/back6.jpg); background-size: cover;">
+<h2 style="color: white; text-shadow: 1px 1px 1px black;">额外内容</h2>
+<div style="position: absolute; bottom: 10px; right: 10px; font-size: 8pt; color: black;">摄影： <a href="https://www.flickr.com/photos/bjacques/">
+Carl Guderian</a>, 2013, CC-BY-SA-NC-2.0</div>
+</section>
+
+<section class="slide">
+<h2>额外内容</h2>
+
+<p>基于对象存储和元数据存储，<br/>对虚拟文件系统进行组合式配置。</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25;">storage_configuration:
+    disks:
+        my_disk:
+            <s>type: s3</s>
+            type: <b>object_storage</b>
+            <b style="color: green;">object_storage_type: s3</b>
+            <b style="color: green;">metadata_storage_type: local</b>
+            path: 's3_disk/'
+            endpoint: 'https://mybucket.s3.amazonaws.com/test/'
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Kseniia Sumarokova。</p>
+</section>
+
+<section class="slide">
+<h2>额外内容</h2>
+
+<p>所有对象存储类型：
+<br/>&mdash; s3;
+<br/>&mdash; web;
+<br/>&mdash; hdfs;
+<br/>&mdash; azure_blob_storage;
+<br/>&mdash; local_blob_storage;
+</p>
+
+<p>可与所有元数据类型组合：
+<br/>&mdash; local;
+<br/>&mdash; web;
+<br/>&mdash; plain;
+</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Kseniia Sumarokova。</p>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>Grafana 插件 v4-beta</b></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/grafana.png); background-size: cover;">
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+
+<p><b>ClickPipes</b>:
+<br/>&mdash; 支持 <b>Azure Event Hub</b>, <b>Redpanda</b>, <b>Warpstream</b>, <b>Upstash</b>;
+<br/>&mdash; 可配置的身份验证；
+</p>
+
+<p>更新了 <b>PowerBI</b>, <b>Metabase</b>, <b>Java</b> 客户端， <b>Kafka</b> 连接器， <b>JavaScript</b> 客户端。</p>
+</section>
+
+<section class="slide">
+<img style="float: right; margin-top: -1em; margin-right: -4em; width: 40%; image-rendering: pixelated; margin-bottom: -10em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/interview.png"/>
+<h2>阅读园地</h2>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; 将 ClickHouse 用于特征存储；
+<br/>&mdash; 攻克“十亿行挑战”；
+<br/>&mdash; Alexey 接受 CSDN 的采访；
+</p>
+
+<p>视频录像： <a href="https://www.youtube.com/c/ClickHouseDB">https://www.youtube.com/c/ClickHouseDB</a></p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.1/pictures/back7.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/pBF9g0wGAGs" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
