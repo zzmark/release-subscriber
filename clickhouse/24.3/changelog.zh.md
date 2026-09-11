@@ -7,7 +7,7 @@
 </Frame>
 
 <h4 id="upgrade-notes-1">
-  Upgrade Notes
+  升级说明
 </h4>
 
 * 默认启用设置 `allow_experimental_analyzer`，将查询分析切换到兼容性更好、功能更完整的新实现。“analyzer”功能由实验性提升为 beta。可将 `compatibility` 设为 `24.2`，或禁用 `allow_experimental_analyzer`，以恢复旧行为。观看 [YouTube 视频](https://www.youtube.com/watch?v=zhrOYQpgvkk)。
