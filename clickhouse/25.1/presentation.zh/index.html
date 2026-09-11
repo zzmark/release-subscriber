@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.1 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.1 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.1 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2025-01-28。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 10px; line-height: 110%; font-size: 56pt; color: white; text-shadow: black 1px 0 10px; text-align: center;">ClickHouse 25.1 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>25.1 版本网络研讨会</h2>
+<p>1.（55 分钟）ClickHouse 25.1 新增内容。</p>
+<p>2.（5 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">25.1 版本</span></h2>
+<p><span class="hilite">ClickHouse 新年版本。</span></p>
+<p><span class="hilite">— 15 项新功能 🎁</span></p>
+<p><span class="hilite">— 36 项性能优化 ⛸️</span></p>
+<p><span class="hilite">— 77 项错误修复 ⛄</span></p>
+</section>
+<!--
+
+Small
+
+script_line_number, script_query_number
+subcolumns in keys
+Parallel DDL
+Min-max indices by default
+Better SETTINGS in CREATE query
+JSON is pretty by default
+Prompt for binary formats in the terminal
+Trailing spaces
+Multi-line fields
+Autodetect compression in CLI
+Cut column names
+Squash pretty
+Fallback to Vertical
+
+Performance
+
+trace_log is symbolized
+In-memory index cache
+Speed-up parallel hash JOIN
+Faster parallel replicas
+
+Main
+
+Lightweight Updates
+generateSerialID
+Better merge tables
+Streaming results over HTTP
+Partition pruning for Iceberg
+
+Bonus
+
+Roadmap 2025
+chDB
+Compute-compute separation
+
+Integrations
+
+
+Reading
+
+Evolution of the Cloud
+Compute-compute separation
+Graviton
+BuzzHouse
+Medalion architecture for BlueSky
+Evidence with ClickHouse
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">小功能 🎁</span></h2>
+</section>
+
+<section class="slide">
+<h2>在表的键中使用子列</h2>
+
+<p style="color: red;">24.12:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE test
+(
+    t Tuple(a UInt8, s String)
+) ORDER BY <span style="color: red;">tupleElement(t, 'a')</span>
+</code></p>
+
+<p style="color: green;">25.1:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE test
+(
+    t Tuple(a UInt8, s String)
+) ORDER BY <b style="color: green;">t.a</b> <span style="color: gray;">-- much better!</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>在表的键中使用子列</h2>
+
+<p>配合新的 <b>JSON</b> 数据类型尤其有用！</p>
+
+<p style="color: red;">24.12:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em;">CREATE TABLE test
+(
+    data JSON
+) ORDER BY <span style="color: red;">getSubcolumn(data, 'headers.referer')</span>
+</code></p>
+
+<p style="color: green;">25.1:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em;">CREATE TABLE test
+(
+    data JSON
+) ORDER BY <b style="color: green;">data.headers.referer</b> <span style="color: gray;">-- much better!</span>
+</code></p>
+
+<p>支持主键和二级索引。</p>
+</section>
+
+<section class="slide">
+<h2>记录行号和查询编号</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">clickhouse-client --query "
+    <span style="color: gray;">-- First query:</span>
+    SELECT 1;
+    <span style="color: gray;">-- Second query:</span>
+    SELECT 2;
+"
+</code></p>
+
+<p>运行脚本时，每条查询的编号及其起始行号都会记录到查询日志和文本日志中。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>并行 DDL 查询</h2>
+
+<p><code style="font-size: 18pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE t1 (...)
+<b style="color: green;">PARALLEL WITH</b>
+CREATE TABLE t2 (...)
+...
+</code></p>
+
+<p>适用于不返回任何输出的查询<br/>（CREATE、DROP、RENAME、ALTER、OPTIMIZE 等）。</p>
+<p>此功能旨在加快 <b>RESTORE</b> 命令的执行。</p>
+<p>也可加快复杂数据库结构的创建。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vitaly Baranov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">在表级别启用 MinMax 索引</h2>
+
+<p style="color: red;">24.12:</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em;">CREATE TABLE t
+(
+    a UInt64, b UInt64, c UInt64,
+    INDEX idx_a(a) TYPE minmax,
+    INDEX idx_b(b) TYPE minmax,
+    INDEX idx_c(c) TYPE minmax
+) ORDER BY ();
+</code></p>
+
+<p style="color: green;">25.1:</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em;">CREATE TABLE t
+(
+    a UInt64, b UInt64, c UInt64
+) ORDER BY () SETTINGS <b style="color: green;">add_minmax_index_for_numeric_columns</b> = 1;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Smita Kulkarni。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">在未指定引擎的 CREATE TABLE 中使用设置</h2>
+
+<p><b>24.12</b>:</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em;">:) CREATE TABLE t
+(
+    a UInt64, b UInt64, c UInt64
+) <span style="color: gray;">/*ENGINE=MergeTree*/</span> ORDER BY () SETTINGS index_granularity = 8192;
+
+<span style="color: red;">Code: 115. DB::Exception: Unknown setting 'index_granularity'.</span>
+
+:) CREATE TABLE t2 AS t SETTINGS index_granularity = 8192;
+
+<span style="color: red;">Code: 115. DB::Exception: Unknown setting 'index_granularity'.</span>
+</code></p>
+
+<p><b style="color: green;">25.1</b>：一切正常！<br/>甚至可以混用查询级和表级设置。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Raul Marin。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">在 JSON 输出格式中美化 JSON</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em;">:) SELECT '<span style="color: brown;">{"a":{"b":{"c":[123]}}}</span>'::JSON AS x FORMAT JSON
+</code></p>
+
+<table><tr><td style="width: 50%;">
+<p>24.12:</p>
+<p><code style="font-size: 12pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em; margin-right: 1em;">"data":
+[
+  {
+    "x": {"a":{"b":{"c":[123]}}}
+  }
+]
+</code></p>
+<p style="font-size: 14pt;">在 24.5 中，也由 <b>output_format_json_pretty_print</b> 设置控制。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">这适用于 JSON、JSONCompact 等展示型格式，不适用于 JSONEachRow、JSONCompactEachRow 等面向行的格式。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pavel Kruglov。</p>
+
+</td><td style="width: 50%;">
+<p>25.1:</p>
+<p><code style="font-size: 12pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em;">"data":
+[
+  {
+    "x": {
+      "a": {
+        "b": {
+          "c": [
+            123
+          ]
+        }
+      }
+    }
+  }
+]
+</code></p>
+</tr></table>
+</section>
+
+<section class="slide">
+<h2>写入二进制格式前请求确认</h2>
+
+<p><code style="font-size: 12pt; line-height: 1.25; white-space: pre-wrap;"><span style="color: gray"># This is a text format:</span>
+$ clickhouse-client -q "SELECT * FROM table FORMAT JSON"
+
+<span style="color: gray"># This is a binary format, and we are writing into a file:</span>
+$ clickhouse-client -q "SELECT * FROM table FORMAT Parquet" > file.parquet
+
+<span style="color: gray"># This is a binary format, and we are writing to the terminal:</span>
+$ clickhouse-client -q "SELECT * FROM table FORMAT Parquet"
+
+<span style="color: brown">The requested output format `Parquet` is binary and could produce side-effects when output directly into the terminal.
+If you want to output it into a file, use the "INTO OUTFILE" modifier in the query or redirect the output of the shell command.
+Do you want to output it anyway? [y/N]</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2>突出显示行尾空格</h2>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) SELECT 'Hello, ' AS a, 'World\n  ' AS b;
+</code></p>
+
+<p style="color: gray;">在命令行界面中会如何显示？</p>
+<p>演示</p>
+
+<p>由 <b>output_format_pretty_highlight_trailing_spaces</b> 设置控制。</p>
+
+<!--
+programs/server/clickhouse-24.10 local
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2>显示多行值</h2>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) SELECT 'Hello' AS a, 'Beautiful\nWorld' AS b
+   UNION ALL SELECT 'World', 'Goodbye' FORMAT Pretty;
+</code></p>
+
+<p style="color: gray;">在命令行界面中会如何显示？</p>
+<p>演示</p>
+
+<!--
+programs/server/clickhouse-24.10 local
+SELECT name, description FROM system.functions;
+-->
+
+<p>由 <b>output_format_pretty_multiline_fields</b> 设置控制。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 30pt">缩短列名</h2>
+<p>在 Pretty 格式中：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre;">:) SELECT time::Date,
+          uniq(data.headers.`cf-connecting-ip`),
+          uniq(data.url)
+   FROM website_traffic
+   WHERE time >= yesterday() GROUP BY 1 ORDER BY 1
+
+   ┌─<b>CAST(time, 'Date')</b>─┬─<b>uniq(data.he⋯necting-ip)</b>─┬─<b>uniq(data.url)</b>─┐
+1. │         2025-01-27 │                   897995 │          65974 │
+2. │         2025-01-28 │                   246953 │          21596 │
+   └────────────────────┴──────────────────────────┴────────────────┘
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">改进压缩格式自动检测</h2>
+
+<p><code style="font-size: 16pt; line-height: 1.25; white-space: pre;"><span style="color: gray;"># The easiest way to convert data between formats.</span>
+<span style="color: gray;"># The compression is automatically detected from file names:</span>
+$ ch --copy &lt; data.csv.gz > data.jsonl.zst
+
+<span style="color: gray;"># Process the data and convert it on the fly:</span>
+$ ch --query "
+<span style="color: teal;">SELECT * FROM table WHERE upyachka != 'fail'</span>
+" &lt; data.avro.gz > result.parquet
+</code></p>
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">在 Pretty 格式中自动合并输出块</h2>
+
+<p>ClickHouse 24.12:</p>
+<p><code style="font-size: 12pt; line-height: 1.25; white-space: pre-wrap;">:) SELECT * FROM system.numbers WHERE number % 30000 = 1 LIMIT 10;
+
+   ┌─number─┐
+1. │      1 │
+2. │  30001 │
+3. │  60001 │
+   └────────┘
+   ┌─number─┐
+4. │  90001 │
+5. │ 120001 │
+   └────────┘
+</code></p>
+
+<p>一定要这样显示吗？<b style="color: green;">现在不必了！</b> 演示。</p>
+
+<!--
+
+programs/server/clickhouse-24.10 local
+SELECT * FROM system.numbers WHERE number % 30000 = 1 LIMIT 5
+ch
+SELECT * FROM system.numbers WHERE number % 300000000 = 1 LIMIT 5
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>回退到 Vertical 格式</h2>
+
+<p>演示</p>
+
+<!--
+
+programs/server/clickhouse-24.10 local
+SELECT * FROM system.tables WHERE name = 'tables' LIMIT 1
+ch
+SELECT * FROM system.tables WHERE name = 'tables' LIMIT 1
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/back4.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>更快的并行哈希连接</h2>
+
+<p>从 24.12 起，并行哈希连接成为默认算法。</p>
+<p>现在更快了。演示。</p>
+
+<!--
+
+~/work/ClickHouse/programs/server/clickhouse-24.12 local
+
+CREATE TABLE test1 (a Int64, b String, c LowCardinality(String)) ENGINE = MergeTree() ORDER BY a;
+CREATE TABLE test2 (a Int64, b String, c LowCardinality(String)) ENGINE = MergeTree() ORDER BY a;
+
+INSERT INTO test1 SELECT number % 10000, number % 10000, number % 10000 FROM numbers(10000000);
+INSERT INTO test2 SELECT number % 1000 , number % 1000, number % 1000 FROM numbers(100000);
+
+SELECT max(test2.a) FROM test1 INNER JOIN test2 ON test1.b = test2.b SETTINGS join_algorithm = 'parallel_hash';
+
+ch
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Nikita Taranov。</p>
+</section>
+
+
+<section class="slide">
+<h2>更快的向量索引</h2>
+
+<p>使用新的二级索引缓存，由服务器设置<br/><b>skipping_index_cache_size</b> 和 <b>skipping_index_cache_max_entries</b> 控制。</p>
+
+<p>示例：表中有 33,114,778 个 768 维嵌入向量：</p>
+<p>全表扫描：<b style="color: red;">216 秒</b>.
+<br/>索引搜索（不使用缓存）：<b style="color: brown;">33 秒</b>.
+<br/>索引搜索（使用缓存）：<b style="color: green;">0.064 秒</b> 🚀</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Robert Schulze、Michael Kolupaev。</p>
+</section>
+
+<section class="slide">
+<h2>更快的并行副本</h2>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/parallel_replicas.png" style="width: 100%">
+
+<p>ClickHouse 25.1 在 ClickBench 上的性能提升了 &mdash; <b style="color: green;">40%</b>！</p>
+
+<p style="color: gray; font-size: 14pt;">并行副本（通过 <b>enable_parallel_replicas</b> 设置启用）允许单个查询使用所有副本的资源，以加快繁重查询，尤其适用于共享存储场景。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Igor Nikonov、Nikita Taranov。</p>
+</section>
+
+<section class="slide">
+<h2>trace_log 记录符号信息</h2>
+
+<p><b>system.trace_log</b> 表包含 ClickHouse 内置采样性能分析器的调用栈。</p>
+<p style="color: gray; font-size: 14pt;">采样性能分析器收集查询耗时位置及内存分配位置的信息，并支持生成<b>火焰图</b>，分析范围既可细化到单条查询，也可按时间跨集群聚合。</p>
+
+<p>在 ClickHouse 24.12 中，其中记录的是机器码中的<b>地址</b>，可以使用 <b>addressToLine</b> 和 <b>addressToSymbol</b> 函数即时转换为代码位置。这些信息在每次版本发布后都会失效。</p>
+
+<p>在 ClickHouse 25.1 中，新增持久化的 <b>symbols</b> 和 <b>lines</b> 列，因此可以跨不同构建版本进行分析。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">一些有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>轻量级更新</h2>
+<p>也称为“即时变更操作”。</p>
+<p><code>SET apply_mutations_on_fly = 1;</code></p>
+
+<p>现在，所有 ALTER UPDATE/DELETE 都会在 SELECT 查询时即时应用，即使相应操作尚未完全物化。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Anton Popov。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">此功能已为 ClickHouse Cloud 客户启用一年多，现在也已在常规 MergeTree 和 ReplicatedMergeTree 引擎中实现。</p>
+</section>
+
+<section class="slide">
+<h2>自增</h2>
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE test
+(
+    id UInt64 DEFAULT <b style="color: green;">generateSerialID('test')</b>,
+    data String
+)
+ORDER BY id;
+
+INSERT INTO test (data) VALUES VALUES ('Hello'), ('World');
+</code></p>
+
+<p>新的 <b>generateSerialID</b> 函数实现了命名分布式计数器<br/>（存储于 Keeper），可用于表中的自增值。</p>
+<p>借助批处理，它速度很快，并能安全地用于并行和分布式操作。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>更完善的 Merge 表</h2>
+<p style="color: gray; margin-top: -1em;">通过 <b>Merge</b> 表引擎，可以将多个表统一为一个表。<br/>也可使用 <b>merge</b> 表函数。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE t1 (a UInt8, b String) ENGINE = Memory;
+CREATE TABLE t2 (a Int32, c Array(String)) ENGINE = Memory;
+CREATE TABLE merge_table ENGINE = <b>Merge</b>(currentDatabase(), '^t(1|2)$');
+SELECT * FROM merge_table;
+SELECT * FROM <b>merge</b>('^t(1|2)$');
+</code></p>
+
+<p>在 24.12 版本中，Merge 表采用<b>第一个表</b>
+<br/>的结构（除非显式指定结构）。</p>
+
+<p>在 25.1 版本中，Merge 表采用所有表的<b>列的并集</b>。<br/>甚至会将数据类型统一为公共类型或 Variant 数据类型。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>通过 HTTP 流式传输事件</h2>
+<p><code style="font-size: 10pt; line-height: 1.25; overflow-x: scroll; margin-top: -1em;">$ curl http://localhost:8123/ -d "SELECT number % 3 AS k, count()
+FROM numbers(1e9) GROUP BY k WITH TOTALS FORMAT JSONEachRowWithProgress"
+
+{"progress":{"read_rows":"74631669","read_bytes":"597053352","total_rows_to_read":"1000000000","elapsed_ns":"100040117"}}
+{"progress":{"read_rows":"151160199","read_bytes":"1209281592","total_rows_to_read":"1000000000","elapsed_ns":"200065327"}}
+{"progress":{"read_rows":"227754138","read_bytes":"1822033104","total_rows_to_read":"1000000000","elapsed_ns":"300115954"}}
+{"progress":{"read_rows":"304348077","read_bytes":"2434784616","total_rows_to_read":"1000000000","elapsed_ns":"400193152"}}
+{"progress":{"read_rows":"380680380","read_bytes":"3045443040","total_rows_to_read":"1000000000","elapsed_ns":"500227569"}}
+...
+{"progress":{"read_rows":"762472713","read_bytes":"6099781704","total_rows_to_read":"1000000000","elapsed_ns":"1000340080"}}
+{"progress":{"read_rows":"838870425","read_bytes":"6710963400","total_rows_to_read":"1000000000","elapsed_ns":"1100394164"}}
+{"progress":{"read_rows":"914548638","read_bytes":"7316389104","total_rows_to_read":"1000000000","elapsed_ns":"1200466502"}}
+{"progress":{"read_rows":"990880941","read_bytes":"7927047528","total_rows_to_read":"1000000000","elapsed_ns":"1300489758"}}
+{"progress":{"read_rows":"1000000000","read_bytes":"8000000000","total_rows_to_read":"1000000000","elapsed_ns":"1312531422"}}
+{"meta":[{"name":"k","type":"UInt8"},{"name":"count()","type":"UInt64"}]}
+{"row":{"k":0,"count()":"333333334"}}
+{"row":{"k":1,"count()":"333333333"}}
+{"row":{"k":2,"count()":"333333333"}}
+{"totals":{"k":0,"count()":"1000000000"}}</code></p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>通过 HTTP 流式传输事件</h2>
+<p style="margin-right: -3em;">格式 <b>JSONEachRowWithProgress</b>, <b>JSONStringsEachRowWithProgress</b>
+<br/> 以流的形式传输换行分隔的 JSON 事件，每个事件可以是以下之一：<br/><b>progress</b>, <b>meta</b>, <b>row</b>, <b>totals</b>, <b>extremes</b>, <b>exception</b>，一旦事件产生便立即发送。</p>
+
+<p>可正确配合 Transfer-Encoding: chunked 使用，即使启用 HTTP 压缩（Content-Encoding: gzip/deflate/brotli/zstd）也不受影响。</p>
+
+<p>演示。</p>
+
+<!--
+
+https://play.clickhouse.com/
+
+Progress:
+
+SELECT number, sleep(.2) FROM numbers(1e6) WHERE number % 100000 = 123
+
+SELECT count() FROM github_events WHERE actor_login = 'alexey-milovidov'
+SELECT repo_name, firstLine(body) FROM github_events WHERE actor_login = 'alexey-milovidov' AND body != '' AND repo_name NOT LIKE '%ClickHouse%'
+SELECT repo_name, firstLine(body) FROM github_events WHERE actor_login = 'nickitat' AND body != '' AND repo_name NOT LIKE '%ClickHouse%'
+
+Cancellation:
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Alexey Milovidov。</p>
+<p style="color: gray; font-size: 14pt;">注：这些格式早已存在，但之前的实现并不符合我的预期。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">额外内容</span></h2>
+</section>
+
+<section class="slide">
+<a href="https://github.com/ClickHouse/ClickHouse/issues/74046"><img style="width: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/roadmap.png"></a>
+</section>
+
+<section class="slide">
+<h2>chDB 3.0</h2>
+<img style="width: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/chdb.png">
+</section>
+
+<section class="slide" style="background-color: #181808;">
+<h2 style="color: white;">计算与计算分离</h2>
+<img style="height: 80%; margin-top: -2em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/warehouses.png">
+</section>
+
+<section class="slide">
+<h2>还有什么？</h2>
+<p>我们加快了从 <b>Iceberg</b> 读取数据的速度！</p>
+<p><span style="color: gray;">不多说。</span> 安装 25.1，亲自试一试。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Dan Ivanik。</p>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+
+<p><b>ClickPipes</b> 支持重命名列。</p>
+<p><b>JDBC</b> 驱动改进了标准符合性和可靠性。</p>
+<p><b>dbt</b> 现已支持可刷新物化视图。</p>
+<p><b>Grafana</b> 初步支持 Variant、Dynamic 和 JSON 数据类型。</p>
+<p><b>Go</b> 客户端完整支持 Variant、Dynamic 和 JSON 数据类型。</p>
+<p>提供 <b>Dataflow</b> 模板，用于将数据从 BigQuery 传输到 ClickHouse。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流活动</h2>
+<p>
+<span class="hilite">&mdash; 🇭🇷 萨格勒布，1 月 30 日</span>
+<br/><span class="hilite">&mdash; 🇧🇪 FOSDEM，布鲁塞尔，2 月 1、2 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 孟买，2 月 1 日</span>
+<br/><span class="hilite">&mdash; 🇬🇧 伦敦，2 月 5 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 班加罗尔，2 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇦🇪 迪拜，2 月 10 日</span>
+</p>
+<p><span class="hilite">我会亲自参加其中的一些活动 :)</span></p>
+</section>
+
+
+<section class="slide">
+<h2>阅读角 🧶</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: 1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;">&mdash; 云的演进<br/>&mdash; 计算与计算分离<br/>&mdash; ARM 支持之路<br/>&mdash; BuzzHouse &mdash; 对 ClickHouse 进行模糊测试<br/>&mdash; BlueSky 的奖章架构<br/>&mdash; 搭配 ClickHouse 使用 Evidence.dev<br/>&mdash; 利用监控仪表板解决问题<br/>&mdash; IBM, M3ter, AMP, Increff...
+</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.1/pictures/back7.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/4w7zWG7NoSY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
