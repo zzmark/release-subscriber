@@ -45,64 +45,64 @@
 </section>
 <!--
 
-Small
+小功能
 
 default_compression_codec
-Persistent databases in clickhouse-local
-Random early drop of queries
-Inline credentials for Kafka
-bind_host for cluster nodes
+clickhouse-local 中的持久化数据库
+随机提前丢弃查询
+Kafka 内联凭据
+集群节点的 bind_host
 
-Performance
+性能
 
-Lazy columns
-Filters from WHERE to JOIN
-Sharding for JOINs
+延迟读取列
+将筛选条件从 WHERE 移至 JOIN
+JOIN 分片
 
-Main
+主要功能
 
-Correlated subqueries
-CPU scheduling
+相关子查询
+CPU 调度
 
-Iceberg: time travel
-Iceberg: in-memory cache
-Iceberg: data pruning on min/max
-Delta Lake: on Azure
-Delta Lake: partition pruning
+Iceberg：时间旅行
+Iceberg：内存缓存
+Iceberg：基于 min/max 的数据裁剪
+Delta Lake：支持 Azure
+Delta Lake：分区裁剪
 
-ClickHouse-native data lake
-
-
-Guest Talk
-
-Integrations
-
-Private Link for ClickPipes
-Terraform for ClickPipes
-Prometheus metrics for ClickPipes
-Notifications for ClickPipes
-Mutual TLS
-
-Metabase: now official
-
-Updates to ODBC, JDBC, and Java client.
+ClickHouse 原生数据湖
 
 
-Bonus
+嘉宾分享
 
-SSH protocol (password)
-Observability in ClickHouse Cloud
+集成
+
+ClickPipes 的 Private Link
+ClickPipes 的 Terraform 支持
+ClickPipes 的 Prometheus 指标
+ClickPipes 通知
+双向 TLS
+
+Metabase：现已获得官方支持
+
+ODBC、JDBC 和 Java 客户端更新。
+
+
+额外内容
+
+SSH 协议（密码）
+ClickHouse Cloud 中的可观测性
 OpenHouse
 
 
-Reading
+阅读
 
 MySQL CDC
-Ruby analytics
-Dash0, Poizon, Last9
-A year of Rust in ClickHouse
-Query Condition Cache
-Make Before Break
+Ruby 分析
+Dash0、Poizon、Last9
+ClickHouse 使用 Rust 的一年
+查询条件缓存
+先建立再断开
 Harvey
 
 -->
@@ -241,7 +241,7 @@ remote_servers:
 
 <!--
 
-1. Cloud service
+1. 云服务
 
 SET query_plan_optimize_lazy_materialization = 1, query_plan_max_limit_for_lazy_materialization = 100, compatibility = '25.5', read_through_distributed_cache = 0, use_page_cache_with_distributed_cache = 0, enable_filesystem_cache = 1;
 
@@ -623,10 +623,10 @@ SELECT count() FROM hackernews_history;
     <div class="progress"></div>
     <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
 
-    <!--Video plugin-->
+    <!--视频插件-->
     <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
     <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
-    <!--/Video plugin-->
+    <!--/视频插件-->
 <footer class="badge">
     <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
 </footer>
