@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：22.7 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.7/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：22.7 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.7/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+         table, tr, td { border: 0; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：22.7 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2022-07-21。</p>
+    </header>
+    <section class="slide" id="cover">
+        <img src="https://presentations.clickhouse.com/original_website/logo.svg" style="width: 15%; position: absolute; right: 20px; bottom: 20px;" />
+        <h1 style="margin-top: 80px; line-height: 150%; color: black; font-size: 64pt">ClickHouse<br/>22.7 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>22.7 版本网络研讨会</h2>
+<p>1.（45 分钟）ClickHouse 22.7 新增内容。</p>
+<p>2.（15 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: linear-gradient(to bottom, #46CDFD, #FEE269);">
+<div style="float: right; font-size: 500%; line-height: 1.25">🌤</div>
+<h2>22.7 版本</h2>
+<p>ClickHouse“仲夏”版本。</p>
+<p style="margin-top: 2em;">— 24 项新功能</p>
+<p>— 19 项性能优化</p>
+</section>
+
+<section class="slide">
+<h2>表达式中的窗口函数</h2>
+<code style="font-size: 70%; line-height: 1.25; margin-top: -1.5em;">SELECT
+    y::String || '.'
+        || (y &lt; toYear(today()) - 2000 - 1 ? '*' : m::String) AS Version,
+    (n &lt;= 3 OR (is_lts AND lts_n &lt;= 2)) ? '✔️' : '❌' AS Supported
+FROM (
+    SELECT y, m,
+        <b style="color: green;">count() OVER (ORDER BY y DESC, m DESC) AS n,</b>
+        m IN (3, 8) AS is_lts,
+        <b style="color: green;">countIf(is_lts) OVER (ORDER BY y DESC, m DESC) AS lts_n</b>
+    FROM (
+        WITH extractGroups(version, 'v(\d+)\.(\d+)') AS v,
+             v[1]::INT AS y, v[2]::INT AS m
+        SELECT y, m
+        FROM file('version_date.tsv', TSV, 'version String, date String')
+        ORDER BY y DESC, m DESC
+        LIMIT 1 BY y, m)
+)
+LIMIT 1 BY Version
+FORMAT Markdown</code>
+</section>
+
+<section class="slide">
+<h2>表达式中的窗口函数</h2>
+<code style="font-size: 70%; line-height: 1.25; margin-top: -1.5em;">WITH
+    <b style="color: green;">count() OVER (ORDER BY y DESC, m DESC) AS n</b>,
+    m IN (3, 8) AS is_lts,
+    <b style="color: green;">countIf(is_lts) OVER (ORDER BY y DESC, m DESC) AS lts_n</b>
+SELECT
+    y::String || '.'
+        || (y &lt; toYear(today()) - 2000 - 1 ? '*' : m::String) AS Version,
+    (n &lt;= 3 OR (is_lts AND lts_n &lt;= 2)) ? '✔️' : '❌' AS Supported
+FROM (
+    WITH extractGroups(version, 'v(\d+)\.(\d+)') AS v,
+        v[1]::INT AS y, v[2]::INT AS m
+    SELECT y, m
+    FROM file('version_date.tsv', TSV, 'version String, date String')
+    ORDER BY y DESC, m DESC
+    LIMIT 1 BY y, m)
+LIMIT 1 BY Version
+FORMAT Markdown</code>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Dmitriy Novik。</p>
+</section>
+
+
+<section class="slide">
+<h2>SQLInsert 格式</h2>
+<p><code style="font-size: 95%; line-height: 1.25;">SELECT * FROM numbers(10) FORMAT SQLInsert
+
+INSERT INTO table (`number`) VALUES (0), (1), (2), (3),
+(4), (5), (6), (7), (8), (9)
+;</code></p>
+
+<p>由以下设置控制：<br/>
+&mdash; output_format_sql_insert_max_batch_size;<br/>
+&mdash; output_format_sql_insert_table_name;<br/>
+&mdash; output_format_sql_insert_include_column_names;<br/>
+&mdash; output_format_sql_insert_use_replace;<br/>
+&mdash; output_format_sql_insert_quote_names;
+</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>MongoDB 表函数</h2>
+<p><code style="font-size: 95%; line-height: 1.25;">db.hits.aggregate(
+    [
+        { $group: { _id: '$SearchPhrase' } },
+        { $count: 'value' },
+        { $project: { key: null, value: 1, } }
+    ],
+    {allowDiskUse: true});</code></p>
+
+<p><code style="font-size: 95%; line-height: 1.25;">SELECT COUNT(DISTINCT SearchPhrase)
+FROM <b style="color: green">mongodb</b>('localhost:27017', 'test', 'hits',
+    'root', '', structure = 'SearchPhrase String');</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Anastasia Petrenko、Ksenia Sumarokova。</p>
+</section>
+
+<section class="slide">
+<h2>MongoDB 表函数</h2>
+<p>MongoDB 查询 &mdash; <span style="color: red;">7 分 47 秒</span></p>
+<p>ClickHouse 查询 MongoDB &mdash; <span style="color: red;">11 分 56 秒</span> :(</p>
+</section>
+
+<section class="slide">
+<h2>MongoDB 表函数</h2>
+<p>MongoDB 查询 &mdash; <span style="color: red;">7 分 47 秒</span></p>
+<p>ClickHouse 查询 MongoDB &mdash; <span style="color: red;">11 分 56 秒</span> :(</p>
+<p>ClickHouse 查询 &mdash; <b style="color: green;">10 毫秒</b></p>
+</section>
+
+<section class="slide">
+<h2>MongoDB 表函数</h2>
+<p>额外亮点：</p>
+<p><code style="font-size: 95%; line-height: 1.25;">INSERT INTO FUNCTION mongodb(...)
+
+CREATE TABLE ... ENGINE = MongoDB(...)</code></p>
+
+<p style="margin-top: 10em; color: gray; font-size: 14pt;">开发者：Anastasia Petrenko、Ksenia Sumarokova。</p>
+</section>
+
+<section class="slide">
+<h2>MeiliSearch 集成</h2>
+<p>基于 MeiliSearch 索引创建视图：</p>
+<p><code style="font-size: 95%; line-height: 1.25;">CREATE TABLE t (id UInt64, data String)
+ENGINE = MeiliSearch('http://meili1:7700', 't', '')</code></p>
+<p>插入待索引的数据：</p>
+<p><code style="font-size: 95%; line-height: 1.25;">INSERT INTO t ...</code></p>
+<p>使用特殊搜索条件查询数据：</p>
+<p><code style="font-size: 95%; line-height: 1.25;">SELECT * FROM t WHERE meiliMatch($$ "q" = "abaca" $$)</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Mikhail Artemenko、Ksenia Sumarokova。</p>
+</section>
+
+<section class="slide">
+<h2>MeiliSearch 集成</h2>
+<p>你懂的，为搜索而生！</p>
+<p>&mdash; <span style="color: green;">与 MeiliSearch 集成</span>;</p>
+<p>&mdash; 与 Quickwit 的简单集成：<a href="https://clickhouse.com/docs/en/guides/developer/full-text-search/">https://clickhouse.com/docs/en/guides/developer/full-text-search/</a></p>
+<p>&mdash; <span style="color: gray;">ElasticSearch? Sphinx? ManticoreSearch?</span><br/>
+&mdash; <span style="color: gray;">ClickHouse 内部的全文索引？</span><br/>
+</p>
+</section>
+
+
+<section class="slide">
+<h2>从 NATS 流式导入</h2>
+<p style="margin-top: -1em;">ClickHouse 中的流式表引擎：</p>
+<p>&mdash; Kafka<br/>&emsp;（也适用于 RedPanda）；<br/>
+&mdash; RabbitMQ;<br/>
+&mdash; FileLog;<br/>
+...<br/>
+&mdash; <b style="color: green;">NATS</b>;<br/>
+&mdash; <span style="color: gray;">S3Queue</span>;
+</p>
+<p style="color: gray; font-size: 14pt;">开发者：Pavel Chebarykov、Ksenia Sumarokova。</p>
+<p>我们还应该添加什么？<br/>SQS？Kinesis？Pulsar？MySQL binlog？</p>
+
+<p>或者在 ClickHouse 内部增加持久队列？</p>
+</section>
+
+
+<section class="slide">
+<h2>新的 JOIN 算法</h2>
+<p style="margin-top: -1em;">&mdash; "<b>direct</b>”算法：<br/>&emsp; 通过直接查找（也称嵌套循环）与键值表连接。<br/>&emsp; 适合左表较小、右表类似大型字典的情况。<br/>&emsp; 适用于 MATERIALIZED VIEW 查询。</p>
+
+<p>&mdash; "<b>parallel_hash</b>”算法：<br/>&emsp; 右表较大时可提速。</p>
+
+<p>&mdash; "<b>full_sorting_merge</b>”算法：<br/>&emsp; 适用于右表较大、<br/>&emsp; 无法放入内存且不支持查找的情况。</p>
+
+<p style="color: gray;">&mdash; "<b>grace_hash</b>”算法：<br/>&emsp; 预计在 22.8 中推出。</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Vladimir Cherkasov、lgbo-ustc。</p>
+</section>
+
+
+<section class="slide">
+<h2>查询外附加筛选条件</h2>
+<p><code style="font-size: 90%;">SET additional_result_filter = $$ <b style="color: green;">name = 'Vasya'</b> $$;
+
+SELECT * FROM values('name String', ('Vasya'), ('Petya'))
+┌─name──┐
+│ Vasya │
+└───────┘</code></p>
+
+<p><code style="font-size: 90%;">SET additional_table_filters = {'t': $$ <b style="color: green;">name != 'Petya'</b> $$};
+
+CREATE TEMPORARY TABLE t (name String);
+INSERT INTO t VALUES ('Vasya'), ('Petya');
+SELECT * FROM t;
+┌─name──┐
+│ Vasya │
+└───────┘</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Nikolai Kochetov。</p>
+</section>
+
+
+<section class="slide">
+<h2>性能优化</h2>
+<p>改进 ORDER BY、MergeTree 插入和合并，<br/>以及窗口函数。</p>
+<p><code>SELECT WatchID FROM hits_100m_obfuscated ORDER BY Age</code></p>
+<p>此前：<br/>
+Elapsed: <b style="color: red;">4.154</b> sec. (24.07 million rows/s., 216.64 MB/s.)</p>
+<p>此后：<br/>
+Elapsed: <b style="color: green;">0.482</b> sec. (207.47 million rows/s., 1.87 GB/s.)</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Maksim Kita。</p>
+</section>
+
+<section class="slide">
+<h2>性能优化</h2>
+<p>加快带 <b>FINAL</b> 修饰符的 SELECT。</p>
+<p>“轻松”将性能提升至最高 4 倍。</p>
+<p>尤其适用于 Collapsing 和 Replacing 等复杂转换。</p>
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Nikita Taranov。</p>
+</section>
+
+
+<section class="slide">
+<h2>小巧实用的改进</h2>
+<p><code>CREATE TABLE ... <b>EMPTY</b> AS SELECT ...</code></p>
+<p><code>SELECT <b>base58Encode</b>('Hello, world'),
+       <b>base58Decode</b>('2NEpo7TZsLFA2wMeK')</code></p>
+<p><code>SELECT <b>translate</b>('Hello, world', ', ', ';\n'),
+       <b>translateUTF8</b>('test', 'tes', 'Тес')</code></p>
+<p><code>SELECT <b>parseTimeDelta</b>('1h 35min 23sec')</code></p>
+<p><code>SET <b>group_by_use_nulls</b> = 1</code></p>
+<p>multiMatch, multiSearch, ... &mdash; 支持非常量的待查找内容。</p>
+</section>
+
+
+<section class="slide">
+<h2>兼容性设置</h2>
+<p><code>SET compatibility = '21.8'</code></p>
+
+<p>允许升级到最新版本，<br/>同时保持所有默认行为与指定版本一致。</p>
+
+<p style="color: gray;">……它无法覆盖所有可能的变化。<br/> 但应该能有所帮助。</p>
+
+<p style="color: gray;">请不要使用此功能！</p>
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+
+
+
+<section class="slide">
+<h2>驱动与集成</h2>
+<p><b>Go 驱动</b> 除 Native 协议外，现在还支持 HTTP。<br/>
+<span style="color: gray;">开发者：Artem Iurin。</span></p>
+
+<p><b>Go 驱动</b> 现在使用高性能的底层“<b>ch-go</b>”实现。<br/>
+<span style="color: gray;">开发者：Aleksandr Razumov、Dale McDiarmid。</span></p>
+
+<p><b>Grafana</b> 插件现在支持 <b>JSON</b> 数据类型。<br/>
+<span style="color: gray;">开发者：Dale McDiarmid。</span></p>
+
+<p>官方 ClickHouse 支持现已进入 <b>Superset</b>。<br/>
+<span style="color: gray;">开发者：Dale McDiarmid。</span></p>
+
+<p><b>clickhouse-diagnostics</b> 工具现在随 ClickHouse 一起打包。<br/>
+<span style="color: gray;">开发者：Dale McDiarmid、Mikhail Shiryaev。</span></p>
+</section>
+
+
+<section class="slide">
+<h2>更新后的基准测试</h2>
+<img style="margin-left: -60px; margin-top: -1em; height: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.7/pictures/clickbench.png" />
+</section>
+
+<section class="slide">
+<h2>全新 ClickHouse 网站</h2>
+<img style="margin-left: -50px; margin-top: -1em; height: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.7/pictures/website.png" />
+</section>
+
+
+<section class="slide">
+<h2>简要回顾</h2>
+<p>这只是我们一个月成果的一部分。</p>
+<p>更多精彩内容正在准备中！</p>
+</section>
+
+
+<section class="slide">
+<h2>问答</h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/IOJyo14BpTQ" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
