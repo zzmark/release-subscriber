@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：23.3 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.3/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：23.3 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.3/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+         table, tr, td { border: 0; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：23.3 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2023-03-30。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.3/pictures/spring1.jpg); background-size: cover;">
+        <img src="https://presentations.clickhouse.com/original_website/logo.svg" style="width: 15%; position: absolute; right: 20px; bottom: 20px;" />
+        <h1 style="margin-top: 80px; line-height: 150%; color: white; font-size: 64pt; text-shadow: 1px 1px 10px black;">ClickHouse<br/> 23.3 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>23.3 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 23.3 新内容。</p>
+<p>2.（10 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.3/pictures/spring3.jpg); background-size: cover;">
+<h2><span class="hilite">23.3 LTS 版本</span></h2>
+<p><span class="hilite">ClickHouse 春季版本。</span></p>
+<p><span class="hilite">— 22 项新功能 🌳</span></p>
+<p><span class="hilite">— 14 项性能优化 🛼</span></p>
+<p><span class="hilite">— 61 项缺陷修复 🦋</span></p>
+</section>
+
+<!--
+
+小功能：
+
+UNDROP
+system.dropped_tables
+server_settings
+parseDateTime
+嵌套磁盘
+INSTR、REGEXP、STR_TO_DATE
+Parquet/ORC/Arrow 的自定义压缩、版本控制与全部类型
+原生协议中的 SSL 证书认证
+
+性能：
+
+压缩标记
+备份
+并行副本
+并行副本的自定义键
+
+主要功能：
+
+部分结果
+任意引擎的临时表
+
+集成
+
+Grafana 中的跟踪数据
+Superset
+
+云服务
+
+-->
+
+<section class="slide">
+<h2>UNDROP TABLE</h2>
+
+<p>你知道吗？</p>
+
+<p>在 ClickHouse 中 DROP 表时，表不会立即移除，</p>
+<p>&mdash; 因为 ClickHouse 使用 MVCC 实现原子 DDL 操作；<br/>
+&mdash; 这允许查询继续读取已删除的表，<br/>
+&emsp; 也允许在已删除表的位置创建另一张表；</p>
+
+<p>为留有余地，表在 8 分钟后才会被物理删除。</p>
+<p style="color: gray;">何不允许恢复已删除的表呢？</p>
+</section>
+
+<section class="slide">
+<h2>UNDROP TABLE</h2>
+
+<p><b>SELECT * FROM system.dropped_tables</b><br/>&mdash; 查看最近删除的表的信息；</p>
+
+<p><b>UNDROP TABLE my_table</b><br/>&mdash; 恢复最近删除的表；</p>
+
+<p style="margin-top: 10em; color: gray; font-size: 14pt;">开发者：chen（xiedeyantu）。</p>
+</section>
+
+
+<section class="slide">
+<h2>查询服务器设置</h2>
+
+<!--
+
+SELECT format('## {}\n\nType: **{}**\n\nDefault: {}\n\n{}\n', name, type, default = '' ? '*empty string*' : default, description) FROM system.server_settings ORDER BY name FORMAT TSVRaw
+
+SELECT * FROM system.server_settings FORMAT Markdown
+
+-->
+
+<p>来自全局服务器配置的设置：</p>
+<pre>SELECT * FROM <b>system.server_settings</b></pre>
+<p style="margin-top: 2em;">演示</p>
+
+<p style="margin-top: 7em; color: gray; font-size: 14pt;">开发者：Artem Brustovetskii。</p>
+</section>
+
+
+<section class="slide">
+<h2>嵌套动态磁盘</h2>
+
+<p style="margin-top: -1em;"><code style="font-size: 14pt; overflow-y: scroll; height: 22em;">ATTACH TABLE uk_price_paid UUID 'cf712b4f-2ca8-435c-ac23-c4393efe52f7'
+(
+    price UInt32,
+    date Date,
+    postcode1 LowCardinality(String),
+    postcode2 LowCardinality(String),
+    type Enum8('other' = 0, 'terraced' = 1, 'semi-detached' = 2, 'detached' = 3, 'flat' = 4),
+    is_new UInt8,
+    duration Enum8('unknown' = 0, 'freehold' = 1, 'leasehold' = 2),
+    addr1 String,
+    addr2 String,
+    street LowCardinality(String),
+    locality LowCardinality(String),
+    town LowCardinality(String),
+    district LowCardinality(String),
+    county LowCardinality(String)
+)
+ENGINE = MergeTree
+ORDER BY (postcode1, postcode2, addr1, addr2)
+SETTINGS disk = <b style="color: #0A0;">disk(
+    type = cache,
+    path = '/home/milovidov/.cache/clickhouse-local/',
+    max_size = '10G',
+    disk = <b style="color: #F80;">disk(
+        type = web,
+        endpoint = 'https://raw.githubusercontent.com/ClickHouse/web-tables-demo/main/web/')</b>)</b>;
+</code>
+<!--
+
+SELECT
+    toYear(date) AS year,
+    round(avg(price)) AS price,
+    bar(price, 0, 1000000, 80)
+FROM uk_price_paid
+GROUP BY year
+ORDER BY year;
+
+-->
+</p>
+<p style="margin-top: -1em; color: gray; font-size: 14pt;">开发者：Kseniia Sumarokova。</p>
+</section>
+
+
+<section class="slide">
+<h2>MySQL 兼容性</h2>
+
+<p>ClickHouse 支持 <b>MySQL 线协议</b>。</p>
+<p><code>mysql --port 9004 --host 127.0.0.1 --user default</code></p>
+<p>也支持 <b>PostgreSQL 线协议</b> 。</p>
+
+<p style="margin-top: 2em;">ClickHouse 的 SQL 方言有所不同。</p>
+<p>SQL 函数集合也有所不同。</p>
+</section>
+
+<section class="slide">
+<h2>MySQL 兼容性</h2>
+
+<p><code>SELECT <b>INSTR</b>('ClickHouse', 'lick');
+
+SELECT 'ClickHouse' <b>REGEXP</b> 'M?ouse$';
+
+SELECT <b>STR_TO_DATE</b>('03/03/2023', '%m/%d/%Y');
+</code></p>
+
+<p>这样兼容 MySQL，但写起来不美观。</p>
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Robert Schulze、Flynn。</p>
+</section>
+
+<section class="slide">
+<h2>MySQL 兼容性</h2>
+
+<p><code>SELECT <b>positionCaseInsensitive</b>('ClickHouse', 'lick');
+
+SELECT <b>match</b>('ClickHouse', 'M?ouse$');
+
+SELECT <b>toDateTime</b>('2023-03-30 01:02:03');
+SELECT <b>parseDateTime</b>('03/03/2023', '%m/%d/%Y');
+</code></p>
+
+<p>这样更好。</p>
+</section>
+
+<section class="slide">
+<h2>parseDateTime</h2>
+
+<p>parseDateTime
+<br/>parseDateTimeOrZero
+<br/>parseDateTimeOrNull
+</p>
+
+<p><code style="font-size: 14pt;">SELECT parseDateTime('2023/03/30 01:02', '%Y/%m/%d %H:%M')</code></p>
+
+<p>parseDateTimeInJodaSyntax
+<br/>parseDateTimeInJodaSyntaxOrZero
+<br/>parseDateTimeInJodaSyntaxOrNull
+</p>
+
+<p><code style="font-size: 14pt;">SELECT parseDateTimeInJodaSyntax('2023/03/30 01:02', 'yyyy/MM/dd HH:mm')</code></p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Robert Shulze。</p>
+</section>
+
+<section class="slide">
+<h2>Parquet/ORC/Arrow 改进</h2>
+
+<p>控制压缩方法：</p>
+<p><code style="line-height: 1.5">SET output_format_parquet_compression_method
+    = 'snappy|<b style="color: green;">lz4</b>|brotli|zstd|gzip|none';</code></p>
+
+<p>控制格式版本：</p>
+
+<p><code style="line-height: 1.5">SET output_format_parquet_version = '2.6'</code></p>
+
+<p>支持的版本：1.0、2.4、2.6、2.latest。</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 25pt;">原生协议中的 SSL 证书认证</h2>
+
+<p>clickhouse-client 的 config.yaml：</p>
+<p><code style="line-height: 1.5;">openSSL:
+    client:
+        certificateFile: 'path.cert'
+        privateKeyFile: 'path.key'
+</code></p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Nikolai Degterinskiy。</p>
+<p style="margin-top: 2em; color: gray;">下一步：使用 SSH 密钥认证？</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 25pt;">轻量级删除</h2>
+
+<p>轻量级 DELETE 已经 <b>可用于生产环境，</b><br/>
+并在 23.3 LTS 中默认启用。</p>
+
+<p><code style="line-height: 1.5;">DELETE FROM t WHERE ...</code></p>
+
+<p style="margin-top: 4em; color: gray; font-size: 14pt;">开发者：Alexander Gololobov。</p>
+<p style="margin-top: 2em; color: gray;">下一步：轻量级更新？</p>
+</section>
+
+
+
+<section class="slide">
+<h2>性能优化</h2>
+</section>
+
+<section class="slide">
+<h2>压缩内存中的标记</h2>
+
+<p>标记的内存占用降至原来的约 1/3–1/6！</p>
+<p>默认启用。</p>
+
+<p style="margin-top: 2em;">演示。</p>
+
+<!--
+SELECT * FROM system.asynchronous_metrics WHERE metric = 'MarkCacheBytes';
+SELECT * FROM hits LIMIT 1;
+SELECT * FROM system.asynchronous_metrics WHERE metric = 'MarkCacheBytes';
+5337392
+
+./clickhouse-23.2 server
+20779920
+-->
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Michael Kolupaev。</p>
+</section>
+
+<section class="slide">
+<h2>备份优化</h2>
+
+<p>一小时内完成 100 TB、1 000 000 个文件的完整备份。</p>
+<p>20 分钟内完成 100 TB 数据的增量备份。</p>
+
+<p style="margin-top: 2em;">&mdash; S3 服务端复制；
+<br/>&mdash; 独立线程池；
+<br/>&mdash; 提高并行度；
+<br/>&mdash; 加快元数据写入；
+<br/>&mdash; 重试 Keeper 操作；</p>
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Vitaly Baranov、Nikita Mikhailov、Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>备份优化</h2>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.3/pictures/backups1.png" style="height: 35%" />
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.3/pictures/backups2.png" style="height: 25%" />
+</section>
+
+<section class="slide">
+<h2>并行副本</h2>
+
+<p style="margin-top: -1em;">不使用并行副本：</p>
+<p style="margin-top: -0.5em;"><code style="font-size: 14pt;">SELECT count() FROM github_events WHERE body ILIKE '%ClickHouse%';
+
+Elapsed: <b>458.332</b> sec. 1.18 TB (<b>2.58 GB/s.</b>)</code></p>
+
+<p>使用 <b>10</b> 个并行副本：</p>
+<p style="margin-top: -0.5em;"><code style="font-size: 14pt;">SET allow_experimental_parallel_reading_from_replicas = 1,
+    max_parallel_replicas = 10;
+
+SELECT count() FROM github_events WHERE body ILIKE '%ClickHouse%';
+
+Elapsed: <b style="color: #080;">40.284</b> sec. 1.18 TB (<b style="color: #080;">29.34 GB/s.</b>)</code></p>
+
+<p>使用 <b>100</b> 个并行副本：</p>
+<p style="margin-top: -0.5em;"><code style="font-size: 14pt;">Elapsed: <b style="color: #0C0;">8.790</b> sec. 1.18 TB (<b style="color: #0C0;">134.44 GB/s.</b>)</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Nikita Mikhailov。</p>
+</section>
+
+<section class="slide">
+<h2>采用动态分片的并行副本</h2>
+
+<p><code style="font-size: 18pt; line-height: 1.5">SET max_parallel_replicas = 100,
+    parallel_replicas_custom_key = 'UserID',
+    parallel_replicas_custom_key_filter_type = 'default';
+ <span style="color: gray;">-- parallel_replicas_custom_key_filter_type = 'range'</span></code></p>
+
+<p>将每个 <b>副本视为分片，</b> 用于分布式查询，
+<br/>通过按除法余数或范围预先过滤数据实现。</p>
+
+<p>适用于大型 JOIN 或 GROUP BY，并配合 <br/>以下 <b> distributed_group_by_no_merge</b> 设置。</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Antonio Andelic。</p>
+</section>
+
+
+<section class="slide">
+<h2>一些不寻常的功能</h2>
+</section>
+
+<section class="slide">
+<h2>查询取消时返回部分结果</h2>
+
+<p>SET <b>partial_result_on_first_cancel</b> = 1;</p>
+<p>取消查询后，停止读取数据，
+<br/>但像所有数据都已处理完一样生成查询结果。</p>
+<p style="margin-top: 2em;">演示</p>
+
+<!--
+SELECT * FROM hits ORDER BY UserID LIMIT 1 FORMAT Vertical;
+SET partial_result_on_first_cancel = 1;
+
+SELECT SearchPhrase, uniq(Title), count() FROM hits GROUP BY ALL ORDER BY count() DESC LIMIT 10;
+-->
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Alexey Perevyshin。</p>
+</section>
+
+<section class="slide">
+<h2>指定引擎的临时表</h2>
+
+<p><code style="line-height: 1.5">CREATE <b style="color: green;">TEMPORARY</b> TABLE tmp_uk_price_paid
+(
+  ...
+)
+<b style="color: green;">ENGINE</b> = MergeTree
+ORDER BY (postcode1, postcode2, addr1, addr2)</code></p>
+
+<p>有什么用途？</p>
+<p style="margin-top: 4em; color: gray; font-size: 14pt;">开发者：Roman Vasin。</p>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>Superset</b>：</p>
+<p>&mdash; 原生支持 ClickHouse；<br/>
+&mdash; 开箱即用地提供 ClickHouse 支持！</p>
+<p><b>Grafana</b>：</p>
+<p>&mdash; 支持跟踪数据可视化；<br/>
+<p>更新了 <b>Python</b>、 <b>Node.js</b>、 <b>Go</b>和 <b>Java</b> 驱动。</p>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.3/pictures/traces.png" style="width: 100%; margin-top: -1em;" />
+<p style="margin-top: 1em;">如果 Grafana 还不能满足需求，可以使用 QRYN：
+<br/>&mdash; 支持多种协议的监控与可观测性平台（<a href="https://qryn.dev/">qryn.dev</a>）。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.3/pictures/cloud.jpg); background-size: cover;">
+<h2><span class="hilite">ClickHouse Cloud</span></h2>
+
+<p><span class="hilite">&mdash; 免费试用 30 天，提供 300 美元额度，支持最多 10 TB 数据；</span></p>
+<p><span class="hilite">&mdash; 面向开发者的经济型集群，具备完整高可用性 &lt; 100 美元/月</span></p>
+<p><span class="hilite">试试看！ <a href="https://clickhouse.cloud/">https://clickhouse.cloud/</a>。</span></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.3/pictures/spring2.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/ISaGUjvBNao" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
