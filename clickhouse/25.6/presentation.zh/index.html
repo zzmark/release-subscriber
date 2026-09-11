@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.6 版本发布会议</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.6 版本发布会议">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.6 版本发布会议</h1>
+        <p>作者：Alexey Milovidov，2025-06-26。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 25px; line-height: 110%; font-size: 56pt; color: white; text-shadow: black 1px 0 10px; text-align: center;">ClickHouse 25.6 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 25.6 版本</h2>
+<p>1.（50 分钟）ClickHouse 25.6 的新内容。</p>
+<p>3.（10 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">25.6 版本</span></h2>
+<p><span class="hilite">ClickHouse 夏季版本。</span></p>
+<p><span class="hilite">— 25 项新功能 🌸</span></p>
+<p><span class="hilite">— 32 项性能优化 🦋</span></p>
+<p><span class="hilite">— 105 项缺陷修复 🐝</span></p>
+</section>
+<!--
+
+小功能
+
+bech32Encode/Decode
+WKB
+CoalescingMergeTree
+数据库磁盘
+向 Merge 表写入
+查询中的单一快照
+timeSeries 函数
+Parquet 中的 JSON
+system.codecs
+split 分词器
+
+性能
+
+并发查询的工作负载调度器
+并行数据块编排
+Bloom filter 性能
+多投影筛选
+
+主要功能
+
+Time/Time64
+lag/lead
+chdig
+
+额外内容
+
+首页
+WASM 词法分析器
+观鸟
+
+集成
+
+新的 Terraform Provider
+
+额外内容
+
+分布式缓存
+OpenHouse 演示文稿
+ClickStack
+ClickHouse Government
+
+阅读
+
+咖啡店基准测试
+可观测性
+FIX 数据
+OpenHouse
+ClickStack
+MCP
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">小而实用的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>system.codecs</h2>
+
+<p>ClickHouse 使用 <b>编解码器</b> 压缩和加密数据。</p>
+<p>ClickHouse 编解码器可在列级或表级应用，
+<br/>也可根据数据大小或 TTL 应用。</p>
+
+<p>新系统表 <b>codecs</b> 提供其内部信息及内嵌文档。</p>
+
+<p>演示。</p>
+
+<!--
+
+SELECT * FROM system.codecs FORMAT Vertical
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Jimmy Aguilar Mena。</p>
+</section>
+
+
+<section class="slide">
+<h2>比特币地址函数</h2>
+
+<p><b>Bech32</b> &mdash; 一种基于 Base32 的比特币地址编码。</p>
+
+<p>示例： <span style="font-family: monospace; font-size: 80%;"><span style="color: green;">bc</span><span style="color: gray;">1</span><span style="color: brown;">qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7s</span><span style="color: blue;">zw5tk9</span></span></p>
+
+<p>两个新函数：
+<br/>&mdash; <b>bech32Encode(hrp, payload)</b> &mdash; 返回编码后的地址；
+<br/>&mdash; <b>bech32Decode(address)</b> &mdash; 返回由人类可读部分和载荷组成的元组；
+</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：George Larionov。</p>
+</section>
+
+
+<section class="slide">
+<h2>Well-Known Binary 函数</h2>
+
+<p><b>WKT</b> （Well-Known Text）和 <b>WKB</b> （Well-Known Binary）
+<br/>&mdash; 是表示几何数据的标准格式。</p>
+
+<p><b>20.5</b>：几何数据类型：Point、Ring、Polygon、MultiPolygon……</p>
+<p><b>21.4</b>：用于 <b>WKT</b>的函数：wkt、readWKTPoint、readWKTPolygon……</p>
+<p><b>25.5</b>：从 Parquet 读取 <b>WKB</b> 数据</p>
+<p><b style="color: green;">25.6</b>：用于以下格式的函数： <b>WKB</b></p>
+
+<p>演示。</p>
+
+<!--
+
+SELECT name, alias_to FROM system.functions WHERE name ILIKE '%WKB%';
+
+SELECT
+    readWKBPolygon(base64Decode('AQMAAAABAAAACQAAALU3+MJk6hJAQYLix5gjSkC1N/jCZOoSQB6n6EguN0pAyJi7lpCPE0Aep+hILjdKQIMvTKYKRhRAHqfoSC43SkCDL0ymCkYUQM3MzMzMLEpAFK5H4XoUFEApXI/C9ShKQM3MzMzMzBNAhetRuB4lSkBmZmZmZmYTQEGC4seYI0pAtTf4wmTqEkBBguLHmCNKQA==')) AS poly,
+    toTypeName(poly),
+    wkt(poly)
+
+Query id: 7ae538d8-e21e-4cda-b1c4-570cc2aef18a
+
+Row 1:
+──────
+poly:             [[(4.7289,52.2781),(4.7289,52.4311),(4.8902,52.4311),(5.0684,52.4311),(5.0684,52.35),(5.02,52.32),(4.95,52.29),(4.85,52.2781),(4.7289,52.2781)]]
+toTypeName(poly): Polygon
+wkt(poly):        POLYGON((4.7289 52.2781,4.7289 52.4311,4.8902 52.4311,5.0684 52.4311,5.0684 52.35,5.02 52.32,4.95 52.29,4.85 52.2781,4.7289 52.2781))
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2>SELECT 的单一快照</h2>
+
+<p>ClickHouse 为查询提供一定的事务（<b>ACID</b>）保证。</b>
+
+<p>SELECT 从表中读取时，会在查询分析时获取该表的 <b>快照</b> 。该快照不受并发执行的 INSERT/ALTER/DELETE/DROP 查询影响。</p>
+
+<p><b style="color: red;">25.5</b>：为查询中的不同子查询
+<br/>和表引用分别获取快照。</p>
+<p><b style="color: green;">25.6</b>：当启用
+<br/>设置 <b>enable_shared_storage_snapshot_in_query</b> 时，所有对该表的引用共享单一快照。</p>
+
+<p>演示。</p>
+
+<!--
+
+CREATE TABLE t (x UInt64) ENGINE = MergeTree ORDER BY ();
+SET max_block_size = 1, min_insert_block_size_bytes = 1, min_insert_block_size_rows = 1;
+INSERT INTO t SELECT * FROM system.numbers;
+
+yes "WITH (SELECT max(x) FROM t) AS a, (SELECT 0 + max(x) FROM t) AS b SELECT a = b ? 'Ok' : format('{} != {}', a, b);" | head -n1000 | clickhouse-client --enable_shared_storage_snapshot_in_query=1
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Amos Bird。</p>
+</section>
+
+<!--
+<section class="slide">
+<h2>Writing To Merge Tables</h2>
+
+<p style="margin-top: -1em;"><b>Merge</b> is a table engine that provides a unified view over a set of tables:</p>
+<p><code style="font-size: 16pt;">CREATE TABLE t ENGINE = <b>Merge</b>(database, '^table_regexp_\d+$')</code></p>
+
+<p>In previous ClickHouse versions, <b>Merge</b> tables only allowed SELECTs.</p>
+
+<p>Since version <b style="color: green;">25.6</b>, it's possible to do INSERTs into <b>Merge</b> tables:</p>
+
+<p style="line-height: 1.5"><code style="font-size: 16pt;">ENGINE = <b>Merge</b>(database, '^table_\d+$', <b style="color: green;">auto</b>)</code>&mdash; will write to the latest (by the lexicographical order) table.</p>
+<p style="line-height: 1.5"><code style="font-size: 16pt;">ENGINE = <b>Merge</b>(database, '^table_\d+$', <b style="color: green;">table_123</b>)</code>&mdash; will write to the explicitly specified table.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">Developer: Anton Ivashkin.</p>
+</section>
+-->
+
+<section class="slide">
+<h2>Parquet 中的 JSON</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT '{"database": "ClickHouse", "is_it_good": true}'::JSON AS data
+INTO OUTFILE 'test.parquet'</code></p>
+
+<p><b style="color: green;">ClickHouse</b> 以列式存储提供完善的 JSON 支持。</p>
+<p><b>Parquet</b> 没有完整的 JSON 支持，<br/>它将 JSON 存为带注解的字符串。</p>
+
+<p><b style="color: red;">25.5</b>：Parquet 中带 JSON 注解的字符串读取为 String。</p>
+<p><b style="color: green;">25.6</b>：Parquet 中带 JSON 注解的字符串读取为 JSON，
+<br/>ClickHouse 中的 JSON 写入 Parquet 时也带有正确的注解。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Nihal Z. Miaji。</p>
+</section>
+
+
+<section class="slide">
+<h2>新的分词器</h2>
+
+<p>函数 <b>tokens</b> 将字符串拆分为多个部分。</p>
+<p>它支持不同的分词算法：</p>
+<p><code>SELECT tokens('Hello, world!');
+SELECT tokens('Hello, world!', 'default');
+SELECT tokens('Hello, world!', <b style="color: green;">'split'</b>);</code></p>
+<p>版本 <b style="color: green;">25.6</b> 引入了新算法 <b>split</b>，适合处理日志。</p>
+
+<p>演示</p>
+
+<!--
+
+SELECT tokens('2025.06.26 08:21:54.688227 [ 3654609 ] {} <Debug> system.query_metric_log (a2f54a1b-6cc0-49be-9dc2-337379073de5): Removed 5 old parts', 'default');
+
+SELECT tokens('2025.06.26 08:21:54.688227 [ 3654609 ] {} <Debug> system.query_metric_log (a2f54a1b-6cc0-49be-9dc2-337379073de5): Removed 5 old parts', 'split');
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Elmi Ahmadov、Robert Schulze。</p>
+</section>
+
+
+<section class="slide">
+<h2>PromQL 函数</h2>
+
+<p>ClickHouse 目前尚不支持 PromQL。</p>
+<p>相关实现正在开发中，我们需要函数来支持<br/>它的全部能力。</p>
+
+<p>在 <b>25.6</b>中新增的聚合函数：
+<br/>
+<b>timeSeriesInstantDeltaToGrid</b>,
+<b>timeSeriesInstantRateToGrid</b>,
+<b>timeSeriesRateToGrid</b>,
+<b>timeSeriesResampleToGridWithStaleness</b>,
+<b>timeSeriesDeltaToGrid</b>,
+<b>timeSeriesLastTwoSamples</b>
+</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5">SELECT timeSeriesDeltaToGrid(
+    start_ts, end_ts, step_seconds, window_seconds)(timestamp, value)</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexander Gololobov。</p>
+</section>
+
+
+<section class="slide">
+<h2>数据库的自定义磁盘</h2>
+
+<p><b>磁盘</b> &mdash; 是 ClickHouse 中的文件系统抽象，
+<br/>允许将表数据存储在远程对象存储中
+<br/>（S3、GCS、Azure、HDFS、静态 Web 服务器等）。</p>
+
+<p>ClickHouse <b style="color: green;">25.6</b> 不仅允许将表数据，
+<br/>还允许将 <b>数据库元数据</b> 存储在自定义磁盘上！</p>
+
+<p>这是在无状态服务器上管理数据库所需的能力。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">注意：这些数据库不能在多台服务器之间共享。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Tuan Pham Anh。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/back5.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">数据湖改进</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>系统表“iceberg_history”</h2>
+
+<p>新的系统表包含所有 Iceberg 表
+<br/>可用快照的信息。</p>
+<p>可与时间旅行功能配合使用。</p>
+
+<p>演示</p>
+
+<!--
+
+CREATE TABLE iceberg_table
+ENGINE = IcebergS3('s3://timetravelclickhouse/test', 'AKIA...', '...');
+
+SELECT count(*) FROM iceberg_table AS iceberg_table;
+
+SELECT * FROM system.iceberg_history;
+
+SELECT count(*) FROM iceberg_table AS iceberg_table SETTINGS iceberg_snapshot_id = 7670355786252116484;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Smita Kulkarni。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/back3.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>加快分布式查询</h2>
+
+<p>通过并行处理网络传输数据块
+<br/>的序列化和压缩工作来实现。</p>
+
+<p>示例：
+<code style="font-size: 14pt; line-height: 1.5; margin-top: 0.5em;">SELECT SearchPhrase, count() AS c FROM hits WHERE SearchPhrase != ''
+GROUP BY SearchPhrase ORDER BY c DESC LIMIT 10</code></p>
+
+<!--
+
+SELECT SearchPhrase, count() AS c FROM remote('127.0.0.{1,2}', default.hits) WHERE SearchPhrase != '' GROUP BY SearchPhrase ORDER BY c DESC LIMIT 10
+
+-->
+
+<p><b style="color: red;">25.5</b>：0.601 秒。
+<br/><b style="color: green;">25.6</b>：0.322 秒。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Nikita Taranov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">并发查询的工作负载调度器</h2>
+
+<p style="margin-top: -1em;">工作负载调度器已经支持多种资源类型：
+<br/>CPU 使用量、磁盘读取和写入。</p>
+<p>新的 QUERY 资源类型允许按并发运行的查询数量进行调度：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">CREATE RESOURCE query (QUERY);
+CREATE WORKLOAD all;
+CREATE WORKLOAD production IN all SETTINGS max_concurrent_threads = 100,
+    max_queries_per_second = 10, max_burst_queries = 20;
+CREATE WORKLOAD analytics IN production
+    SETTINGS max_concurrent_threads = 60, weight = 9;
+CREATE WORKLOAD ingestion IN production;
+SET workload = 'analytics';
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Sergei Trifonov。</p>
+</section>
+
+
+<section class="slide">
+<h2>Bloom filter 索引优化</h2>
+
+<p>通过优化整数除法运算来实现：</p>
+
+<img style="width: 80%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/bloom_filter.png"/>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Delyan Kratunov。</p>
+</section>
+
+
+<section class="slide">
+<h2>通过多个投影筛选</h2>
+
+<p><code style="font-size: 16pt; line-height: 1.25;">CREATE TABLE t (
+    a String,
+    b UInt64,
+    c Int32,
+    PROJECTION p_b (SELECT * <b style="color: green;">ORDER BY b</b>),
+    PROJECTION p_c (SELECT * <b style="color: blue;">ORDER BY c</b>)
+) <b style="color: teal;">ORDER BY a</b>;
+
+SELECT * FROM t WHERE <b style="color: teal;">a = 'Hello'</b> AND <b style="color: green;">b > 123</b> AND <b style="color: blue;">c &lt; 456</b>;
+</code></p>
+
+<p>查询应该使用哪个投影？</p>
+<p>&mdash; 应该即时分析所有投影！</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Amos Bird。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/back4.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">一些有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>Time 数据类型</h2>
+
+<p>新数据类型 <b>Time</b> 和 <b>Time64</b>，用于表示相对时间。</p>
+
+<p><code style="line-height: 1.5;">SELECT '123:45:07'::<b>Time</b>;
+SELECT '-123:45:07.123456'::<b>Time64(6)</b>;
+SELECT now()::<b>Time</b>;</code></p>
+
+<p>为了与其他 SQL 数据库管理系统兼容。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+<section class="slide">
+<h2>chdig</h2>
+
+<p>用于 ClickHouse 监控和诊断的命令行工具。</p>
+<p style="color: gray;">使用 <b>Rust</b> &mdash; 编写——最适合终端应用的语言！</p>
+
+<p>演示</p>
+
+<!--
+
+clickhouse-benchmark --query "SELECT sum(cityHash64(*)) FROM hits"
+ch dig
+
+# queries
+# logs
+# flamegraphs
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Azat Khuzhin。</p>
+</section>
+
+<section class="slide">
+<h2>窗口函数 lag/lead</h2>
+
+<p><code>lag(x, <span style="color: gray">[</span>offset<span style="color: gray">]</span>, <span style="color: gray">[</span>default<span style="color: gray">]</span>)
+  OVER (<span style="color: gray">[</span>PARTITION BY grouping_column<span style="color: gray">]</span>
+        <span style="color: gray">[</span>ORDER BY sorting_column<span style="color: gray">]</span>
+      <span style="color: gray">| [</span> window_name<span style="color: gray">]</span>)</code></p>
+
+<p>ClickHouse 已经有更好的函数 <b>lagInFrame</b>, <b>leadInFrame</b>.</p>
+
+<p>但为了 SQL 兼容性，需要更简单的 <b>lag</b>/<b>lead</b> 函数。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Dmitry Novik。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">额外内容</span></h2>
+</section>
+
+<section class="slide" style="background-color: black;">
+<h2 style="color: white;">集成</h2>
+<p style="color: white; margin-top: -1em;">新的 Terraform Provider：</p>
+<img style="width: 90%; margin-top: -1em;" src="https://clickhouse.com/uploads/Terraform_5c3b11375a.png">
+</section>
+
+<section class="slide">
+<h2>新的 ClickHouse 网站</h2>
+<p style="font-size: 150%;"><a href="http://localhost:8123/">http://localhost:8123/</a></p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>ClickHouse 词法分析器库</h2>
+<p>一个面向 C 和 WASM 的小型库（6 KB），用于对 ClickHouse 查询进行词法分析。</p>
+<p>可以嵌入 JavaScript：</p>
+<p><code style="overflow-x: scroll; font-size: 12pt; line-height: 1.25;">const lexer_base64 = "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R3JBAXENBAJAIAJBAWoiCSADTw0AIAktAAAiBUEwayEBIAcEQCABQf8BcUEKSSAFQcEAa0EGSXINASAFQeEAa0EGTw0HDAELIAFB/wFxQQlLDQYLIAMgCUYNBAsgBiACQQFqIgI2AgBBACEIIAIgA0kNAAsMAgsgBiACQQFqIgI2AgBBACEIIAIgA0cNAAsLIAJBAWoiASADTw0AIAItAAAhBQJAIAcEQCAFQSByQfAARw0CDAELIAVBIHJB5QBHDQELIAYgATYCAAJAIAJBAmogA08NAAJAIAEtAABBK2sOAwABAAELIAYgAUEBaiIBNgIAIAEgA08NAgtBASECA0AgAS0AACIFQTBrQf8BcUEKTwRAIAIgBUHfAEdyQQFxDQMgAUEBaiICIANPDQMgAi0AAEEwa0H/AXFBCUsNAwsgBiABQQFqIgE2AgBBACECIAEgA0cNAAsMAQsgAiEBCwJ/AkACQCABIANPDQAgAS0AACICQd8ARiACQTBrQf8BcUEKSXJFIAJB3wFxQcEAa0H/AXFBGUtxDQAgAUEBaiEFA0AgBiAFIgE2AgAgASADTw0CIAFBAWohBSABLQAAIgdBMGshAiAHQd8ARiACQf8BcUEKSXIgB0HfAXFBwQBrQf8BcUEaSXINAAsgAUEBawwCCyAAIAE2AggMCgsgAUEBawshAwJAIAEgBE0NACAEQQFrIQYDQCAGQQFqIgYtAAAiAkEkRiACQd8ARnIgAkEwa0H/AXFBCklyRSACQd8BcUHBAGtB/wFxQRpPcUUEQCADIAZLDQEMAgsLIAAgATYCCCAAIAQ2AgQgAEEvOgAADwsMCQsgBiAEQQJqIgE2AgACQCABIANGDQADQCABLQAAQQpGDQEgAUEBaiIBIANHDQALIAMhAQsLIAAgATYCCCAAIAQ2AgQgAEEBOgAACyAGIAE2AgAPCyAAIAE2AgggACAENgIEIABBADoAAA8LIAAgBEEBaiIANgIIDAILIAAgBEECaiIANgIIDAELIAAgATYCCCAAIAQ2AgQgAEEoOgAADwsgBiAANgIADwsgACAENgIEIABBAzoAAA8LIAAgATYCCCAAIAQ2AgQgAEECOgAACyUAIABBADoAECAAIAM2AgwgACACNgIIIAAgATYCBCAAIAE2AgALNgEBfyMAQRBrIgMkACADQQRqIAAQASABIAMoAgg2AgAgAiADKAIMNgIAIAMtAAQgA0EQaiQACwcAIABBAUsLBwAgAEEnSwsHACAAQSdGCwsIAQBBgAgLARQAeQlwcm9kdWNlcnMBDHByb2Nlc3NlZC1ieQEFY2xhbmdZMjAuMC4wZ2l0IChnaXRAZ2l0aHViLmNvbTpsbHZtL2xsdm0tcHJvamVjdC5naXQgNmNiYzY0ZWQ5MjJjYzY5YmMyOTJkMzk0YmE1YzY4MWZhMzA5ZjQwNCkAaw90YXJnZXRfZmVhdHVyZXMGKw9tdXRhYmxlLWdsb2JhbHMrE25vbnRyYXBwaW5nLWZwdG9pbnQrC2J1bGstbWVtb3J5KwhzaWduLWV4dCsPcmVmZXJlbmNlLXR5cGVzKwptdWx0aXZhbHVl";
+
+const binary = atob(lexer_base64);
+const bytes = new Uint8Array(binary.length);
+
+for (let i = 0; i &lt; binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+}
+
+lexer_module = await WebAssembly.instantiate(bytes);
+</code></p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/birds.png); background-size: cover;">
+<h2 style="color: white;"><span style="background: rgba(0, 0, 0, 0.5)">地图可视化</span></h2>
+
+<p style="color: white;"><span style="background: rgba(0, 0, 0, 0.5)">eBird 数据集示例：</span></p>
+<p style="color: white;"><span style="background: rgba(0, 0, 0, 0.5)"><a href="https://adsb.exposed/?dataset=Birds&amp;zoom=4&amp;lat=51.9713&amp;lng=16.9629&amp;query=d371c3fd21c4362a8172b4e243640155">https://adsb.exposed/?dataset=Birds</a></span></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/openhouse.jpg); background-size: cover;">
+<h2><span style="color: white; background: rgba(0,0,0,0.5); padding: 0.25em 0.5em;">https://clickhouse.com/openhouse</span></h2>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/clickstack.png); background-size: cover;">
+</section>
+
+<section class="slide" style="background: url(https://clickhouse.com/uploads/Blog_caches_003_5834a2afa1.png) no-repeat center / contain; background-color: black;">
+</section>
+
+<section class="slide">
+<h2>ClickHouse Government</h2>
+<p>以解决方案形式交付的 ClickHouse，
+<br/>应对政府网络的复杂性。</p>
+<p>可在任何政府网络内的 AWS 上自行管理
+<br/>(<b>FedRAMP</b>, <b>IL2, 4, 5, 6</b>).</p>
+<p>可获得 <b>NIST 800-53</b> （风险管理框架）
+<br/>合规文档，以及强大的 <b>FIPS 140-3</b> 支持。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流活动</h2>
+<p>
+<span class="hilite">&mdash; 🇺🇸 丹佛，6 月 26 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 班加罗尔，6 月 27 日</span>
+<br/><span class="hilite">&mdash; 🇦🇺 珀斯，7 月 2 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 亚特兰大，7 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 费城，7 月 10 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 洛斯加托斯，7 月 10 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 纽约，7 月 15 日</span>
+</p>
+</section>
+
+
+
+<section class="slide">
+<h2>阅读园地 📖</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;"><br/>&mdash; <b>OpenAI</b> 和 <b>Anthropic</b>使用 ClickHouse 的历程
+<br/>&mdash; 来自 <i>千万亿</i> 行数据规模的案例： <b>Tesla</b>
+<br/>&mdash; 不使用 OTel 和 Prometheus 的可观测性
+<br/>&mdash; 我们如何构建分布式缓存
+<br/>&mdash; “咖啡店基准测试” &mdash; ClickHouse 与 Snowflake、Databricks 的对比
+<br/>&mdash; 使用 ClickHouse MCP 构建智能体
+<br/>&mdash; <b>Langfuse</b> &mdash; 面向现代大语言模型应用的新数据栈
+</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.6/pictures/back8.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/_9IBOM3pR4U" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
