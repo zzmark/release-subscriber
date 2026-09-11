@@ -44,67 +44,67 @@
 </section>
 <!--
 
-Small
+小功能
 
-_table virtual column
-External disks for temporary data
+_table 虚拟列
+临时数据使用外部磁盘
 Arrow Flight
-PostgreSQL protocol completeness with COPY support
+通过 COPY 支持完善 PostgreSQL 协议
 SYSTEM RESTORE DATABASE REPLICA
-Writes with hive-style partitioning
-Hash output format
+采用 Hive 风格分区写入
+Hash 输出格式
 
-Security
+安全
 
-Grants for S3 URL patterns
-S3 auth with IAM roles
-OAuth for GCP
-Views defined by temporary users
+基于 S3 URL 模式的授权
+通过 IAM 角色进行 S3 认证
+GCP OAuth
+由临时用户定义的视图
 
-Performance
+性能
 
-Parquet reader v3
-Azure is no shit
-Secondary indices are used in the right order
-Faster subcolumns in compact parts
-Faster regexps
-Faster JOINs when the r.h.s. is unique
-Faster GROUP BY
+Parquet 读取器 v3
+Azure 不再糟糕
+按正确顺序使用二级索引
+Compact 数据片段中更快的子列读取
+更快的正则表达式
+右表键唯一时更快的 JOIN
+更快的 GROUP BY
 
-Main
+主要功能
 
 PromQL
-Lightweight updates is Beta
-Positional and Condition deletes
-Delete from Iceberg
-Iceberg and Delta Lake improvements
-All catalogs are Beta
-Vector similarity search is GA
-Binary quantization
-Correlated subqueries are Beta
-Vector search in GA + binary quantization
+轻量级更新进入 Beta 阶段
+位置删除和条件删除
+从 Iceberg 删除数据
+Iceberg 和 Delta Lake 改进
+所有目录进入 Beta 阶段
+向量相似度搜索正式发布（GA）
+二进制量化
+相关子查询进入 Beta 阶段
+向量搜索正式发布（GA）及二进制量化
 
-Integrations
+集成
 
-MongoDB CDC is in Private Preview https://clickhouse.com/docs/integrations/clickpipes/mongodb
-Vertical Scaling for streaming ClickPipes to adjust the instance type for suitable workload https://clickhouse.com/docs/cloud/manage/billing/overview#what-are-the-clickpipes-public-prices
-Azure Blob Storage connector is GA
-Postgres CDC: compatibility with ClickHouse JSON
-Published AWS Glue connector https://clickhouse.com/blog/clickhouse-connector-aws-glue
+MongoDB CDC 进入私有预览阶段 https://clickhouse.com/docs/integrations/clickpipes/mongodb
+流式 ClickPipes 支持垂直扩缩容，可按工作负载选择合适的实例类型 https://clickhouse.com/docs/cloud/manage/billing/overview#what-are-the-clickpipes-public-prices
+Azure Blob Storage 连接器正式发布（GA）
+PostgreSQL CDC：兼容 ClickHouse JSON
+发布 AWS Glue 连接器 https://clickhouse.com/blog/clickhouse-connector-aws-glue
 
-Python client:
-enhanced SQLAlchemy 2
-performance improvements with Arrow-backed DataFrames
+Python 客户端：
+增强 SQLAlchemy 2 支持
+改进基于 Arrow 的 DataFrame 性能
 
-Bonus
+额外内容
 
-ClickStack in ClickHouse Cloud
-DeltaLake CDC open-source
+ClickHouse Cloud 中的 ClickStack
+DeltaLake CDC 开源
 
-Reading
+阅读
 
-Comparison of LLM chat UIs
-Agentic BI in Slack
+大语言模型聊天界面对比
+Slack 中的智能体 BI
 
 
 
@@ -333,7 +333,7 @@ PARTITION BY (year, country);</code></p>
     extra_credentials(<b style="color: green;">role_arn</b> =
 'arn:aws:iam::111111111111:role/ClickHouseAccessRole-001'))</code></p>
 
-<p>直到不久前，此功能还仅在 <b>ClickHouse Cloud</b>.
+<p>直到不久前，此功能还仅在 <b>ClickHouse Cloud</b> 中可用。
 <br/>25.8 起，所有 ClickHouse 用户均可使用。</p>
 
 <p>额外消息：25.8 也提供了 GCP OAuth 认证！</p>
@@ -516,17 +516,17 @@ WHERE path = 'ClickHouse';
 
 <!--
 <section class="slide">
-<h2 style="font-size: 32pt;">Iceberg-Managed Tables in Unity Catalog</h2>
+<h2 style="font-size: 32pt;">Unity Catalog 中由 Iceberg 管理的表</h2>
 
-<p>Now ClickHouse has full support for "uniform" tables
-<br/>with the Unity catalog.</p>
+<p>现在 ClickHouse 完整支持
+<br/>Unity Catalog 中的“uniform”表。</p>
 
-<p>Demo</p>
+<p>演示</p>
 
 SHOW CREATE TABLE demo
-Now let's insert some data:
+现在插入一些数据：
 INSERT INTO demo VALUES (1), (2), (3);
-Let's check what our table looks like:
+看看我们的表现在是什么样子：
 SELECT *
 FROM demo
 
@@ -539,9 +539,9 @@ Query id: 0bd88134-616e-47f5-a6f1-9e330006ff5c
    └────┘
 
 3 rows in set. Elapsed: 0.143 sec.
-We forgot to add some columns:
+我们忘记添加一些列了：
 ALTER TABLE demo ADD column c2 Nullable(String);
-Ok let's add one row:
+好，添加一行数据：
 INSERT INTO demo VALUES (4, 'Delta Kernel');
 
 INSERT INTO demo FORMAT Values
@@ -551,7 +551,7 @@ Query id: 09ca8a80-f3da-4eaa-afe3-13e68311d907
 Ok.
 
 1 row in set. Elapsed: 0.308 sec.
-Ok so now we have 4 rows and only one with two columns:
+现在有 4 行数据，只有一行的两列都有值：
 SELECT *
 FROM demo
 
@@ -565,7 +565,7 @@ Query id: 18abb953-ec56-4212-a2e2-ef6a77b10c41
    └────┴──────────────┘
 
 4 rows in set. Elapsed: 0.310 sec.
-Let's try to update the old one:
+尝试更新旧记录：
 ALTER TABLE demo
     (UPDATE c2 = 'Equality delete' WHERE c1 = 1)
 
@@ -574,7 +574,7 @@ Query id: f22986c0-0263-4942-b909-1cf5d3155ca8
 Ok.
 
 0 rows in set. Elapsed: 0.560 sec.
-And let's also update row number 2:
+再更新第 2 行：
 ALTER TABLE demo
     (UPDATE c2 = 'Time Travel' WHERE c1 = 2)
 
@@ -583,7 +583,7 @@ Query id: f2298650-0263-4942-b909-1cf5d3155ca8
 Ok.
 
 0 rows in set. Elapsed: 0.560 sec.
-Wait? Time travel, let's check our Iceberg history:
+等等，时间旅行？查看一下 Iceberg 历史：
 SELECT *
 FROM system.iceberg_history
 WHERE `table` = 'demo'
@@ -601,7 +601,7 @@ Query id: a1ea93be-8658-48aa-a875-f1cbbd6172fd
    └──────────┴───────┴─────────────────────────┴─────────────┴──────────────────────┴─────────────────────┘
 
 6 rows in set. Elapsed: 0.204 sec.
-Let's go back to our previous state, before time travel was added:
+回到此前的状态，即添加 Time Travel 值之前：
 SELECT *
 FROM demo
 SETTINGS iceberg_snapshot_id = 847294289
@@ -701,10 +701,10 @@ https://console.clickhouse-staging.com/services/2195d48c-c09d-4646-b64b-5bcd8608
     <div class="progress"></div>
     <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
 
-    <!--Video plugin-->
+    <!--视频插件-->
     <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
     <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
-    <!--/Video plugin-->
+    <!--/视频插件-->
 <footer class="badge">
     <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
 </footer>
