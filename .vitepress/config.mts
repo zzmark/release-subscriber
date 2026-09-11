@@ -32,6 +32,19 @@ export default defineConfig({
   description: '软件版本更新、原始 Changelog 与中文更新总结',
   base: '/release-subscriber/',
   cleanUrls: true,
+  markdown: {
+    config(md) {
+      const renderLink = md.renderer.rules.link_open!
+      md.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
+        const href = tokens[index].attrGet('href')
+        // Upstream Changelogs retain their original site-relative documentation links.
+        if (env.relativePath?.replace(/\\/g, '/').startsWith('clickhouse/') && href?.startsWith('/docs/')) {
+          tokens[index].attrSet('href', `https://clickhouse.com${href}`)
+        }
+        return renderLink(tokens, index, options, env, renderer)
+      }
+    }
+  },
   ignoreDeadLinks: [
     /^\/docs\/operations\/query-condition-cache$/,
   ],
