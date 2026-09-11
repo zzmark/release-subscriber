@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.9 版本发布会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.9 版本发布会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.9 版本发布会</h1>
+        <p>作者：Alexey Milovidov，2025-09-26。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back2.jpg); background-size: cover;">
+        <h1 style="margin-top: 25px; line-height: 110%; font-size: 56pt; color: yellow; text-align: center;">ClickHouse 25.9 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 25.9 版本</h2>
+<p>1.（35 分钟）ClickHouse 25.9 的新变化。</p>
+<p>2.（20 分钟）嘉宾分享。</p>
+<p>3.（5 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back1.jpg); background-size: cover;">
+<h2><span class="hilite">25.9 版本</span></h2>
+<p><span class="hilite">ClickHouse 秋季版本。</span></p>
+<p><span class="hilite">— 25 项新功能 🍎</span></p>
+<p><span class="hilite">— 22 项性能优化 🍁</span></p>
+<p><span class="hilite">— 83 项缺陷修复 🌿</span></p>
+</section>
+<!--
+
+Small
+
+arrayExcept
+isValidASCII
+Boolean settings
+Arrow Flight: SSL and Auth
+Storage class in S3
+system.database_replicas
+New memory profiler
+S3Queue - no duplicates
+
+Performance
+
+use_skip_indexes_on_data_read
+JOIN reordering
+JOIN rewrite when condition on the joined table is false
+
+Main
+
+Text index
+Vector index
+NATS JetStream
+
+Data Lakes
+
+ALTER UPDATE for Iceberg
+DROP TABLE for Iceberg
+system.iceberg_metadata_log
+ORC and Avro for Iceberg
+Unity catalog for Azure
+Distributed INSERT SELECT for data lakes
+
+Integrations
+
+MCP in the Console
+Chat UI in the Console
+
+Bonus
+
+OpenHouse Roadshow
+
+Reading
+
+Optimizing for high-core
+Scaling GROUP BY
+Migrating from TimescaleDB
+Sierra
+SewerAI
+Exabeam
+Lyft
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">实用小功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>布尔设置</h2>
+
+<p><code style="font-size: 18pt; line-height: 1.5;"><span style="color: gray;">-- 25.8:</span>
+SET use_query_cache = true;
+
+<span style="color: gray;">-- 25.9:</span>
+SET use_query_cache;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Thraeka。</p>
+</section>
+
+
+<section class="slide">
+<h2>isValidASCII</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">isValidASCII</b>('Hello')
+
+   ┌─isValidASCII('Hello')─┐
+1. │                     1 │
+   └───────────────────────┘
+
+:) SELECT <b style="color: green;">isValidASCII</b>('Привет')
+
+   ┌─isValidASCII('Привет')─┐
+1. │                      0 │
+   └────────────────────────┘
+
+<span style="color: gray;">:) SELECT match('hello', '^[[:ascii:]]*$');
+:) SELECT match('hello', '^[\x00-\x7F]*$');
+:) SELECT arrayAll(c -> ascii(c) &lt; 128, extractAll('hello', '.'));</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Rajat Mohan。</p>
+</section>
+
+
+<section class="slide">
+<h2>arrayExcept</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: gray">-- 25.8:</span>
+:) SELECT arrayFilter(x -> x NOT IN [1, 3, 5], [1, 2, 3, 4]) AS res
+
+<span style="color: gray">-- 25.9</span>
+:) SELECT arrayExcept([1, 2, 3, 4], [1, 3, 5]) AS res
+
+   ┌─res───┐
+1. │ [2,4] │
+   └───────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Joanna Hulboj。</p>
+</section>
+
+
+<section class="slide">
+<h2>指定 S3 存储类别</h2>
+
+<p><code style="font-size: 18pt; line-height: 1.5;">CREATE TABLE test (s String)
+ENGINE = S3('s3://mybucket/test.parquet',
+            <b style="color: green;">storage_class_name</b> = 'INTELLIGENT_TIERING');
+
+INSERT INTO test VALUES ('Hello');
+
+<span style="color: gray;">-- works with a table function as well:</span>
+INSERT INTO FUNCTION s3('s3://mybucket/test.parquet',
+            <b style="color: green;">storage_class_name</b> = 'INTELLIGENT_TIERING');
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexander Sapin。</p>
+</section>
+
+
+<section class="slide">
+<h2>system.database_replicas</h2>
+
+<p style="margin-top: -1em;">新增系统表，可查看 <b>Replicated</b> 数据库的内部状态，
+<br/>类似于 <b>system.replicas</b> 对复制表提供的信息。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.1;">:) DESCRIBE system.database_replicas
+
+    ┌─name────────────────┬─type───┐
+ 1. │ database            │ String │
+ 2. │ is_readonly         │ UInt8  │
+ 3. │ max_log_ptr         │ Int32  │
+ 4. │ replica_name        │ String │
+ 5. │ replica_path        │ String │
+ 6. │ zookeeper_path      │ String │
+ 7. │ shard_name          │ String │
+ 8. │ log_ptr             │ Int32  │
+ 9. │ total_replicas      │ UInt32 │
+10. │ zookeeper_exception │ String │
+11. │ is_session_expired  │ UInt8  │
+    └─────────────────────┴────────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: -1em;">开发者：Konstantin Morozov。</p>
+</section>
+
+
+<section class="slide">
+<h2>集成 Arrow Flight 🧪</h2>
+
+<p>从 <b>25.8</b>起，ClickHouse 可以查询其他 Arrow Flight <b>数据源</b>
+<br/>，使用的是 <b>arrowFlight</b> 表函数。</p>
+
+<p>ClickHouse 本身也可以作为 Arrow Flight <b>服务器</b> 运行。</p>
+
+<p>新增于 <b style="color: green;">25.9</b>：TLS 和认证。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: gray;">-- without authentication:</span>
+SELECT * FROM arrowFlight('host:port', 'dataset_name');
+
+<span style="color: gray;">-- with authentication:</span>
+SELECT * FROM arrowFlight(
+    'host:port', 'dataset_name', <b style="color: green;">'username', 'password'</b>);
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vitaly Baranov。</p>
+</section>
+
+<section class="slide">
+<h2>新的内存分析器</h2>
+
+<p>ClickHouse 已有 <b>采样</b> 和 <b>水位线</b> 内存分析器。</p>
+<p>现在使用内存分配器（jemalloc）对内存分配和释放进行 <b style="color: green;">一致采样</b> 。</p>
+<p>默认内置于 ClickHouse，可在运行时使用：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SET jemalloc_enable_profiler;
+:) SET jemalloc_collect_profile_samples_in_trace_log;
+
+<span style="color: gray;">-- after collecting some data</span>
+
+:) SELECT arrayStringConcat(symbols, '\n') AS s, count() AS c,
+       sum(size) AS size, round(size / c) AS avg_size
+   FROM system.trace_log WHERE trace_type = <b style="color: green;">'JemallocSample'</b>
+   GROUP BY s ORDER BY abs(size) DESC LIMIT 20 FORMAT Vertical
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Antonio Andelic。</p>
+</section>
+
+<section class="slide">
+<h2>新的内存分析器</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SET jemalloc_enable_profiler;
+:) SET jemalloc_collect_profile_samples_in_trace_log;
+
+<span style="color: gray;">-- analyze the samples:</span>
+:) SELECT arrayStringConcat(symbols, '\n') AS s, count() AS c,
+       sum(size) AS size, round(size / c) AS avg_size
+   FROM system.trace_log WHERE trace_type = <b style="color: green;">'JemallocSample'</b>
+   GROUP BY s ORDER BY abs(size) DESC LIMIT 20 FORMAT Vertical;
+
+<span style="color: gray;">-- create a heap dump:</span>
+:) SYSTEM JEMALLOC FLUSH PROFILE;
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+SET jemalloc_enable_profiler, jemalloc_collect_profile_samples_in_trace_log;
+SELECT number % 1e6 AS k, count() FROM numbers_mt(5e9) GROUP BY k ORDER BY k LIMIT 100;
+SELECT arrayStringConcat(symbols, '\n') AS s, count() AS c, sum(size) AS size, round(size / c) AS avg_size FROM system.trace_log WHERE trace_type = 'JemallocSample' GROUP BY s ORDER BY abs(size) DESC LIMIT 20 FORMAT Vertical;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Antonio Andelic。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back4.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>流式处理二级索引</h2>
+
+<p>在 <b style="color: red;">25.8</b>中：查询开始读取数据前，先读取并分析索引，使用大型索引时会引入明显延迟。</p>
+
+<p>在 <b style="color: green;">25.9</b>中：在扫描数据的同时读取索引。查询启动更快，也可更早完成，例如达到 LIMIT 时。</p>
+
+<p><code style="font-size: 18pt; line-height: 1.25;">:) SET use_skip_indexes_on_data_read;
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+SELECT * FROM system.data_skipping_indices ORDER BY data_compressed_bytes DESC LIMIT 10 \G
+
+SELECT count() FROM asynchronous_metric_log_5265492640286358528;
+SHOW TABLE asynchronous_metric_log_5265492640286358528;
+
+SELECT DISTINCT commit_sha FROM asynchronous_metric_log_5265492640286358528 WHERE commit_sha LIKE '%aaaa%';
+SELECT DISTINCT commit_sha FROM asynchronous_metric_log_5265492640286358528 WHERE commit_sha LIKE '%aaaa%' SETTINGS use_skip_indexes_on_data_read;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Amos Bird。</p>
+</section>
+
+
+<section class="slide">
+<h2>JOIN 重排</h2>
+
+<p>根据待读取的数据量
+<br/>和列级统计信息，重排 JOIN 图。</p>
+
+<p><code style="font-size: 18pt; line-height: 1.25;">:) SET query_plan_optimize_join_order_limit = 10;
+:) SET allow_statistics_optimize = 1;
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+CREATE TABLE big (k UInt64, s String) ORDER BY ();
+CREATE TABLE small (k UInt64, s String) ORDER BY ();
+
+INSERT INTO big SELECT number, 'table 1: ' || number FROM numbers_mt(1e8);
+INSERT INTO small SELECT number * 1000000 AS k, 'table 2: ' || k FROM numbers_mt(1e6);
+
+SELECT k, big.s, small.s FROM small JOIN big USING k SETTINGS query_plan_optimize_join_order_limit = 0;
+SELECT k, big.s, small.s FROM small JOIN big USING k SETTINGS query_plan_optimize_join_order_limit = 10;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vladimir Cherkasov。</p>
+</section>
+
+<section class="slide">
+<h2>JOIN 重排</h2>
+
+<p>根据待读取的数据量
+<br/>和列级统计信息，重排 JOIN 图。</p>
+
+<p><code style="font-size: 18pt; line-height: 1.25;">:) SET query_plan_optimize_join_order_limit = 10;
+:) SET allow_statistics_optimize = 1;
+</code></p>
+
+<p>演示（带统计信息的 TPC-H）</p>
+
+<!--
+
+USE tpch_no_stats;
+USE tpch_stats;
+
+SET query_plan_optimize_join_order_limit = 10, allow_statistics_optimize = 1;
+
+SELECT
+    n_name,
+    sum(l_extendedprice * (1 - l_discount)) AS revenue
+FROM
+    customer,
+    orders,
+    lineitem,
+    supplier,
+    nation,
+    region
+WHERE
+    c_custkey = o_custkey
+    AND l_orderkey = o_orderkey
+    AND l_suppkey = s_suppkey
+    AND c_nationkey = s_nationkey
+    AND s_nationkey = n_nationkey
+    AND n_regionkey = r_regionkey
+    AND r_name = 'ASIA'
+    AND o_orderdate >= DATE '1994-01-01'
+    AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' year
+GROUP BY
+    n_name
+ORDER BY
+    revenue DESC;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vladimir Cherkasov。</p>
+</section>
+
+
+<section class="slide">
+<img style="float: left; height: 95%; margin-left: -30px; padding-right: 30px" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/tpch.png"/>
+<h2>JOIN 重排</h2>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vladimir Cherkasov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back3.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>文本索引 🧪</h2>
+
+<p>ClickHouse 中的全文搜索索引！</p>
+<p style="line-height: 1.5">&mdash; 2022 年开始开发
+<br/>&mdash; 2023 年推出首个原型 <span style="color: gray;">（由 Harry Lee 和 Larry Luo 开发）</span>
+<br/>&mdash; <b>现已重写，以推进生产可用</b>
+<br/>&mdash; 25.9 中仍为实验性功能</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov、Elmi Ahmadov、Jimmy Aguilar Mena。</p>
+</section>
+
+<section class="slide">
+<h2>文本索引 🧪</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE text_log
+(
+    message String,
+    ...
+    INDEX inv_idx(message)
+        TYPE <b style="color: green;">text</b>(tokenizer = 'default')
+        GRANULARITY 128
+)
+ENGINE = SharedMergeTree ORDER BY id;
+
+SELECT ... WHERE <b style="color: green;">hasToken</b>(message, 'DDLWorker');
+SELECT ... WHERE <b style="color: green;">searchAll</b>(message, ['peak', 'memory']);
+SELECT ... WHERE <b style="color: green;">searchAny</b>(message, tokens('01442_merge_detach_attach'));
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov、Elmi Ahmadov、Jimmy Aguilar Mena。</p>
+</section>
+
+<section class="slide">
+<h2>文本索引 🧪</h2>
+
+<p>演示</p>
+
+<!--
+
+clickhouse-client --connection text_index
+
+USE full_text_search;
+SELECT count() FROM text_log_inverted_index_2;
+SET use_skip_indexes_on_data_read = 1, allow_experimental_full_text_index = 1, max_parallel_replicas = 1, use_query_condition_cache = 0;
+
+SELECT message
+FROM full_text_search.text_log_inverted_index_2
+WHERE searchAll(message, ['peak', 'memory']) LIMIT 10;
+
+SELECT count()
+FROM full_text_search.text_log_inverted_index_2
+WHERE message LIKE '%peak%memory%';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov、Elmi Ahmadov、Jimmy Aguilar Mena。</p>
+</section>
+
+<section class="slide">
+<h2>向量索引</h2>
+
+<p>2021 年开始开发。达到生产可用的版本是 <b style="color: green;">25.8</b>。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -1em;">ALTER TABLE dbpedia
+    ADD INDEX vector_index(vector)
+    TYPE <b style="color: green;">vector_similarity</b>(
+        'hnsw', 'cosineDistance', 1536, 'bf16', 64, 512);
+
+ALTER TABLE dbpedia MATERIALIZE INDEX vector_index;
+
+WITH ... AS reference_vector
+SELECT ... FROM table WHERE ...
+<b>ORDER BY cosineDistance(vector, reference_vector)
+LIMIT 10</b>;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Shankar Iyer。</p>
+</section>
+
+<section class="slide">
+<h2>向量搜索</h2>
+
+<p><b>22.9</b> &mdash; 实验版本</p>
+<p style="color: gray; font-size: 14pt; margin-top: -1em;">由 Arthur Filatenkov、Vladimir Makarov、Danila Mishin、Nikita Vasilenko、Alexander Piachonkin、Nikita Evsiukov、Hakob Sagatelyan 引入。</p>
+
+<p><b>23.8</b> &mdash; 集成 USearch 库</p>
+<p style="color: gray; font-size: 14pt; margin-top: -1em;">由 Davit Vardanyan 引入。</p>
+
+<p><b>25.1</b> &mdash; 更快的向量索引</p>
+<p style="color: gray; font-size: 14pt; margin-top: -1em;">由 Robert Schulze、Michael Kolupaev 开发。</p>
+
+<p><b style="color: green;">25.5</b> &mdash; Beta（前置过滤、后置过滤、重新评分）</p>
+<p style="color: gray; font-size: 14pt; margin-top: -1em;">开发者：Shankar Iyer、Robert Schulze。</p>
+
+<p><b style="color: green;">25.8</b> &mdash; 正式可用（仅从索引读取、提取倍数、二值量化）</p>
+<p style="color: gray; font-size: 14pt; margin-top: -1em;">开发者：Shankar Iyer。</p>
+</section>
+
+<section class="slide">
+<h2>向量索引</h2>
+
+<p><b>HNSW</b> 算法，支持量化选项（<b>bf16</b>, <b>i8</b>, <b>b1</b>）。</p>
+<p>支持不同的过滤模式：<br/><b>后置过滤</b> （先执行近似近邻搜索，再应用其他过滤条件）<br/>或 <b>前置过滤</b> （先应用常规过滤条件，再对过滤后的结果执行近似近邻搜索）。</p>
+<p>支持过滤倍数<br/>（例如先找到 100 个最近候选，过滤后返回 10 个）。</p>
+<p>不必要时避免读取数据列。</p>
+
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Shankar Iyer。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back7.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">数据湖</span></h2>
+</section>
+
+<section class="slide">
+<h2>数据湖改进</h2>
+
+<p><b>ALTER UPDATE</b> 适用于 Iceberg</p>
+<p>新增选项，使 <b>DROP TABLE</b> 可删除 Iceberg 数据</p>
+<p><b>system.iceberg_metadata_log</b></p>
+<p><b>ORC</b> 和 <b>Avro</b> 可用于 Iceberg 数据文件</p>
+<p>Unity Catalog 支持 <b>Azure</b></p>
+<p>数据湖支持分布式 INSERT SELECT</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Konstantin Vedernikov、Smita Kulkarni。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">额外消息</span></h2>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back9.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">嘉宾分享</span></h2>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back10.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">还有一个……</span></h2>
+</section>
+
+<section class="slide">
+<h2>NATS JetStream</h2>
+
+<p>ClickHouse 已支持订阅 NATS！</p>
+<p><b>JetStream</b> &mdash; 是 NATS 中的持久化队列（类似 Kafka，但更简单）。</p>
+
+<p><code style="font-size: 16pt; line-height: 1.25;">CREATE TABLE test.nats (key UInt64, value UInt64)
+ENGINE = NATS
+SETTINGS nats_url = 'nats1:4444',
+         <b style="color: green;">nats_stream</b> = 'test_stream',
+         <b style="color: green;">nats_consumer_name</b> = 'test_consumer',
+         nats_subjects = 'test_subject',
+         nats_format = 'TSV',
+         nats_row_delimiter = '\n';
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Dmitry Novikov。</p>
+</section>
+
+
+<section class="slide">
+<h2>集成</h2>
+<p style="margin-top: -1em;"><b>ClickPipes</b></p>
+<p>&mdash; <b>高级设置</b>：完整支持 API、UI 和 Terraform
+<br/>&mdash; <b>JSON</b> 数组 &amp; 多个 JSON 对象
+<br/>&mdash; <b>S3 无序模式</b>：提升大规模 S3 数据摄取的性能
+<br/>&mdash; <b>Postgres CDC</b>：新增故障转移复制槽支持，以及 PlanetScale Metal 兼容性。
+</p>
+<p><b>生态系统</b></p>
+<p>&mdash; 官方 <b>Flink</b> 连接器
+<br/>&mdash; <b>Python</b> 0.9.0 版本，支持 SQLAlchemy 2.x、
+<br/>&mdash; <b>Polars</b> 集成，以及 <b>Pandas</b> 1.x/2.x 兼容性
+<br/>&mdash; <b>Java</b> 客户端 0.9.2，面向 Tableau 和 DBeaver 等 BI 工具
+<br/>&mdash; <b>C++</b> 客户端 2.6.0：更好地处理数值数据类型和外部数据。
+</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流会</h2>
+<p style="line-height: 1.25">
+<span class="hilite">&mdash; 🇸🇬 新加坡，9 月 25 日</span>
+<br/><span class="hilite">&mdash; 🇦🇺 墨尔本，9 月 30 日</span>
+<br/><span class="hilite">&mdash; 🇯🇵 东京，9 月 30 日</span>
+<br/><span class="hilite">&mdash; 🇪🇸 马德里，9 月 30 日</span>
+<br/><span class="hilite">&mdash; 🇪🇸 巴塞罗那，10 月 1 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 旧金山（Iceberg），10 月 1 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 西雅图 AI 之夜，10 月 2 日</span>
+<br/><span class="hilite">&mdash; 🇨🇭 苏黎世，10 月 9 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 芝加哥，10 月 9 日</span>
+<br/><span class="hilite">&mdash; 🇬🇧 伦敦，10 月 15 日</span>
+</p>
+</section>
+
+
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;">
+<br/>&mdash; 通过并行副本优化 GROUP BY
+<br/>&mdash; 针对高核心数 Intel CPU 优化 ClickHouse
+<br/>&mdash; 高性价比的可观测性
+<br/>&mdash; 面向 Next.JS 应用的 ClickStack
+<br/>&mdash; 使用 ClickPipes 从 TimescaleDB 迁移数据
+<br/>&mdash; Lyft, Exabeam, Ford, SewerAI
+<br/>&mdash; LLM 现在能替代值班 SRE 吗？
+</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.9/pictures/back8.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/LCHEPNXo8kQ" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
