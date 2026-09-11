@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：23.12 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：23.12 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：23.12 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2023-12-28。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 100px; line-height: 150%; color: white; font-size: 56pt; text-shadow: 1px 1px 1px black;">ClickHouse<br/>23.12 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>23.12 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 23.12 的新内容。</p>
+<p>2.（10 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">23.12 版本</span></h2>
+<p><span class="hilite">ClickHouse 新年版本。</span></p>
+<p><span class="hilite">— 21 项新功能 🎁</span></p>
+<p><span class="hilite">— 18 项性能优化 🛷</span></p>
+<p><span class="hilite">— 37 项缺陷修复 ⛄</span></p>
+</section>
+<!--
+
+小功能
+
+ORDER BY ALL
+PASTE JOIN
+sqid
+FFT
+SHA512_256
+ALIAS 列上的索引
+ALTER APPLY DELETED MASK
+_part_offset
+
+
+性能
+
+Hash JOIN
+Merge 表的计数
+更快的聚合
+MIN/MAX
+FINAL：互不相交的范围
+FINAL：分区键包含排序键
+
+主要功能
+
+可刷新物化视图
+
+
+SQL 兼容性
+
+substring 支持 Enum
+format 支持任意类型
+date_trunc
+
+
+额外内容
+
+元组/null 的结构推断
+system.tables 中的未压缩大小
+skip_unavailable_shards
+动态 max_table_size_to_drop
+Keeper 就绪探针
+Keeper 软内存限制
+只读 Keeper
+二进制文件地图
+ch
+
+集成
+
+
+
+阅读
+
+ClickHouse + RedPanda，作者 Goldsky
+ClickHouse Cloud 的一年
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/back6.jpg); background-size: cover;">
+<h2 style="color: white;">小惊喜</h2>
+</section>
+
+<section class="slide">
+<h2>ORDER BY ALL</h2>
+
+<p>按所有选中的列排序：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT ... FROM table ORDER BY <b style="color: green;">ALL</b></code></p>
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT ... FROM table ORDER BY <b style="color: green;">ALL</b> DESC</code></p>
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT ... FROM table ORDER BY <b style="color: green;">ALL</b> DESC COLLATE 'tr'</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：ZhongYuanKai 🎁。</p>
+<!--
+
+SELECT * FROM uk_price_paid ORDER BY ALL LIMIT 10
+SELECT * FROM uk_price_paid ORDER BY ALL DESC LIMIT 10
+SELECT toYear(date), medianExact(price) FROM uk_price_paid GROUP BY ALL ORDER BY ALL
+SELECT toYear(date), medianExact(price) AS m, bar(m, 0, max(m) OVER (), 20) AS b FROM uk_price_paid GROUP BY ALL ORDER BY ALL
+
+-->
+</section>
+
+<section class="slide">
+<h2>PASTE JOIN</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-top: -0.5em;">SELECT * FROM
+(
+    SELECT
+        toYear(date),
+        medianExact(price) AS m,
+        bar(m, 0, max(m) OVER (), 20) AS b
+    FROM uk_price_paid
+    GROUP BY ALL
+    ORDER BY ALL ASC
+) AS t
+<b style="color: green;">PASTE JOIN</b>
+(
+    SELECT *
+    FROM numbers(100)
+) AS u
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+SELECT * FROM (SELECT toYear(date), medianExact(price) AS m, bar(m, 0, max(m) OVER (), 20) AS b FROM uk_price_paid GROUP BY ALL ORDER BY ALL) t PASTE JOIN (SELECT * FROM numbers(100)) u
+
+SELECT toYear(date), medianExact(price) AS m, bar(m, 0, max(m) OVER (), 20) AS b FROM uk_price_paid GROUP BY ALL ORDER BY ALL SETTINGS output_format_pretty_row_numbers = 1
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Yarik Briukhovetskyi 🥳。</p>
+</section>
+
+
+<section class="slide">
+<h2>SQID</h2>
+
+<p>从数字生成简短的唯一标识符</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">sqid</b>(123);
+
+UKk
+
+:) SELECT <b style="color: green;">sqid</b>(123456789);
+
+rDOOFW
+
+:) SELECT <b style="color: green;">sqid</b>(123, 456, 789);
+
+eVH6til6J
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：AwakeLJW、Robert Schulze 🎄。</p>
+</section>
+
+
+<section class="slide">
+<h2>seriesPeriodDetectFFT</h2>
+
+<p>查找信号的主频。</p>
+
+<p>演示。</p>
+
+<!--
+
+SELECT toStartOfHour(created_at) AS h, count() AS c, bar(c, 0, 200000, 50) FROM github_events WHERE created_at > now() - INTERVAL 10 DAY GROUP BY h ORDER BY h
+
+SELECT seriesPeriodDetectFFT(groupArray(c)) FROM (SELECT toStartOfHour(created_at) AS h, count() AS c, bar(c, 0, 200000, 50) FROM github_events WHERE created_at > now() - INTERVAL 10 DAY GROUP BY h ORDER BY h)
+
+SELECT seriesPeriodDetectFFT(groupArray(c)) FROM (SELECT toStartOfMinute(created_at) AS h, count() AS c, bar(c, 0, 20000, 50) FROM github_events WHERE created_at > now() - INTERVAL 10 DAY GROUP BY h ORDER BY h)
+
+SELECT seriesPeriodDetectFFT(groupArray(c)) FROM (SELECT created_at AS h, count() AS c, bar(c, 0, 20000, 50) FROM github_events WHERE created_at > now() - INTERVAL 10 DAY GROUP BY h ORDER BY h)
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Bhavna Jindal 🎇。</p>
+</section>
+
+
+<section class="slide">
+<h2>SHA-512/256</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5; margin-top: -1em;">SELECT
+    hex(SHA512('ClickHouse')) AS a,
+    hex(substring(SHA512('ClickHouse'), 1, 32)) AS b,
+    hex(SHA256('ClickHouse')) AS c,
+    hex(<b style="color: green;">SHA512_256</b>('ClickHouse')) AS d
+FORMAT Vertical
+
+Row 1:
+──────
+a: 668F21E61C95DE56E6D1A3424FD127B68F460A882DE39622084FB3D2E062DC59FE092BA261227BF1675C0F50824A665445FC2C5685FB63148F95F0D0A03781F1
+b: 668F21E61C95DE56E6D1A3424FD127B68F460A882DE39622084FB3D2E062DC59
+c: DEE91DDB90597936302CFD4341E409C87779ED9E0E8C8FDE580E0AF6CDACE179
+d: F02AF5534B170E405BDA96CBB667103E7E022A92C7BF2EF07AA962C719E09350</code></p>
+
+<!--
+Length extension attack:
+For unknown message, given its hash(message), predict hash(message || suffix) for some suffix.
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Bharat Nallan 🪅。</p>
+</section>
+
+
+<section class="slide">
+<h2>ALIAS 列上的索引</h2>
+
+<p>此前已支持：物化列上的索引：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; margin-right: -2em; white-space: pre-wrap;">CREATE TABLE gis
+(
+    lat Float64,
+    lon Float64,
+
+    mercator_x Float64 <b>MATERIALIZED</b> (lon + 180) / 360,
+    mercator_y Float64 <b>MATERIALIZED</b> 1/2 - log(tan((lat + 90) / 360 * pi())) / 2 / pi(),
+
+    INDEX idx_x (mercator_x) TYPE minmax,
+    INDEX idx_y (mercator_y) TYPE minmax,
+
+    PRIMARY KEY mortonEncode(0xFFFFFFFF * mercator_x, 0xFFFFFFFF * mercator_y)
+) ENGINE = MergeTree</code></p>
+</section>
+
+<section class="slide">
+<h2>ALIAS 列上的索引</h2>
+
+<p>此前已支持：函数表达式上的索引：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE gis
+(
+    lat Float64,
+    lon Float64,
+
+    INDEX idx_x (<b>(lon + 180) / 360</b>) TYPE minmax,
+    INDEX idx_y (<b>1/2 - log(tan((lat + 90) / 360 * pi())) / 2 / pi()</b>) TYPE minmax,
+
+    PRIMARY KEY mortonEncode(0xFFFFFFFF * mercator_x, 0xFFFFFFFF * mercator_y)
+) ENGINE = MergeTree</code></p>
+</section>
+
+<section class="slide">
+<h2>ALIAS 列上的索引</h2>
+
+<p>从 <b>23.12</b>开始支持：ALIAS 列上的索引：</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE gis
+(
+    lat Float64,
+    lon Float64,
+
+    mercator_x Float64 <b style="color: green;">ALIAS</b> (lon + 180) / 360,
+    mercator_y Float64 <b style="color: green;">ALIAS</b> 1/2 - log(tan((lat + 90) / 360 * pi())) / 2 / pi(),
+
+    INDEX idx_x (<b style="color: green;">mercator_x</b>) TYPE minmax,
+    INDEX idx_y (<b style="color: green;">mercator_y</b>) TYPE minmax,
+
+    PRIMARY KEY mortonEncode(0xFFFFFFFF * mercator_x, 0xFFFFFFFF * mercator_y)
+) ENGINE = MergeTree</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vladimir Cherkasov 🎅。</p>
+</section>
+
+<section class="slide">
+<h2>ALIAS 列上的索引</h2>
+
+<p>如果需要为位置数据建立索引，
+<br/>还可以使用 <b>H3</b>, <b>S2</b>或 <b>Geohash</b>:</p>
+
+<p><code style="font-size: 12pt; line-height: 1.25; white-space: pre-wrap;">:) SELECT <b>geoToH3</b>(52.3676, 4.9041, 6)
+
+605641106796838911
+
+:) SELECT <b>geoToS2</b>(52.3676, 4.9041)
+
+4402065658753719925
+
+:) SELECT <b>geohashEncode</b>(52.3676, 4.9041)
+
+t0v5zsubmw2x
+</code></p>
+
+<p>我们还应该为 GIS 数据实现哪些功能？</p>
+</section>
+
+
+<section class="slide">
+<h2>APPLY DELETED MASK</h2>
+
+<p style="margin-top: -1em;">批量 DELETE：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em; margin-bottom: -1em;">ALTER TABLE t DELETE WHERE user = 'Petya'</b></code></p>
+<p>&mdash; 复制除已删除记录之外的全部记录，<br/>&emsp; 完整重写数据片段。</p>
+
+<p>轻量级 DELETE：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em; margin-bottom: -1em;">DELETE FROM t WHERE user = 'Petya'</b></code></p>
+<p>&mdash; 通过创建记录掩码进行延迟删除，<br/>&emsp; 在 SELECT 和合并期间滤除这些记录。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-bottom: -1em;">ALTER TABLE t <b style="color: green;">APPLY DELETED MASK</b></code></p>
+<p>&mdash; 在轻量级删除操作之后清理已删除的记录，
+<br/>&emsp; 无需执行 OPTIMIZE 查询。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Anton Popov ⛄。</p>
+</section>
+
+<section class="slide">
+<h2>APPLY DELETED MASK</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-bottom: -1em;">ALTER TABLE t <b style="color: green;">APPLY DELETED MASK</b></code></p>
+<p>&mdash; 在轻量级删除操作之后清理已删除的记录，
+<br/>&emsp; 无需执行 OPTIMIZE 查询。</p>
+
+<p>本质上是将轻量级 DELETE 转换为批量操作。</p>
+
+<p>额外功能：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-bottom: -1em;">ALTER TABLE t <b>APPLY DELETED MASK <span style="color: green;">IN PARTITION</span></b> p</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov ⛄。</p>
+</section>
+
+
+<section class="slide">
+<h2>_part_offset 列</h2>
+
+<p>从每个数据片段中选取前至多 100 条记录：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT count(), uniq(_part)
+   FROM github_events WHERE <b style="color: green;">_part_offset &lt; 100</b>
+
+┌─count()─┬─uniq(_part)─┐
+│    1700 │          17 │
+└─────────┴─────────────┘
+
+1 row in set. Elapsed: 0.007 sec. Processed 139.09 thousand rows
+</code></p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Amos Bird 🐉。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>Merge 表的 count()</h2>
+
+<p>演示</p>
+
+<!--
+
+./clickhouse-23.11 server
+
+CREATE TABLE hits_merge ENGINE = Merge(default, '^hits$')
+SELECT count() FROM hits_merge;
+
+./clickhouse-server
+
+SELECT count() FROM hits_merge;
+
+-->
+
+<p style="color: gray; font-size: 14pt;">开发者：Skyoct 🎊。</p>
+</section>
+
+<section class="slide">
+<h2>Hash JOIN 的内存使用</h2>
+
+<p>23.11:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT count() FROM hits AS t1 INNER JOIN hits AS t2
+    ON t1.URL = t2.Referer
+    WHERE t1.URL != '' AND t2.Referer != ''
+
+Received exception from server (version 23.11.3):
+Memory limit (for query) exceeded: <b style="color: red;">would use 98.02 GiB</b>:
+While executing JoiningTransform.
+</code></p>
+
+</section>
+
+<section class="slide">
+<h2>Hash JOIN 的内存使用</h2>
+
+<p>23.12:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT count() FROM hits AS t1 INNER JOIN hits AS t2
+    ON t1.URL = t2.Referer
+    WHERE t1.URL != '' AND t2.Referer != ''
+
+┌─────count()─┐
+│ 51624536761 │
+└─────────────┘
+
+1 row in set. Elapsed: 131.179 sec. Processed 199.99 million rows.
+<b style="color: green;">Peak memory usage: 8.36 GiB.</b>
+</code></p>
+
+<p>连接了 51,624,536,761 条记录，一切正常 🥂</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Vladimir Cherkasov、Liu Neng。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">更快的聚合</h2>
+
+<p>针对整个数据块具有相同键的情况进行优化：</p>
+
+<p><code style="line-height: 1.5">SELECT number DIV 100000 AS k, avg(number) AS c
+    FROM numbers_mt(1000000000)
+    GROUP BY k ORDER BY k LIMIT 10</code></p>
+
+<p style="font-family: monospace;">此前： <b style="color: red;">101 毫秒</b>，9602551188 行/秒。</p>
+<p style="font-family: monospace;">现在： <b style="color: green;">81 毫秒</b>，11695102172 行/秒。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov ⛄。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">更快的 MIN/MAX</h2>
+
+<p>这是一项底层优化。<br/>
+它增加了批处理，以及针对不同指令集的 CPU 调度。</p>
+
+<p><code style="line-height: 1.5">SELECT max(number) FROM system.numbers</code></p>
+
+<p style="font-family: monospace;">此前： <b style="color: red;">14.8 亿</b> 行/秒。
+<br/>现在： <b style="color: green;">34.0 亿</b> 行/秒。</p>
+
+<p><code style="line-height: 1.5">SELECT max(number) FROM system.numbers_mt</code></p>
+
+<p style="font-family: monospace;">此前： <b style="color: red;">618.1 亿</b> 行/秒。
+<br/>现在： <b style="color: green;">699.5 亿</b> 行/秒。</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Raúl Marín 🍾。</p>
+</section>
+
+
+<section class="slide">
+<h2>FINAL 优化</h2>
+
+<p><b>FINAL</b> — 在 SELECT 查询期间即时应用合并逻辑。</p>
+<p>适用于 Replacing-、Collapsing-、Aggregating-、Summing-<br/> 以及其他 MergeTree 表。</p>
+<p>可实现 OLTP 数据库中的唯一主键行为，以及 UPSERT、REPLACE、INSERT IGNORE。</p>
+
+<p>可以在查询中显式指定：
+<br/><span style="font-family: monospace;">SELECT ... FROM table FINAL</span><br/>
+或者通过设置： <span style="font-family: monospace;">SET final = 1</span></p>
+
+<p>缺点：SELECT 会变得 <span style="color: red;">更慢</span>.</p>
+</section>
+
+<section class="slide">
+<h2>FINAL 优化</h2>
+
+<p>如果表的分区键由主键中的列组成，
+<br/>则不跨分区合并数据。</p>
+
+<img style="width: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/final1.png"></img>
+
+<p style="color: gray; font-size: 14pt;">开发者：Maksim Kita 🎈。</p>
+</section>
+
+<section class="slide">
+<h2>FINAL 优化</h2>
+
+<p>找出主键范围互不相交的数据片段，
+<br/>避免合并这些数据片段中的数据。</p>
+
+<img style="width: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/final2.png"></img>
+
+<p style="color: gray; font-size: 14pt;">开发者：Maksim Kita 🎈。</p>
+
+<p>还有更多优化正在开发中！</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/back5.jpg); background-size: cover;">
+<h2 style="color: white; line-height: 1.5; text-shadow: 3px 3px 3px black;">一些有趣的功能</h2>
+</section>
+
+
+<section class="slide">
+<h2>可刷新物化视图</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">CREATE MATERIALIZED VIEW [IF NOT EXISTS] [db.]table_name
+  <b style="green">REFRESH</b> EVERY|AFTER interval [OFFSET interval]
+  RANDOMIZE FOR interval
+  DEPENDS ON [db.]name [, [db.]name [, ...]]
+  [TO [db.]name] [(columns)] [ENGINE = engine]
+  AS SELECT ...
+</code></p>
+
+<p>??? 🤔</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Michael Kolupaev、Michael Guzov。</p>
+</section>
+
+<section class="slide">
+<h2>可刷新物化视图</h2>
+
+<p>在后台运行 SELECT 查询，<br/>并以其结果 <b style="color: green">原子地</b> 替换表。</p>
+<p>按 <b style="color: green">灵活配置的计划</b>运行刷新过程。</p>
+<p>支持多个物化视图之间的 <b style="color: green">依赖图</b> 。</p>
+
+<p>动机：
+<br/>&mdash; 定期从外部数据库导出数据，
+<br/>&emsp; 类似于字典；
+<br/>&mdash; 定期执行非增量计算，
+<br/>&emsp; 区别于（增量）物化视图。
+</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Michael Kolupaev、Michael Guzov 🎁。</p>
+</section>
+
+<section class="slide">
+<h2>可刷新物化视图</h2>
+
+<p>演示。</p>
+
+<!--
+
+CREATE TABLE counter1 (x UInt64) ENGINE = MergeTree ORDER BY x;
+INSERT INTO counter1 VALUES (1);
+
+CREATE TABLE counter2 (x UInt64) ENGINE = MergeTree ORDER BY x;
+
+CREATE MATERIALIZED VIEW update1 REFRESH EVERY 1 SECOND TO counter2 AS SELECT x + 1 FROM counter1;
+CREATE MATERIALIZED VIEW update2 REFRESH EVERY 1 SECOND DEPENDS ON update1 TO counter1 AS SELECT x + 1 FROM counter2;
+
+SELECT * FROM counter1;
+
+-->
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Michael Kolupaev、Michael Guzov 🎁。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/back3.jpg); background-size: cover;">
+<h2 style="color: white;">额外内容</h2>
+</section>
+
+<section class="slide">
+<h2>二进制文件地图</h2>
+
+<p>为什么 ClickHouse 二进制文件这么大？</p>
+
+<p>打开 <a href="http://localhost:8123/binary">http://localhost:8123/binary</a> 查看。</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Alexey Milovidov 🧑‍🎄。</p>
+</section>
+
+<section class="slide">
+<h2>互联网地图</h2>
+
+<p>如果你喜欢这个，不妨看看另一个项目：互联网地图</p>
+<p><a href="https://reversedns.space/">https://reversedns.space/</a></p>
+</section>
+
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>Grafana 插件 v4-beta</b>:
+<br/>&mdash; 改善用户体验，降低学习门槛；
+</p>
+<p>请在以下地址分享反馈：
+<br/><a href="https://github.com/grafana/clickhouse-datasource/releases/tag/v4.0.0-beta">https://github.com/grafana/clickhouse-datasource/releases/tag/v4.0.0-beta</a>
+</p>
+
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+
+<p><b>MySQL 兼容性</b>:
+<br/>&mdash; <b>substring</b> 支持 Enum 数据类型；
+<br/>&mdash; <b>date_trunc</b> 支持不区分大小写的单位名称；
+<br/>&mdash; <b>format</b> 支持所有数据类型；
+</p>
+
+<p><b>JavaScript 客户端</b>:
+<br/>&mdash; 公开查询统计信息；
+<br/>&mdash; 支持 CloudFlare workers；
+<br/>&mdash; 识别可重试错误码</p>
+
+<p>更新 <b>PowerBI</b>, <b>Metabase</b>, <b>dbt</b>, <b>Apache Beam</b>, <b>Kafka Connector</b>.</p>
+</section>
+
+<section class="slide">
+<img style="float: right; margin-top: -1em; margin-right: -4em; width: 40%; image-rendering: pixelated; margin-bottom: -10em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/geek.png"/>
+<h2>阅读园地</h2>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; ClickHouse + <b>RedPanda</b>，作者 Goldsky
+<br/>&mdash; 回顾 <b>ClickHouse Cloud</b>的一年；
+<br/>&mdash; 弃用 Druid、采用 ClickHouse：来自 <b>Lyft</b>的实践；
+<br/>&mdash; <b>The Geek Narrator</b>：与 <b>Tom</b> 和 <b>Tyler</b>探讨 ClickHouse 内部实现。
+</p>
+
+<p>视频录像： <a href="https://www.youtube.com/c/ClickHouseDB">https://www.youtube.com/c/ClickHouseDB</a></p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.12/pictures/back7.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/7TLuT6gt0PQ" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
