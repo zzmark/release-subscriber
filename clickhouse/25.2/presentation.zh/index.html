@@ -45,50 +45,50 @@
 </section>
 <!--
 
-Small
+小功能
 
-subcolumns in DEFAULT and MATERIALIZED
-COW storage policy
-Easy attaching of external tables
+DEFAULT 和 MATERIALIZED 中的子列
+写时复制存储策略
+便捷附加外部表
 JSONCompactEachRowWithProgress
-Prepared Statements in the Postgres wire protocol
+PostgreSQL 线协议中的预处理语句
 
-Performance
+性能
 
-Parquet bloom filters
-Infer conditions
-Parallel Hash Join is more parallel
+Parquet 布隆过滤器
+推导条件
+提高并行哈希连接的并行度
 
-Main
+主要功能
 
 DatabaseBackup
 
-Guest Talk
+嘉宾分享
 
 Delta Rust Kernel
 
-Bonus
+额外内容
 
-Web UI navigation
+Web UI 导航
 JSONBench
-Fast Formats
+快速格式
 Kubenetmon
 BYOC
-Roadmap 2025
+2025 年路线图
 
-Integrations
+集成
 
-Postgres CDC
-Email notifications
-Virtual columns
+PostgreSQL CDC
+邮件通知
+虚拟列
 
-Reading
+阅读
 
 JSONBench
 FOSDEM 2025
 FastFormats
-Data Lakes
-Agent-Facing Analytics
+数据湖
+面向智能体的分析
 Memorial Sloan
 JSONBench
 
@@ -315,7 +315,7 @@ SETTINGS table_disk = 1, disk = disk(type = web, endpoint = 'https://raw.githubu
 
 https://play.clickhouse.com/
 
-Progress:
+进度：
 
 SELECT number, sleep(.2) FROM numbers(1e6) WHERE number % 100000 = 123
 
@@ -323,7 +323,7 @@ SELECT count() FROM github_events WHERE actor_login = 'alexey-milovidov'
 SELECT repo_name, firstLine(body) FROM github_events WHERE actor_login = 'alexey-milovidov' AND body != '' AND repo_name NOT LIKE '%ClickHouse%'
 SELECT repo_name, firstLine(body) FROM github_events WHERE actor_login = 'nickitat' AND body != '' AND repo_name NOT LIKE '%ClickHouse%'
 
-Cancellation:
+取消：
 
 -->
 
@@ -637,10 +637,10 @@ SETTINGS allow_experimental_delta_kernel_rs = 1;
     <div class="progress"></div>
     <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
 
-    <!--Video plugin-->
+    <!--视频插件-->
     <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
     <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
-    <!--/Video plugin-->
+    <!--/视频插件-->
 <footer class="badge">
     <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
 </footer>
