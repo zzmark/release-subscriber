@@ -44,45 +44,45 @@
 </section>
 <!--
 
-Small
+小功能
 
-Multi-query
+多查询
 deduplicate_merge_projection_mode
 _etag
-tags for query cache
+查询缓存标签
 printf
-Hive partitioning
+Hive 分区
 disable_insertion_and_mutation
 
-Performance
+性能
 
-Optimization for subcolumns
-OPTIMIZE Join tables
-Faster merges
+子列优化
+对 Join 表执行 OPTIMIZE
+更快的合并
 plain_rewritable
 DROP DATABASE
-Writing ORC
+写入 ORC
 
-Main
+主要内容
 
-Analyzer is in production
+分析器已可用于生产环境
 Prometheus
 Kafka
 JSON
 
-Bonus
+额外内容
 
 CryptoHouse
-Integrations
+集成
 AWS Activate
-Meetups
+线下交流会
 
-Reading
+阅读
 
-Postgres replication
-ML data
+Postgres 复制
+机器学习数据
 Ibis
-Cognitiv, Coinhall, Loopme, AzurGames
+Cognitiv、Coinhall、Loopme、AzurGames
 
 -->
 
@@ -178,7 +178,7 @@ $ ch "SELECT 1; SELECT 2;"
 DESCRIBE s3('s3://ookla-open-data/parquet/performance/**');
 SELECT _path, count() FROM s3('s3://ookla-open-data/parquet/performance/**') GROUP BY _path ORDER BY _path;
 SET use_hive_partitioning = 1;
-- columns are virtual:
+- 列是虚拟列：
 DESCRIBE s3('s3://ookla-open-data/parquet/performance/**');
 SELECT _path, count() FROM s3('s3://ookla-open-data/parquet/performance/**') WHERE _year = 2024 GROUP BY _path ORDER BY _path;
 SELECT *, _type, _year, _quarter, toTypeName(_type), toTypeName(_year), toTypeName(_quarter) FROM s3('s3://ookla-open-data/parquet/performance/**') LIMIT 1 FORMAT Vertical;
