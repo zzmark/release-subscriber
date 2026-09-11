@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：24.7 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：24.7 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：24.7 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2024-07-30。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 10px; line-height: 100%; font-size: 56pt; color: yellow; text-shadow: black 1px 1px 1px; text-align: center;">ClickHouse 24.7 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>24.7 版本网络研讨会</h2>
+<p>1.（45 分钟）ClickHouse 24.7 新内容。</p>
+<p>2.（10 分钟）嘉宾演讲。</p>
+<p>2.（5 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">24.7 版本</span></h2>
+<p><span class="hilite">ClickHouse 夏季版本。</span></p>
+<p><span class="hilite">— 18 项新功能 🏖️</span></p>
+<p><span class="hilite">— 12 项性能优化 🍉</span></p>
+<p><span class="hilite">— 76 项缺陷修复 🍦</span></p>
+</section>
+<!--
+
+Small
+
+changeYear, ...
+groupConcat
+percent_rank
+system.error_log
+system.detached_tables
+Partitioned DeltaLake
+AzureQueue
+Automatic named tuples
+
+Performance
+
+Full-sorting JOIN for ASOF JOIN
+int to string
+read_in_order_use_buffering
+AZ-aware balancing for Keeper
+Unloading primary key for inactive parts
+
+Main
+
+Startup scripts
+On-disk storage for Keeper
+Deduplication in materialized views
+Projections and lightweight deletes
+
+Guest
+
+PeerDB
+
+Bonus
+
+chDB at EuroPython
+chDB: your engine in Python
+
+Integrations
+
+Reading
+
+Braintrust
+Prometheus
+Luzmo
+Rill
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">几个新函数</span></h2>
+</section>
+
+<section class="slide">
+<h2>用于日期和时间的 change- 函数</h2>
+
+<p><b>changeYear</b>, <b>changeMonth</b>, <b>changeDay</b>,
+<br/><b>changeHour</b>, <b>changeMinute</b>, <b>changeSecond</b></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">changeMonth</b>('2024-06-30'::Date, <b>7</b>)
+
+2024-<b>07</b>-30
+
+:) SELECT <b style="color: green;">changeHour</b>('2024-06-30 01:02:03'::DateTime, <b>7</b>)
+
+2024-06-30 <b>07</b>:02:03
+
+:) SELECT <b style="color: green;">changeMonth</b>('2024-07-31'::Date, <b>6</b>)
+
+2024-<b>07-01</b>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Maksim Galkin。</p>
+</section>
+
+
+<section class="slide">
+<h2>groupConcat</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT <b style="color: green;">groupConcat</b>(number) FROM numbers(10)
+
+0123456789
+
+:) SELECT <b style="color: green;">groupConcat(', ')</b>(number) FROM numbers(10)
+
+0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+
+<span style="color: gray;">:) SELECT arrayStringConcat(groupArray(number), ', ') FROM numbers(10)
+
+0, 1, 2, 3, 4, 5, 6, 7, 8, 9</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">几张新的系统表</span></h2>
+</section>
+
+<section class="slide">
+<h2>system.error_log</h2>
+
+<p style="color: gray; margin-top: -1em;">以下表在此前版本中已经存在：</p>
+
+<p>服务器启动以来所有错误消息的总数：</p>
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT value FROM <b>system.events</b> WHERE name = 'LogError'</code></p>
+
+<p>服务器启动以来按类型统计的错误总数：</p>
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT * FROM <b>system.errors</b></code></p>
+
+<p>按时间统计的所有错误消息数量，持久存储：</p>
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT event_time, ProfileEvent_LogError
+FROM <b>system.metric_log</b> ORDER BY event_time</code></p>
+</section>
+
+<section class="slide">
+<h2>system.error_log</h2>
+
+<p>包含完整细节的所有错误消息，持久存储：</p>
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT * FROM <b>system.text_log</b> WHERE level = 'Error'
+    AND event_date = today() ORDER BY event_time_microseconds</code></p>
+
+<p>按时间和错误类型统计的错误消息数量，持久存储：</p>
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT * FROM <b style="color: green;">system.error_log</b> ORDER BY event_time</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Pablo Marcos。</p>
+</section>
+
+<section class="slide">
+<h2>system.detached_tables</h2>
+
+<p>执行 DETACH TABLE 后，可以在这里找到相关信息，
+<br/>并可通过 ATTACH 重新附加表。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Konstantin Morozov。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">更多实用功能</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>AzureQueue</h2>
+
+<p>一个表引擎，用于从以下来源流式消费： <b>Azure</b>.</p>
+<p>与 <b>S3Queue</b> 相同，但面向 <b>Azure</b>:</p>
+
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -3em; overflow: hidden;">CREATE TABLE <b>queue</b> ENGINE = <b style="color: green;">AzureQueue</b>('AccountName=devstoreaccount1;AccountKey=...;BlobEndpoint=https://account.blob.core.windows.net/endpoint;',
+    'test_container') SETTINGS mode = 'unordered';
+
+CREATE TABLE <b>data</b> ENGINE = MergeTree ORDER BY () EMPTY AS SELECT * FROM queue;
+
+CREATE MATERIALIZED VIEW <b>consumer</b> TO <b>data</b> AS SELECT * FROM <b>queue</b>;
+</code></p>
+
+<p>&mdash; 消费 Azure 上的一组文件中的数据。<br/>
+&mdash; 新文件出现后立即消费。<br/>
+&mdash; 支持并行和分布式消费。</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Kseniia Sumarokova。</p>
+</section>
+
+
+<section class="slide">
+<h2>自动命名元组</h2>
+
+<p>如果为元组元素指定别名（AS），它将成为命名元组。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT ('Hello' AS a, 123 AS b) AS x, toTypeName(x)</code></p>
+<pre>24.6: Tuple(String, UInt8)
+<span style="color: green;">24.7: Tuple(a String, b UInt8)</span>
+</pre>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT ('Hello' AS a, 123 AS b) AS x FORMAT JSONEachRow</code></p>
+<pre>24.6: {"x":["Hello",123]}
+<span style="color: green;">24.7: {"x":{"a":"Hello","b":123}}</span>
+</pre>
+
+<p>由以下设置控制： <b>enable_named_columns_in_function_tuple</b>.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Amos Bird。</p>
+</section>
+
+
+<section class="slide">
+<h2>分区 DeltaLake 表</h2>
+
+<p>从 24.7 版本开始，
+<br/>ClickHouse 支持读取分区 Delta Lake 表，
+<br/>其分区列不存储在数据文件内部。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Kseniia Sumarokova。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/back6.jpg); background-size: cover;">
+<h2><span style="color: white;">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>更快的整数转字符串</h2>
+
+<p>发生于以下情况：
+<br/>&mdash; 以文本格式输出数据（<b>TSV</b>, <b>JSON</b>等）；
+<br/>&mdash; 进行类型转换，例如 <b>toString</b>;</p>
+
+<p style="color: green;"><b>快 10..20%！</b></p>
+
+<p>演示</p>
+
+<!--
+
+ch
+./clickhouse-24.6 local
+SELECT count() FROM system.numbers_mt WHERE NOT ignore(toString(rand()))
+SELECT count() FROM system.numbers WHERE NOT ignore(toString(rand() % 2 ? 0 : rand()))
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Raul Marin。</p>
+</section>
+
+<section class="slide">
+<h2>更快的并行哈希连接</h2>
+
+<p>利用哈希表大小的运行时统计信息。</p>
+
+<pre>SET join_algorithm = 'parallel_hash';</pre>
+
+<p style="color: green;">提速最高达 <b>80%</b> ！</p>
+
+<p>演示</p>
+
+<!--
+
+SELECT count() FROM hits t1 JOIN hits t2 ON t1.ClientIP = t2.RemoteIP WHERE t1.ClientIP != 0;
+SET join_algorithm = 'parallel_hash';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Nikita Taranov。</p>
+</section>
+
+
+<section class="slide">
+<h2>ASOF JOIN 的合并连接算法</h2>
+
+<p><b>ASOF JOIN</b> &mdash; 一种寻找最接近匹配记录的 JOIN 方法，
+<br/>例如寻找时间最接近的记录，而不要求严格相等*</p>
+
+<p style="color: gray; font-size: 80%;">* ClickHouse 于 2019 年 4 月首次引入 ASOF JOIN，是首个提供此功能的 SQL 数据库管理系统。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT count() FROM hits h
+    <b>ASOF JOIN</b> sessions s
+    ON h.UserID = s.UserID AND h.EventTime &gt; s.StartTime;
+</code></p>
+
+<pre>SET join_algorithm = 'full_sorting_merge';</pre>
+
+<p>内存占用更少，而且通常更快。演示。</p>
+
+<!--
+
+SELECT count() FROM hits t1 ASOF JOIN hits t2 ON t1.UserID = t2.UserID AND t1.EventTime < t2.EventTime;
+SET join_algorithm = 'full_sorting_merge';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vladimir Cherkasov。</p>
+</section>
+
+
+<section class="slide">
+<h2>按顺序读取的优化</h2>
+
+<p>如果查询包含与表 ORDER BY 键对应的 ORDER BY，
+<br/>将启用“按顺序读取”算法
+<br/>（由设置 <b>optimize_read_in_order</b> 控制）。</p>
+
+<p><code style="font-size: 14pt; line-height: 2;">CREATE TABLE hits (...) <b>ORDER BY CounterID</b>, UserID, EventTime;
+SELECT UserID FROM hits WHERE SearchEngineID != 0 <b>ORDER BY CounterID</b>;</code></p>
+
+<p>在 ClickHouse 24.7 中，这个算法 <span style="color: green;">最高提速 <b>10x</b></span>,
+<br/>前提是查询使用高选择性过滤器。</p>
+
+<p>演示。</p>
+
+<!--
+
+SELECT UserID FROM hits WHERE SearchEngineID != 0 ORDER BY CounterID FORMAT Null;
+SET read_in_order_use_buffering = 0;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Anton Popov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">ClickHouse Keeper 的可用区感知负载均衡</h2>
+
+<p style="margin-top: -1em;">Keeper 可以报告自己所在的可用区：</p>
+<p><code style="font-size: 14pt; line-height: 1.1;"><span style="color: gray;">$ cat /etc/clickhouse-keeper/config.d/az.yaml</span>
+
+placement:
+    use_imds: 0             <span style="color: gray;"># Or 1 for auto-detection</span>
+    availability_zone: az2  <span style="color: gray;"># Arbitrary string</span>
+</code></p>
+
+<p>服务器会在一段时间后切换到最近的 Keeper 节点：</p>
+<p><code style="font-size: 14pt; line-height: 1.1;"><span style="color: gray;">$ cat /etc/clickhouse-server/config.d/keeper.yaml</span>
+
+prefer_local_availability_zone: 1
+fallback_session_lifetime:
+    min: 0
+    max: 1
+
+placement:                  <span style="color: gray;"># Similar configuration for the server</span>
+    use_imds: 1
+</code></p>
+
+
+<p style="color: gray; font-size: 14pt; margin-top: -1em;">开发者：Alexander Tokmakov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">一些有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>启动脚本</h2>
+
+<p>在服务器启动时运行 SQL 命令。
+<br/>服务器处理完脚本后才接受连接。</p>
+<p>适合基础设施自动化。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: gray;">$ cat /etc/clickhouse-server/config.d/startup.yaml</span>
+startup_scripts:
+    scripts:
+        <span style="color: gray;"># Run a query:</span>
+        query: <span style="color: green;">"CREATE ROLE OR REPLACE test_role"</span>
+    scripts:
+        <span style="color: gray;"># Run a query if another query returned 1:</span>
+        query: <span style="color: green;">"CREATE TABLE test (id UInt64) ENGINE = TinyLog"</span>
+        condition: <span style="color: green;">"SELECT 1"</span>
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Artem Brustovetskii。</p>
+</section>
+
+<section class="slide">
+<h2>Keeper 的磁盘存储</h2>
+
+<p><b>ClickHouse Keeper</b> 是可直接替换 ZooKeeper 的实现，
+<br/>速度 <b style="color: green;">更快</b>，占用 <b style="color: green;">更少内存</b>，更 <b style="color: green;">稳定</b>，而且 <b style="color: green;">更易用</b>.</p>
+
+<p>传统上， <em>分布式共识</em> 系统，
+<br/>例如 ZooKeeper、ClickHouse Keeper、Etcd，会将整个
+<br/>数据集保存在内存中，因此需要足够大的内存容纳它。</p>
+
+<p style="margin-top: 3em;">如果要在 ClickHouse Keeper 中保存数十亿个值呢？</p>
+</section>
+
+<section class="slide">
+<h2>Keeper 的磁盘存储</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: gray;">$ cat /etc/clickhouse-keeper/config.d/on-disk.yaml</span>
+keeper_server:
+    <b style="color: green;">experimental_use_rocksdb: 1</b>
+</code></p>
+
+<p>以性能降低约 2..3 倍为代价，
+<br/>不再需要与数据大小相当的内存。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Han Fei。</p>
+</section>
+
+
+<section class="slide">
+<h2>物化视图中的去重</h2>
+
+<p>ClickHouse 支持 <em>幂等</em> 插入，以实现恰好一次语义。</p>
+
+<p>每次 INSERT 会以数据哈希计算去重令牌，
+<br/>用户也可提供自定义去重令牌（<b>insert_deduplication_token</b>).</p>
+
+<p>如果一张表附加了一串 <b>物化视图</b>，去重如何工作？</b>
+
+<p>24.6 及更早版本：无法保证向视图恰好插入一次。</p>
+<p>24.7：根据源令牌及其变换计算确定性的 Merkle 树…… <span style="color: green;">于是所有行为都符合预期！</span><p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Sema Checherinda。</p>
+</section>
+
+
+<section class="slide">
+<h2>投影与轻量删除</h2>
+
+<p style="margin-top: -1em;">ClickHouse 表可包含“投影”， &mdash; 即以不同物理顺序或聚合形式表示相同数据，查询可自动利用这些数据优化执行。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; margin-right: -2em;">CREATE TABLE hits (CounterID UInt32, URL String, ...
+<b>PROJECTION totals (SELECT CounterID, count(), uniq(URL) GROUP BY CounterID)</b>
+) ENGINE = MergeTree ORDER BY (CounterID, EventTime);
+</code></p>
+
+<p>应用 DELETE 等变更操作时，投影会发生什么？</p>
+
+<p>24.6 及更早版本：投影仍处于不一致状态，<br/>查询使用投影时，已删除的行仍然可见。</p>
+<p>24.7: <b>SETTINGS <b style="color: green;">lightweight_mutation_projection_mode</b> = 'throw'/'drop';</b><p>
+
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：ShiChao Jin。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">更加有趣的内容</span></h2>
+</section>
+
+<section class="slide">
+<h2>嘉宾演讲</h2>
+</section>
+
+
+<section class="slide">
+<h2>集成</h2>
+<p>从以下来源持续插入： <b>ClickPipes 中的 S3</b>.
+<br/>支持 _path、_size、_timestamp <b>虚拟列</b>.</p>
+
+<p><b>Kafka</b> 连接器现在支持消息内的模式 ID。</p>
+
+<p>更新了 <b>Fivetran</b> 和 <b>dbt</b> 集成，
+<br/>以及 <b>Java</b>, <b>Python</b>，而且 <b>node.js</b> 驱动，
+<br/><b>Grafana</b>，而且 <b>OTEL</b>.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">+ 感谢贡献者提供的众多修复：
+<br/>the4thamigo-uk, rjoelnorgren, steffen030, dmitryax, pimeys, pan3793, vrischmann, jmaicher.</p>
+</section>
+
+<section class="slide">
+<h2>阅读园地</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: 1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/rill.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; 如何用 ClickHouse Keeper 替换 ZooKeeper；
+<br/>&mdash; ClickHouse 改进 Braintrust 的 AI；
+<br/>&mdash; 使用 Prometheus 监控 ClickHouse Cloud；
+<br/>&mdash; 使用 ClickHouse 和 Luzmo 构建面向用户的仪表盘；
+<br/>&mdash; Rill 用 ClickHouse 替换 DuckDB；
+</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.7/pictures/back10.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/GerQFdJCk7A" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
