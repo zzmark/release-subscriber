@@ -111,7 +111,7 @@
 * 修复 aarch64 上 SIGSEGV 时的栈展开（由于信号栈过小）。 [#64058](https://github.com/ClickHouse/ClickHouse/pull/64058) ([Azat Khuzhin](https://github.com/azat)).
 
 <h4 id="bug-fix-1">
-  Bug Fix
+  缺陷修复
 </h4>
 
 * 默认禁用设置 `enable_vertical_final`。不应使用此功能，因为存在缺陷：[#64543](https://github.com/ClickHouse/ClickHouse/issues/64543)。 [#64544](https://github.com/ClickHouse/ClickHouse/pull/64544) ([Alexander Tokmakov](https://github.com/tavplubix)).
