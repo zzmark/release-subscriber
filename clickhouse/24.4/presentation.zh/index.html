@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：24.4 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：24.4 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：24.4 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2024-04-30。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 60px; line-height: 150%; font-size: 56pt;"><span class="hilite">ClickHouse 版本<br/>24.4</span></h1>
+    </section>
+
+<section class="slide">
+<h2>24.4 版本网络研讨会</h2>
+<p>1.（55 分钟）ClickHouse 24.4 新内容。</p>
+<p>2.（5 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">24.4 版本</span></h2>
+<p><span class="hilite">ClickHouse 四月版本。</span></p>
+<p><span class="hilite">— 13 项新功能 🌸</span></p>
+<p><span class="hilite">— 16 项性能优化 🐦</span></p>
+<p><span class="hilite">— 65 项缺陷修复 🦋</span></p>
+</section>
+<!--
+
+Small
+
+DROP multiple tables
+UNLOAD PRIMARY KEY
+_block_offset, _part_data_version, _block_number
+date_trunc
+
+Security
+
+Roles in HTTP interface
+Grant table engines
+
+Usability
+
+Syntax highlighting
+Structured columns in system.text_log
+
+Performance
+
+Equivalent sets for JOINs
+OUTER to INNER JOIN
+AWS S3 connection pools
+Faster JSON parsing
+max_parsing_threads for formats
+
+Main
+
+Closed issues by Analyzer
+Recursive CTE
+QUALIFY clause
+
+S3 with renames
+
+Integrations
+
+Fivetran: https://fivetran.com/docs/destinations/clickhouse
+
+Reading
+
+ADSB.exposed
+Alibaba Cloud
+Fivetran
+Langchain
+Didi
+K-means clustering
+New SQL Console
+Chained materialized views
+Saving millions on logging
+Training ML models with Featureform
+
+Launch week
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">不那么有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>DROP 多张表</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) DROP TABLE hello, world;
+</code></p>
+<p><code style="font-size: 14pt; line-height: 1.25;">:) DROP TABLE hello, little, bobby;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：ZhongYuanKai。</p>
+</section>
+
+<section class="slide">
+<h2>卸载主键</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SYSTEM UNLOAD PRIMARY KEY db.table
+</code></p>
+
+<p>允许释放表主键占用的内存，
+<br/>适用于很少使用的表。</p>
+
+<p>下次查询该表时将按需加载。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Pablo Marcos。</p>
+</section>
+
+
+<section class="slide">
+<h2>MergeTree 的新虚拟列</h2>
+
+<p><span style="font-family: monospace;">• <b style="color: green;">_block_offset</b>: </span> 原始数据块中的行号；
+<br/><span style="font-family: monospace;">• <b style="color: green;">_block_number</b>: </span> 原始数据块编号；
+<br/><span style="font-family: monospace;">• <b style="color: green;">_part_data_version</b>: </span> 数据变更版本；
+</p>
+
+<p>通过以下设置启用这些列：</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">:) CREATE TABLE ... ENGINE = MergeTree
+   SETTINGS <b style="color: green;">enable_block_number_column = 1</b>,
+            <b style="color: green;">enable_block_offset_column = 1</b>;
+</code></p>
+
+<p>演示。</p>
+
+<!--
+
+CREATE TABLE hits2 AS hits ENGINE = MergeTree PRIMARY KEY (CounterID, EventDate, UserID, EventTime, WatchID) SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1;
+SET max_insert_threads = 32;
+INSERT INTO hits2 SELECT * FROM hits;
+
+SELECT _part, _block_number, count(), min(_block_offset), max(_block_offset) FROM hits GROUP BY ALL ORDER BY ALL;
+SELECT _part, _block_number, count(), min(_block_offset), max(_block_offset) FROM hits2 GROUP BY ALL ORDER BY ALL;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Anton Popov。</p>
+</section>
+
+
+<section class="slide">
+<h2>dateTrunc 支持亚秒单位</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT now64(9) AS t, dateTrunc('millisecond', t)
+
+   ┌─────────────────────────────t─┬─dateTrunc('millisecond', t)─┐
+1. │ 2024-04-30 09:19:12.277723765 │     2024-04-30 09:19:12.278 │
+   └───────────────────────────────┴─────────────────────────────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Misz606。</p>
+
+<img style="width: 50%; padding-top: 5em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/date_trunc.png">
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/back4.jpg); background-size: cover;">
+<h2>枯燥的安全功能</h2>
+</section>
+
+<section class="slide">
+<h2>表引擎授权</h2>
+<p><code style="font-size: 14pt; line-height: 1.25;">$ cat /etc/clickhouse-server/config.d/table_engines.yaml
+
+access_control_improvements:
+    table_engines_require_grant: true
+</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) GRANT TABLE ENGINE ON <b>TinyLog</b> TO vasya;
+:) GRANT TABLE ENGINE ON <b>*</b> TO petya;
+</code></p>
+
+<p style="color: gray;">为保持兼容，默认允许所有引擎。
+<br/>按上述方式启用细粒度控制。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Shichao Jin。</p>
+</section>
+
+<section class="slide">
+<h2>在 HTTP 接口中设置角色</h2>
+
+<p style="font-family: monospace; color: green; font-size: 90%;">https://example.clickhouse.cloud/?role=hello</p>
+<p>&mdash; 等同于在运行查询前执行 SET ROLE 'hello';。</p>
+
+<p style="font-family: monospace; color: green; font-size: 90%;">https://example.clickhouse.cloud/?role=hello&amp;role=world</p>
+<p>&mdash; 等同于 SET ROLE 'hello', 'world';。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Serge Klochkov。</p>
+</section>
+
+<section class="slide">
+<h2>BoringSSL -> OpenSSL</h2>
+
+<p style="font-family: monospace; white-space: pre;">OpenSSL -> LibreSSL -> OpenSSL -> BoringSSL -> OpenSSL</p>
+<p style="font-family: monospace; white-space: pre;"> 2016   ->   2018   ->  2019   ->   2020    ->  2024</p>
+
+<p style="margin-top: 3em;">为了什么？</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Robert Schulze。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">易用性改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>更好的语法高亮</h2>
+
+<p>演示</p>
+
+<!--
+
+~/work/ClickHouse/programs/server/clickhouse-master local
+
+SELECT 1 + 2, 'Hello' FROM test(xyz, abc)
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">system.text_log 中的结构化参数</h2>
+
+<p>演示</p>
+
+<!--
+
+SHOW TABLE system.text_log
+
+SELECT level, message_format_string, count() AS c FROM system.text_log GROUP BY ALL ORDER BY c DESC LIMIT 20
+
+SELECT level, message_format_string, count() AS c, any(value1) FROM system.text_log GROUP BY ALL ORDER BY c DESC LIMIT 20
+
+SELECT value1, count() AS c FROM system.text_log WHERE message_format_string = 'Selected MergeAlgorithm: {}' GROUP BY ALL ORDER BY c DESC LIMIT 20
+
+SELECT value1::Int, count() AS c, bar(log(c), 0, max(log(c))over(), 50) FROM system.text_log WHERE message_format_string = 'Merged {} parts: [{}, {}] -> {}' GROUP BY ALL ORDER BY 1 LIMIT 20
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Alexey Katsman。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/back6.jpg); background-size: cover;">
+<h2>性能改进</h2>
+</section>
+
+<section class="slide">
+<h2>JOIN 的等价集合</h2>
+
+<p><code style="line-height: 1.25;">SELECT *
+FROM <span style="color: green;">l</span> JOIN <span style="color: blue;">r</span> ON <span style="color: green;">l.id</span> = <span style="color: blue;">r.id</span>
+WHERE <span style="color: green;">l.id</span> = 123
+</code></p>
+
+<p><code style="line-height: 1.25;">SELECT *
+FROM <span style="color: green;">l</span> JOIN <span style="color: blue;">r</span> ON <span style="color: green;">l.id</span> = <span style="color: blue;">r.id</span>
+WHERE <span style="color: green;">l.id</span> = 123 <span style="color: gray;">-- AND r.id = 123</span>
+</code></p>
+
+<p>跨表传播条件以进行下推。</p>
+<p>支持 INNER、LEFT 和 RIGHT JOIN。演示。</p>
+
+<!--
+
+CREATE TABLE test_table_1 (id UInt64, value String) ENGINE=MergeTree ORDER BY id;
+CREATE TABLE test_table_2 (id UInt64, value String) ENGINE=MergeTree ORDER BY id;
+
+INSERT INTO test_table_1 SELECT number, number FROM numbers(150000000);
+INSERT INTO test_table_2 SELECT number, number FROM numbers(150000000);
+
+SELECT
+    lhs.id,
+    rhs.id,
+    lhs.value,
+    rhs.value
+FROM test_table_1 AS lhs
+INNER JOIN test_table_2 AS rhs ON lhs.id = rhs.id
+WHERE lhs.id = 5
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Maksim Kita。</p>
+</section>
+
+
+<section class="slide">
+<h2>将 OUTER 转换为 INNER JOIN</h2>
+
+<p>当存在确保匹配到连接记录的条件时。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT *
+FROM l LEFT JOIN r ON l.id = r.id
+WHERE r.value != '' <span style="color: gray;">-- this allows the optimization</span>
+</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT *
+FROM l <b style="color: green;">INNER JOIN</b> r ON l.id = r.id
+WHERE r.value != ''
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Maksim Kita。</p>
+</section>
+
+
+<section class="slide">
+<h2>更快的 JSON 解析</h2>
+
+<p>在只读取少量字段时。</p>
+<p>演示</p>
+
+<!--
+
+SELECT * FROM hits LIMIT 1000000 INTO OUTFILE 'hits1m.json' FORMAT JSONEachRow
+
+~/work/ClickHouse/programs/server/clickhouse-master local
+
+SELECT CounterID, count() FROM 'hits1m.json' GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：lgbo-ustc。</p>
+</section>
+
+<section class="slide">
+<h2>更多优化</h2>
+
+<p>S3 的 Keep-Alive 与连接池</p>
+<p>&mdash; 在此前版本中，建立连接的频率<br/>&emsp; 高于实际需要；</p>
+<p>&mdash; 现在将负载分散到所有 S3 端点的 IP 地址上；</p>
+<p>&mdash; 监控每个地址的错误率并调整负载；</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Sema Checherinda。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/back7.jpg); background-size: cover;">
+<h2 style="color: white; margin-top: 2.5em;">一些有趣的功能</h2>
+</section>
+
+<section class="slide">
+<h2>递归 CTE</h2>
+
+<p>允许对子查询自身的结果递归运行该子查询。</p>
+<p>可用于树和图的遍历。</p>
+<p>标准 SQL。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;"><span style="color: green;">WITH RECURSIVE <b>t</b></span> AS (
+    SELECT 1 AS x
+    UNION ALL
+    SELECT x + 1 FROM <b style="color: green;">t</b> WHERE x &lt; 10)
+SELECT * FROM t
+</code></p>
+
+<p>演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Maksim Kita</p>
+</section>
+
+<section class="slide">
+<h2>递归 CTE</h2>
+
+<p>我们导入了 PostgreSQL 的测试。它们可以通过 :)</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">WITH RECURSIVE search_tree AS (
+    SELECT id, link, data
+    FROM tree t
+    WHERE t.id = 0
+  UNION ALL
+    SELECT t.id, t.link, t.data
+    FROM tree t, search_tree st
+    WHERE t.link = st.id
+)
+SELECT * FROM search_tree;
+</code></p>
+
+<p style="color: green;">但这里的实现比 PostgreSQL 更好！</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Maksim Kita</p>
+</section>
+
+<section class="slide">
+<h2>QUALIFY 子句</h2>
+<p><code style="line-height: 1.25;">:) SELECT * FROM uk_price_paid
+   WHERE toYear(date) = 2023
+   <b style="color: green;">QUALIFY price > (quantile(0.9)(price) OVER ())</b>
+   LIMIT 10
+</code></p>
+<p>根据窗口函数的值进行过滤。</p>
+<p>标准 SQL。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Maksim Kita</p>
+</section>
+
+<section class="slide">
+<h2>Analyzer</h2>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/analyzer.png" style="width: 100%;">
+<p>一次变更修复了 99 个缺陷。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Maksim Kita、Nikolai Kochetov、Dmitriy Novik，<br/> Vladimir Cherkasov,
+Igor Nikonov, Yakov Olkhovskiy, ...</p>
+</section>
+
+
+<section class="slide">
+<h2>不依赖元数据的 S3 磁盘</h2>
+<p><b>s3_plain_rewritable</b> 磁盘类型。</p>
+
+<p>本地文件系统中不保存任何元数据，<br/>
+&mdash; 仅依赖对象存储（S3）。</p>
+
+<p>支持除硬链接外的全部操作。</p>
+
+<p>适用于非复制的 MergeTree 表，
+<br/>但不支持变更操作、ALTER 或分区操作。</p>
+
+<p>主要使用场景：S3 上的系统表。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Julia Kartseva</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/back8.jpg); background-size: cover;">
+<h2><span class="hilite">集成</span></h2>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/fivetran.png" style="width: 100%;">
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>Fivetran</b> &mdash; ClickHouse Cloud 目标现已开放私有预览：</p>
+<p><a href="https://fivetran.com/docs/destinations/clickhouse">https://fivetran.com/docs/destinations/clickhouse</a></p>
+<p>提供 400 多种数据源，方便导入！</p>
+
+<p><b>dbt</b> 连接器现已支持 TTL：</p>
+
+<p>改进了 <b>OTel</b> 导出器， <b>Kafka</b> 连接器， <b>PowerBI</b>,
+<br/><b>Java</b> 以及 <b>Node.JS</b> 驱动。</p>
+
+<p><b>Tableau</b>：官方测试套件中 873 项测试有 862 项（<b style="color: green;">99%</b>）通过。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/reading.png); background-size: cover; color: white;">
+<h2 style="color: white;">阅读园地</h2>
+
+<p><a href="https://clickhouse.com/blog/" style="filter: brightness(150%)">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; <a href="https://adsb.exposed/" style="filter: brightness(150%)">https://adsb.exposed/</a> 实时 ✈️ 空中交通可视化与分析；
+<br/>&mdash; 了解 <b>Langchain</b> 如何使用 ClickHouse；
+<br/>&mdash; 如何使用 <b>Featureform</b> 和 ClickHouse 训练模型；
+<br/>&mdash; <b>K-means</b> 在 ClickHouse 中进行聚类；
+<br/>&mdash; <b>阿里云</b> 已正式发布；
+<br/>&mdash; 在 ClickHouse 上构建可观测性，并 <b>节省数百万成本</b>;
+<br/>&mdash; 滴滴如何替换 Elasticsearch 并以每秒 <b>40 GB 的速度插入日志</b>;
+<br/>&mdash; 全新 <b>SQL 控制台</b> 位于 ClickHouse Cloud 中；
+<br/>&mdash; 如何在串联 <b>物化视图时不迷失方向</b>;
+</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.4/pictures/back9.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/dtUqgcfOGmE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
