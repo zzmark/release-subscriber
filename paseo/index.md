@@ -6,6 +6,7 @@
 
 | 版本 | 发布时间 | 更新总结 | 原始 Changelog | 中文 Changelog |
 | --- | --- | --- | --- | --- |
+| 0.8.0 | 2026-09-10 | [查看](./0.8.0/) | [English](./0.8.0/changelog.md) | [简体中文](./0.8.0/changelog.zh.md) |
 | 0.7.2 | 2026-09-02 | [查看](./0.7.2/) | [English](./0.7.2/changelog.md) | [简体中文](./0.7.2/changelog.zh.md) |
 | 0.7.1 | 2026-09-01 | [查看](./0.7.1/) | [English](./0.7.1/changelog.md) | [简体中文](./0.7.1/changelog.zh.md) |
 | 0.7.0 | 2026-08-31 | [查看](./0.7.0/) | [English](./0.7.0/changelog.md) | [简体中文](./0.7.0/changelog.zh.md) |
