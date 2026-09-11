@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.3 版本发布会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.3 版本发布会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.3 版本发布会</h1>
+        <p>作者：Alexey Milovidov，2025-03-20。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 10px; line-height: 110%; font-size: 56pt; color: white; text-shadow: black 1px 0 10px; text-align: center;">ClickHouse 25.3 LTS 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>25.3 版本发布会</h2>
+<p>1.（45 分钟）ClickHouse 25.3 LTS 的新变化。</p>
+<p>2.（10 分钟）嘉宾分享。</p>
+<p>3.（5 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/back9.jpg); background-size: cover;">
+<h2><span class="hilite">25.3 版本</span></h2>
+<p><span class="hilite">ClickHouse 长期支持版本。</span></p>
+<p><span class="hilite">— 18 项新功能 🌷</span></p>
+<p><span class="hilite">— 13 项性能优化 ☀️</span></p>
+<p><span class="hilite">— 48 项缺陷修复 ☘️</span></p>
+</section>
+<!--
+
+小功能
+
+estimateCompressionRatio
+arraySymmetricDifference
+keccak256
+非常量 CASE
+
+性能
+
+查询条件缓存
+用户态页缓存
+主动淘汰标记缓存
+更快的 JIT
+更快的 min/max
+更快的 arraySort
+
+主要内容
+
+自动使用 Cluster 函数
+SSH 协议
+JSON 已可用于生产环境
+Unity、Glue 目录
+
+嘉宾分享
+
+
+
+额外内容
+
+HyperDX
+
+集成
+
+Tableau 官方连接器
+
+阅读
+
+一段 Linux 内核调试经历
+优化 Bluesky
+我们如何构建 BYOC
+Solarwinds 使用 BYOC
+Poolside
+Astronomer
+Postgres 数据建模技巧
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">几个实用的小函数</span></h2>
+</section>
+
+<section class="slide">
+<h2>estimateCompressionRatio</h2>
+
+<p>一个压缩记录流并统计字节数的聚合函数，
+<br/>不保留压缩结果，而是返回压缩比。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-right: -2em;"><span style="color: gray;">-- default codec:</span>
+:) SELECT <b style="color: green;">estimateCompressionRatio(URL)</b> FROM hits
+
+<span style="color: gray;">-- another codec:</span>
+:) SELECT <b style="color: green;">estimateCompressionRatio('ZSTD(3)')(URL)</b> FROM hits;
+:) SELECT <b style="color: green;">estimateCompressionRatio('Delta, ZSTD(3)')(EventTime)</b> FROM hits;
+
+<span style="color: gray;">-- a codec and block size:</span>
+:) SELECT <b style="color: green;">estimateCompressionRatio('ZSTD(3)', 65536)(URL)</b> FROM hits;
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+SELECT estimateCompressionRatio(URL) FROM hits;
+
+SELECT name, data_compressed_bytes, data_uncompressed_bytes, data_uncompressed_bytes / data_compressed_bytes AS ratio FROM system.columns WHERE database = 'default' AND table = 'hits' ORDER BY data_compressed_bytes DESC;
+
+SELECT estimateCompressionRatio('ZSTD')(URL) FROM hits;
+SELECT estimateCompressionRatio('ZSTD(3)')(URL) FROM hits;
+SELECT estimateCompressionRatio('ZSTD(6)')(URL) FROM hits;
+
+SELECT estimateCompressionRatio(EventTime) FROM hits;
+SELECT estimateCompressionRatio('ZSTD(3)')(EventTime) FROM hits;
+SELECT estimateCompressionRatio('Delta, ZSTD(3)')(EventTime) FROM hits;
+SELECT estimateCompressionRatio('DoubleDelta, ZSTD(3)')(EventTime) FROM hits;
+SELECT estimateCompressionRatio('Gorilla, ZSTD(3)')(EventTime) FROM hits;
+SELECT estimateCompressionRatio('T64, ZSTD(3)')(EventTime) FROM hits;
+
+SELECT estimateCompressionRatio('ZSTD')('Hello') FROM numbers(1000000);
+SELECT estimateCompressionRatio('ZSTD')(rand()) FROM numbers(1000000);
+
+SELECT CounterID, count(), estimateCompressionRatio('ZSTD')(URL) AS ratio, bar(ratio, 1, 20, 50) FROM hits GROUP BY CounterID ORDER BY count() DESC LIMIT 25;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Tariq Almawash。</p>
+</section>
+
+
+<section class="slide">
+<h2>arraySymmetricDifference</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) WITH
+    [1, 2, 3] AS a,
+    [2, 3, 4] AS b
+SELECT
+    arrayUnion(a, b) AS u,
+    arrayIntersect(a, b) AS i,
+    <b style="color: green;">arraySymmetricDifference(a, b)</b> AS diff,
+    arrayJaccardIndex(a, b) AS similarity,
+    arrayFilter(x -> (NOT has(i, x)), u) AS another_diff
+
+┌─u─────────┬─i─────┬─<b style="color: green;">diff</b>──┬─similarity─┬─another_diff─┐
+│ [3,2,1,4] │ [2,3] │ [1,4] │        0.5 │ [1,4]        │
+└───────────┴───────┴───────┴────────────┴──────────────┘
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Filipp Abapolov。</p>
+</section>
+
+<section class="slide">
+<h2>keccak256</h2>
+
+<p>一种现代、安全的密码学哈希函数。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) SELECT hex(<b style="color: green;">keccak256</b>('ClickHouse'))
+
+┌─hex(keccak256('ClickHouse'))─────────────────────────────────────┐
+│ E50BCD489117263EFF31D66D4AC3862BC98C2A34795834D56ECB237DAF88DC12 │
+└──────────────────────────────────────────────────────────────────┘
+</code></p>
+
+<p>这是以太坊使用的变体，与 SHA-3 不同，
+<br/>但属于同一算法家族。</p>
+
+<p>另请参阅： <b>BLAKE3</b>，其速度约快 5..10 倍，安全性相当。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Arnaud Briche。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/back5.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>查询条件缓存</h2>
+
+<p>使用查询条件缓存后，ClickHouse 会记录
+<br/>数据片段中哪些 <b style="color: green;">粒度范围</b> 满足 WHERE 条件，
+<br/>并将这些信息作为 <b style="color: green;">临时索引</b> 供后续查询复用。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5; white-space: pre-wrap;">SET use_query_condition_cache = 1;
+</code></p>
+
+<p>演示。</p>
+
+<!--
+
+SELECT count() FROM hits WHERE URL LIKE '%clickh%';
+
+SET use_query_condition_cache = 1;
+
+SELECT count() FROM hits WHERE URL LIKE '%clickh%';
+SELECT count() FROM hits WHERE URL LIKE '%clickh%';
+
+SELECT CounterID, count() FROM hits WHERE URL LIKE '%clickh%' GROUP BY CounterID ORDER BY count() DESC;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：ZhongYuanKai。</p>
+</section>
+
+
+<section class="slide">
+<h2>用户态页缓存</h2>
+
+<p>远程文件系统上的另一种缓存方式：</p>
+<p>
+ <table style="font-size: 14pt;">
+  <tr>
+   <th>文件系统缓存（type = cache 的磁盘）</th>
+   <th>用户态页缓存 <b style="color: green;">（新增！）</b></th>
+  </tr>
+  <tr>
+   <td style="background-color: #EEE;">
+    &mdash; 将数据写入本地文件系统。
+    <br/>&mdash; 占用磁盘空间（也可配置在 tmpfs 上）。
+    <br/>&mdash; 服务器重启后仍保留。
+    <br/>&mdash; 同时存在于磁盘和内存中（操作系统页缓存）。
+    <br/>&mdash; 不计入服务器的内存用量。
+   </td>
+   <td style="background-color: #FED;">
+    &mdash; 仅存在于内存中。
+    <br/>&mdash; 不依赖文件系统。
+    <br/>&mdash; 服务器重启后不保留。
+    <br/>&mdash; 计入服务器的内存用量。
+    <br/><b style="color: green;">&mdash; 适合无磁盘服务器！</b>
+   </td>
+  </tr>
+ </table>
+</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Michael Kolupaev。</p>
+</section>
+
+<section class="slide">
+<h2>用户态页缓存</h2>
+
+<p>在服务器上配置：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">$ cat config.d/page_cache.yaml
+
+page_cache_max_size: 100G
+</code></p>
+
+<p style="color: gray; font-size: 14pt;">最多使用指定的内存量，<br/>但服务器其他需求需要内存时，会随时淘汰缓存以释放内存。</p>
+
+<p>在查询级别启用：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">SET use_page_cache_for_disks_without_file_cache = 1;
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+CREATE TABLE hits_web
+(
+    WatchID BIGINT NOT NULL, JavaEnable SMALLINT NOT NULL, Title TEXT NOT NULL, GoodEvent SMALLINT NOT NULL, EventTime TIMESTAMP NOT NULL, EventDate Date NOT NULL, CounterID INTEGER NOT NULL, ClientIP INTEGER NOT NULL, RegionID INTEGER NOT NULL, UserID BIGINT NOT NULL, CounterClass SMALLINT NOT NULL, OS SMALLINT NOT NULL, UserAgent SMALLINT NOT NULL, URL TEXT NOT NULL, Referer TEXT NOT NULL, IsRefresh SMALLINT NOT NULL, RefererCategoryID SMALLINT NOT NULL, RefererRegionID INTEGER NOT NULL, URLCategoryID SMALLINT NOT NULL, URLRegionID INTEGER NOT NULL, ResolutionWidth SMALLINT NOT NULL, ResolutionHeight SMALLINT NOT NULL, ResolutionDepth SMALLINT NOT NULL, FlashMajor SMALLINT NOT NULL, FlashMinor SMALLINT NOT NULL, FlashMinor2 TEXT NOT NULL, NetMajor SMALLINT NOT NULL, NetMinor SMALLINT NOT NULL, UserAgentMajor SMALLINT NOT NULL, UserAgentMinor VARCHAR(255) NOT NULL, CookieEnable SMALLINT NOT NULL, JavascriptEnable SMALLINT NOT NULL, IsMobile SMALLINT NOT NULL, MobilePhone SMALLINT NOT NULL, MobilePhoneModel TEXT NOT NULL, Params TEXT NOT NULL, IPNetworkID INTEGER NOT NULL, TraficSourceID SMALLINT NOT NULL, SearchEngineID SMALLINT NOT NULL, SearchPhrase TEXT NOT NULL, AdvEngineID SMALLINT NOT NULL, IsArtifical SMALLINT NOT NULL, WindowClientWidth SMALLINT NOT NULL, WindowClientHeight SMALLINT NOT NULL, ClientTimeZone SMALLINT NOT NULL, ClientEventTime TIMESTAMP NOT NULL, SilverlightVersion1 SMALLINT NOT NULL, SilverlightVersion2 SMALLINT NOT NULL, SilverlightVersion3 INTEGER NOT NULL, SilverlightVersion4 SMALLINT NOT NULL, PageCharset TEXT NOT NULL, CodeVersion INTEGER NOT NULL, IsLink SMALLINT NOT NULL, IsDownload SMALLINT NOT NULL, IsNotBounce SMALLINT NOT NULL, FUniqID BIGINT NOT NULL, OriginalURL TEXT NOT NULL, HID INTEGER NOT NULL, IsOldCounter SMALLINT NOT NULL, IsEvent SMALLINT NOT NULL, IsParameter SMALLINT NOT NULL, DontCountHits SMALLINT NOT NULL, WithHash SMALLINT NOT NULL, HitColor CHAR NOT NULL, LocalEventTime TIMESTAMP NOT NULL, Age SMALLINT NOT NULL, Sex SMALLINT NOT NULL, Income SMALLINT NOT NULL, Interests SMALLINT NOT NULL, Robotness SMALLINT NOT NULL, RemoteIP INTEGER NOT NULL, WindowName INTEGER NOT NULL, OpenerName INTEGER NOT NULL, HistoryLength SMALLINT NOT NULL, BrowserLanguage TEXT NOT NULL, BrowserCountry TEXT NOT NULL, SocialNetwork TEXT NOT NULL, SocialAction TEXT NOT NULL, HTTPError SMALLINT NOT NULL, SendTiming INTEGER NOT NULL, DNSTiming INTEGER NOT NULL, ConnectTiming INTEGER NOT NULL, ResponseStartTiming INTEGER NOT NULL, ResponseEndTiming INTEGER NOT NULL, FetchTiming INTEGER NOT NULL, SocialSourceNetworkID SMALLINT NOT NULL, SocialSourcePage TEXT NOT NULL, ParamPrice BIGINT NOT NULL, ParamOrderID TEXT NOT NULL, ParamCurrency TEXT NOT NULL, ParamCurrencyID SMALLINT NOT NULL, OpenstatServiceName TEXT NOT NULL, OpenstatCampaignID TEXT NOT NULL, OpenstatAdID TEXT NOT NULL, OpenstatSourceID TEXT NOT NULL, UTMSource TEXT NOT NULL, UTMMedium TEXT NOT NULL, UTMCampaign TEXT NOT NULL, UTMContent TEXT NOT NULL, UTMTerm TEXT NOT NULL, FromTag TEXT NOT NULL, HasGCLID SMALLINT NOT NULL, RefererHash BIGINT NOT NULL, URLHash BIGINT NOT NULL, CLID INTEGER NOT NULL,
+    PRIMARY KEY (CounterID, EventDate, UserID, EventTime, WatchID)
+)
+ENGINE = MergeTree
+SETTINGS table_disk = 1, disk = disk(type = web, readonly = 1, endpoint = 'https://clickhouse-datasets-web.s3.us-east-1.amazonaws.com/store/c44/c449dfbf-ba06-4d13-abec-8396559eb955/');
+
+SELECT CounterID, count() FROM hits_web GROUP BY CounterID ORDER BY count() DESC LIMIT 10;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Michael Kolupaev。</p>
+</section>
+
+<section class="slide">
+<h2>主动淘汰标记缓存</h2>
+<p>此前版本中的标记缓存会逐渐增长到最大容量，
+<br/>不断积累已不再需要的数据。</p>
+
+<p>在 <b style="color: green;">25.3</b>中，会主动移除旧数据片段的缓存条目。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/back6.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">一些有趣的新功能</span></h2>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">外部数据自动并行处理</h2>
+
+<p>在当前机器上处理一批外部文件：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) SELECT uniq(text) FROM <b>s3</b>('s3://my_bucket/data/*');
+</code></p>
+
+<p>在分布式集群上处理一批外部文件：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) SELECT uniq(text) FROM <b>s3Cluster</b>(default, 's3://my_bucket/data/*');
+</code></p>
+
+<p>现在可以自动配置分布式处理：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">SET <b style="color: green;">parallel_replicas_for_cluster_engines = 1</b>, <span style="color: gray;">-- enabled by default</span>
+    cluster_for_parallel_replicas = 'default',
+    enable_parallel_replicas = 1,
+    max_parallel_replicas = 100;</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Bogdanov。</p>
+</section>
+
+<section class="slide">
+<h2>SSH 接口</h2>
+
+<p>ClickHouse 服务器支持多种接口：
+<br/>&mdash; 原生协议；
+<br/>&mdash; HTTP；
+<br/>&mdash; GRPC；
+<br/>&mdash; MySQL 兼容接口；
+<br/>&mdash; PostgreSQL 兼容接口；
+<br/>&mdash; ZooKeeper；
+</p>
+
+<p>现在还实现了 <b>SSH</b> 协议，
+<br/>因此任何 SSH 客户端都能直接连接。</p>
+
+<p>演示</p>
+
+<!--
+
+cat config.d/ssh.yaml
+
+CREATE USER milovidov IDENTIFIED WITH ssh_key BY KEY `AAAAB3NzaC1yc2EAAAADAQABAAACAQDpLXuIqHzvviq3+iWmg35OV0U4xMsa6U1yY7ZHkD6kBvlxwv/N7eu3/yz27MEHhZIxdn4DFel3Jq6n1TQ4gNicjm+rQe/64O9tgF3RYmnQ3WLMTUnmxSEGTb9rRjisxUaooO+qs3wYIWxEMG4UWrZNLjQ9mcUIkYYOm/tOkW0CKatd3YaBnEEkv17YwQgCZz6b+v+pKZZ1utP8PX5Mk8YWH8FewL3jZfvVK//CB0ls1MK8gCienySm+KRT4gin3JG2vhaxYOsvj2IvXNwVvChQnjboDH/UyfySUZnszLKW2XkqNLx6h/c0eyoMj0qewo1zsNVpldiQFvkFoyfKxDipDEzhnuktRZDgitqotIzrusezYmPFI/vPCtZMDxkrEfYDqQEBZLmbmxqg1nkvwk04ECUvxvIoo8dK0HhTqrdiKPaY/YLCUjUXEwwsHK5Sx8KEtqsMzgR+NGhv+Nu8oh3ByrrTVUzvwu1IEJIeFfG4SFME6Je28pz7q8NL6RzCfP/MAzp2AfvJp8yxsGXgyUOvnLvWucWohje0QnOHd6nXeNnoI8Tch94sV142c0Quf+snga0cj+wrjyYOVZpWjJ5gHUEyxMpo7kheFLSPupFjUUR8sTlcBDIPXHlcTwpKdM51ZmxE5DLPbdDAm528cTpLxfLOI5+nsLqIjCBQQezsAQ==` TYPE `ssh-rsa`
+
+GRANT SELECT ON *.* TO milovidov
+
+ssh -p9022 localhost
+
+SELECT SearchPhrase, count() FROM hits WHERE SearchPhrase != '' GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+
+SELECT count() FROM numbers(1e12)
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：George Gamezardashvili、Nikita Mikhailov。</p>
+</section>
+
+<section class="slide">
+<h2>JSON 已可用于生产环境</h2>
+
+<p>新数据类型 <b>Variant</b>, <b>Dynamic</b>和 <b>JSON</b>
+<br>已在 <b style="color: green;">25.3</b> 版本达到生产可用状态！</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>JSON 数据类型</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE test (time DateTime, data <b style="color: green;">JSON</b>) ORDER BY time;
+</code></p>
+
+<p>工作原理：</p>
+<p>&mdash; 分析 JSON，为每个路径推断数据类型。</p>
+<p>&mdash; 将每个路径和每种不同类型存储为子列。</p>
+<p>&mdash; 为稀疏子列采用高效的表示方式。</p>
+
+<p style="color: green;">它支持快速列式存储与查询，
+<br/>适用于任意 <b>半结构化数据</b>!</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/jsonbench.png); background-size: cover;">
+</section>
+
+<section class="slide">
+<h2>AWS Glue Catalog</h2>
+
+<p>用于呈现 Iceberg 表的数据库引擎：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE DATABASE demo_catalog ENGINE = <b style="color: green;">DataLakeCatalog</b>
+SETTINGS catalog_type = <b style="color: green;">'glue'</b>, region = 'us-west-2',
+    aws_access_key_id = 'AKIA...', aws_secret_access_key = '...';
+
+SHOW TABLES FROM demo_catalog;
+SELECT * FROM "demo_catalog"."db.table";
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+# 创建目录
+
+CREATE DATABASE demo_catalog
+ENGINE = DataLakeCatalog
+SETTINGS catalog_type = 'glue', region = 'us-west-2', aws_access_key_id = 'AKIA...', aws_secret_access_key = '...'
+
+USE demo_catalog;
+
+SHOW TABLES;
+
+SHOW CREATE TABLE `iceberg-benchmark.hitsiceberg`;
+
+SELECT
+    count(),
+    uniq(userid)
+FROM `iceberg-benchmark.hitsiceberg`
+WHERE (eventdate >= '2013-07-14') AND (eventdate <= '2013-07-15')
+SETTINGS use_iceberg_partition_pruning = 1;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexander Sapin。</p>
+</section>
+
+<section class="slide">
+<h2>Unity Catalog</h2>
+
+<p>它可以表示 <b>Delta Lake</b> 表，以及以 "uniform" 模式呈现的 <b>Iceberg</b> 表：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE DATABASE unity_demo
+ENGINE = <b style="color: green;">DataLakeCatalog</b>(
+    'https://endpoint.cloud.databricks.com/api/2.1/unity-catalog')
+SETTINGS catalog_type = <b style="color: green;">'unity'</b>,
+    warehouse = 'workspace', catalog_credential = '...'
+
+SHOW TABLES FROM unity_demo;
+SELECT * FROM "unity_demo"."db.table";
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+CREATE DATABASE unity_demo
+ENGINE = DataLakeCatalog('https://dbc-e2f4da9f-a4fe.cloud.databricks.com/api/2.1/unity-catalog')
+SETTINGS warehouse = 'workspace', catalog_credential = '...', catalog_type = 'unity';
+
+USE my_unity_catalog;
+
+SHOW TABLES;
+
+SHOW CREATE TABLE `demo.fake_user`;
+
+SELECT avg(age) FROM `demo.fake_user`;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexander Sapin。</p>
+</section>
+
+
+<section class="slide">
+<h2>嘉宾分享</h2>
+<p><b>Stanley Chukwuemeke</b>，AWS 解决方案架构师</p>
+</section>
+
+<section class="slide">
+<h2>各种数据湖目录</h2>
+<p>在 ClickHouse 中：</p>
+<p>&mdash; REST (24.12)</p>
+<p style="color: green;">&mdash; Glue (25.3)</p>
+<p style="color: green;">&mdash; Unity (25.3)</p>
+<p style="color: gray;">&mdash; Hive 元数据存储；</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">额外内容</span></h2>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/hyperdx.gif); background-size: cover;">
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+
+<p> <b>Rust 驱动</b>支持服务端参数，
+<br/>同时支持 <b>Variant</b> 数据类型和读取任意格式。</p>
+<p>邮件通知现已支持 <b>Postgres 连接器</b> （ClickPipes）。</p>
+<p><b>Metabase</b>：修复 CTE 内部 WITH 的问题。</p>
+<p><b>ODBC 驱动</b>：解决技术债务。</p>
+<p>已更新 <b>Node.JS</b> 和 <b>Go</b> 驱动。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流会</h2>
+<p>
+<span class="hilite">&mdash; 🇮🇳 德里，3 月 22 日</span>
+<br/><span class="hilite">&mdash; 🇭🇺 布达佩斯，3 月 25 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 波士顿，3 月 25 日</span>
+<br/><span class="hilite">&mdash; 🇧🇷 圣保罗，3 月 25 日</span>
+<br/><span class="hilite">&mdash; 🇮🇱 特拉维夫，3 月 26 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 纽约，3 月 26 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 华盛顿特区，3 月 27 日</span>
+<br/><span class="hilite">&mdash; 🇦🇺 悉尼，3 月 31 日</span>
+<br/><span class="hilite">&mdash; 🇳🇴 奥斯陆，4 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇬🇧 伦敦，5 月 14 日</span>
+</p>
+<p><span class="hilite">我将亲自参加其中一些交流会 :)</span></p>
+</section>
+
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: 1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;">&mdash; 一段 Linux 内核调试经历 👻
+<br/>&mdash; 为 Bluesky 优化查询 🦋
+<br/>&mdash; 我们如何构建 BYOC
+<br/>&mdash; Solarwinds 使用 BYOC
+<br/>&mdash; Poolside 如何使用 ClickHouse
+<br/>&mdash; Astronomer 也在使用 ClickHouse
+<br/>&mdash; Postgres 数据建模技巧
+<br/>&mdash; 输入格式比较
+<br/>&mdash; 面向智能体的分析
+</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.3/pictures/back8.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/iCKEzp0_Z2Q" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--视频插件-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/视频插件-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
