@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.5 版本发布会议</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.5 版本发布会议">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.5 版本发布会议</h1>
+        <p>作者：Alexey Milovidov，2025-05-22。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/back3.jpg); background-size: cover;">
+        <h1 style="margin-top: 25px; line-height: 110%; font-size: 56pt; color: yellow; text-shadow: black 1px 0 10px; text-align: center;">ClickHouse 25.5 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 25.5 版本</h2>
+<p>1.（50 分钟）ClickHouse 25.5 的新内容。</p>
+<p>3.（10 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/back1.jpg); background-size: cover;">
+<h2><span class="hilite">25.5 版本</span></h2>
+<p><span class="hilite">ClickHouse 春夏版本。</span></p>
+<p><span class="hilite">— 15 项新功能 🌸</span></p>
+<p><span class="hilite">— 23 项性能优化 🦋</span></p>
+<p><span class="hilite">— 64 项缺陷修复 🐝</span></p>
+</section>
+<!--
+
+小功能
+
+stringBytesUniq、stringBytesEntropy
+sparseGrams
+base32
+clickhouse-local 中的默认表
+Parquet 中的地理类型
+TRUNCATE LIKE
+_part_starting_offset
+
+数据湖
+
+Iceberg 历史
+Iceberg 版本提示
+icebergHash、icebergBucketTransform
+Hive Metastore
+
+性能
+
+跳过索引与 FINAL
+加速二级索引
+子流标记
+子列 PREWHERE
+集群表函数的一致性哈希
+
+主要功能
+
+所有相关子查询
+Time/Time64
+
+额外内容
+
+向量搜索进入 Beta 阶段
+
+
+集成
+
+
+
+额外内容
+
+AgentHouse
+Foursquare
+OpenHouse
+
+
+阅读
+
+仪表板
+延迟物化
+ClickHouse 与 Parquet
+MySQL CDC
+Chartmetric
+BAML
+Wallarm
+Flock Safety
+Real Estate Analytics
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">几个小功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>字符串熵</h2>
+
+<p>两个新函数：
+<br/>&mdash; <b>stringBytesUniq</b> &mdash; 字符串中不同字节的数量；
+<br/>&mdash; <b>stringBytesEntropy</b> &mdash; 字节分布的香农熵；
+</p>
+
+<p>判断字符串的随机程度。</p>
+
+<p><code style="font-size: 15pt; line-height: 1.25; white-space: pre-wrap;">SELECT round(stringBytesEntropy(randomString(10000)), 2) AS res
+
+   ┌──res─┐
+1. │ 7.98 │ <span style="color: gray;">-- close to 8 bit per character</span>
+   └──────┘
+</code></p>
+
+<p>演示。</p>
+
+<!--
+
+WITH 'AAAAB3NzaC1yc2EAAAADAQABAAACAQDpLXuIqHzvviq3+iWmg35OV0U4xMsa6U1yY7ZHkD6kBvlxwv/N7eu3/yz27MEHhZIxdn4DFel3Jq6n1TQ4gNicjm+rQe/64O9tgF3RYmnQ3WLMTUnmxSEGTb9rRjisxUaooO+qs3wYIWxEMG4UWrZNLjQ9mcUIkYYOm/tOkW0CKatd3YaBnEEkv17YwQgCZz6b+v+pKZZ1utP8PX5Mk8YWH8FewL3jZfvVK//CB0ls1MK8gCienySm+KRT4gin3JG2vhaxYOsvj2IvXNwVvChQnjboDH/UyfySUZnszLKW2XkqNLx6h/c0eyoMj0qewo1zsNVpldiQFvkFoyfKxDipDEzhnuktRZDgitqotIzrusezYmPFI/vPCtZMDxkrEfYDqQEBZLmbmxqg1nkvwk04ECUvxvIoo8dK0HhTqrdiKPaY/YLCUjUXEwwsHK5Sx8KEtqsMzgR+NGhv+Nu8oh3ByrrTVUzvwu1IEJIeFfG4SFME6Je28pz7q8NL6RzCfP/MAzp2AfvJp8yxsGXgyUOvnLvWucWohje0QnOHd6nXeNnoI8Tch94sV142c0Quf+snga0cj+wrjyYOVZpWjJ5gHUEyxMpo7kheFLSPupFjUUR8sTlcBDIPXHlcTwpKdM51ZmxE5DLPbdDAm528cTpLxfLOI5+nsLqIjCBQQezsAQ==' AS key SELECT stringBytesUniq(key), stringBytesEntropy(key), stringBytesUniq(base64Decode(key)), stringBytesEntropy(base64Decode(key))
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Sachin Kumar Singh。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">Base32 函数</h2>
+
+<p><b>base32Encode</b>, <b>base32Decode</b> &mdash; 使用 RFC-4648 字母表</p>
+
+<p><code style="font-size: 15pt; line-height: 1.25; white-space: pre-wrap;">:) WITH 'ClickHouse is a good database' AS s
+   SELECT base32Encode(s),
+          base58Encode(s),
+          base64Encode(s)
+
+Row 1:
+──────
+base32Encode(s): INWGSY3LJBXXK43FEBUXGIDBEBTW633EEBSGC5DBMJQXGZI=
+base58Encode(s): 44Xce2JCNL96kJGtfCgHPpV4axarmE3843VSYYAQ
+base64Encode(s): Q2xpY2tIb3VzZSBpcyBhIGdvb2QgZGF0YWJhc2U=
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Joanna Hulboj。</p>
+</section>
+
+<section class="slide">
+<h2>SparseGrams</h2>
+
+<p>对 <b>ngrams</b> 的扩展：以确定的方式，将少量更长的 <span style="color: green;">低频子串</span> 添加到 n-gram 集合中。</p>
+
+<p>新函数： <b>sparseGrams</b>, <b>sparseGramsUTF8</b>,<br/><b>sparseGramsHashes</b>, <b>sparseGramsHashesUTF8</b>.
+
+<p>演示。</p>
+
+<!--
+
+WITH 'ClickHouse is a good database' AS s SELECT ngrams(s, 3)
+WITH 'ClickHouse is a good database' AS s SELECT sparseGrams(s, 3)
+WITH 'ClickHouse is a good database' AS s, sparseGrams(s, 3) AS sparse, ngrams(s, 3) AS dense SELECT length(dense), length(sparse)
+WITH 'ClickHouse is a good database' AS s, sparseGrams(s, 3) AS sparse, ngrams(s, 3) AS dense SELECT arrayJoin(arrayFilter(x -> NOT has(dense, x), sparse))
+WITH 'ClickHouse is a good database' AS s, sparseGrams(s, 3) AS sparse, ngrams(s, 3) AS dense SELECT arrayJoin(sparse) AS token ORDER BY length(token)
+WITH 'ClickHouse is a good database' AS s SELECT sparseGramsHashes(s, 3)
+
+-->
+
+<p>这是一种加速文本和代码搜索的优雅算法。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+
+<section class="slide">
+<h2>Parquet 中的地理类型</h2>
+
+<p>Parquet 文件可以包含以 WKB 编码的几何数据。</p>
+<p>此前的 ClickHouse 版本将这些数据识别为二进制字符串。</p>
+
+<p>从 25.5 版本开始，它们会被推断为 ClickHouse 中的 <b>Point</b>, <b>LineString</b>, <b>MultiLineString</b>, <b>Polygon</b> 或 <b>MultiPolygon</b> 类型。</p>
+
+<p>演示。</p>
+
+<!--
+
+ch
+SELECT * FROM s3('s3://fsq-os-places-us-east-1/release/dt=2025-04-08/places/parquet/places-00000.zstd.parquet') LIMIT 1
+
+~/work/ClickHouse/programs/server/clickhouse-24.12
+SELECT * FROM s3('s3://fsq-os-places-us-east-1/release/dt=2025-04-08/places/parquet/places-00000.zstd.parquet') LIMIT 1
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2>clickhouse-local 中的隐式表</h2>
+
+<p>处理来自标准输入的文件时，可以省略 <b>FROM</b> 子句：</p>
+
+<p><code style="font-size: 15pt; line-height: 1.25; white-space: pre-wrap;">ch -q "<span style="color: navy;">name, price + tax ORDER BY 2 DESC</span>" &lt; data.csv
+ch -q "<span style="color: navy;">arrayJoin(members.login), org_name</span>" &lt; data.json
+ch -q "<span style="color: navy;">arrayJoin(json.members.login), json.org_name</span>
+" --input-format JSONAsObject &lt; data.json</code></p>
+
+<p><b>SELECT</b> 也可以省略。</p>
+
+<p>这使 <b>clickhouse-local</b> 可以作为 <b>jq</b>的替代工具（更快、功能更丰富）。</p>
+
+<p>演示。</p>
+
+<!--
+
+ch --query "file" < compile_commands.json | less
+ch --query "extract(file, '\w+$')" < compile_commands.json | less
+ch "extract(file, '\w+$'), count() GROUP BY 1 ORDER BY 2 DESC" --format Pretty < compile_commands.json
+ch "extract(file, '\w+$'), count() GROUP BY 1 ORDER BY 2 DESC" --output-format Pretty < compile_commands.json
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>TRUNCATE ALL TABLES LIKE</h2>
+
+<p>现在，查询 <b>TRUNCATE ALL TABLES FROM db</b>
+<br/>可以进一步限定： <b>TRUNCATE ALL TABLES FROM db <span style="color: green;">LIKE '%pattern%'</span></b></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/back5.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">数据湖改进</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>支持分桶分区</h2>
+
+<p>用于 <b>Iceberg</b> 表的分区裁剪。</p>
+<p>示例：AWS Athena 中的一张 Iceberg 表：</p>
+
+<p><code style="font-size: 15pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE iceberg_benchmark.bucket_partitioned
+(
+  watchid bigint,
+  javaenable int,
+  title string,
+...
+) PARTITIONED BY (<b style="color: green;">bucket(50, watchid)</b>)
+TBLPROPERTIES ('table_type'='iceberg');</code></p>
+
+<p>根据 <b>50</b> 个分桶进行划分，分桶依据是 <b>watchid</b>的哈希。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Dan Ivanik。</p>
+</section>
+
+<section class="slide">
+<h2>支持分桶分区</h2>
+
+<p><code style="font-size: 15pt; line-height: 1.25; white-space: pre-wrap;">SELECT watchid
+FROM "iceberg_benchmark.bucket_partitioned"
+WHERE watchid = 8005433341155183383
+LIMIT 10</code></p>
+
+<p>ClickHouse 25.4: <b style="color: red;">51.2 秒</b>.</p>
+<p>ClickHouse 25.5: <b style="color: green;">1.3 秒</b>.</p>
+
+<p>还新增两个函数， <b>icebergHash</b> 和 <b>icebergBucketTransform</b>.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Dan Ivanik。</p>
+</section>
+
+<section class="slide">
+<h2>Hive Metastore 目录</h2>
+
+<p>现在 ClickHouse 支持 <i>所有</i> 数据目录：</p>
+<p>&mdash; 24.12: REST</p>
+<p>&mdash; 25.3: Unity</p>
+<p>&mdash; 25.3: Glue</p>
+<p style="color: green;">&mdash; 25.5: <b>Hive Metastore</b></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<!--
+<section class="slide">
+<h2>System Table "iceberg_history"</h2>
+
+<p>A new system table containing information about available snapshots
+<br/>of all Iceberg tables.</p>
+<p>Plays nicely with the time travel feature.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">Developer: Smita Kulkarni.</p>
+</section>
+-->
+
+<section class="slide">
+<h2>支持“版本提示”</h2>
+
+<p>Iceberg 表可能包含一个 <b>version-hint.text</b> 文件，指向实际快照。因此可利用它，无需查找最新元数据文件。</p>
+
+<p>新增表级设置 <b style="color: green;">iceberg_use_version_hint</b> ，补充已有的 <b style="color: gray">iceberg_metadata_file_path</b>, <b style="color: gray">iceberg_metadata_table_uuid</b>, <b style="color: gray">iceberg_recent_metadata_file_by_last_updated_ms_field</b>。
+
+<p>有助于在不使用数据目录的情况下，使用存在并发更新的表*</p>
+
+<p style="color: gray; font-size: 14pt;">* 是的，Iceberg 生态系统中的一切都复杂又脆弱。对此深感抱歉。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Arnaud Briche。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/back7.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>FINAL 中的二级索引</h2>
+
+<p>ClickHouse 允许表在后台合并期间转换数据。</p>
+
+<p>例如， <b>ReplacingMergeTree</b> 进行去重，
+<br/><b>AggregatingMergeTree</b> 进行聚合。</p>
+
+<p>如果 SELECT 查询在表名后带有 <b>FINAL</b> 修饰符，
+<br/>则会 <b>在 SELECT 期间执行合并</b>.</p>
+
+<p>问题在于：二级索引无法在 SELECT 期间跳过数据范围，
+<br/>因为这些数据会通过合并影响查询结果。</p>
+</section>
+
+<section class="slide">
+<h2>FINAL 中的二级索引</h2>
+
+<p>问题在于：二级索引无法在 SELECT 期间跳过数据范围，
+<br/>因为这些数据会通过合并影响查询结果。</p>
+
+<p>可以通过以下设置启用二级索引筛选：
+<br/><b>use_skip_indexes_if_final</b>，它允许筛选数据，
+<br/>但也可能 <span style="color: brown;">跳过部分更新</span>.</p>
+
+<p>ClickHouse 25.5 中的新选项 <b style="color: green;">use_skip_indexes_if_final_exact_mode</b>
+<br/>&mdash; 会在筛选后读取额外范围，以兼顾所有更新。</p>
+
+<p>演示。</p>
+
+<!--
+
+SHOW CREATE TABLE hackernews_history
+
+ALTER TABLE hackernews_history ADD INDEX idx_by (by) TYPE bloom_filter(0.01);
+ALTER TABLE hackernews_history MATERIALIZE INDEX idx_by;
+
+SET use_query_condition_cache = 0;
+
+SELECT count() FROM hackernews_history WHERE by = 'pradeepchhetri'
+Elapsed: 0.021 sec. Processed 1.31 million rows
+
+SELECT count() FROM hackernews_history FINAL WHERE by = 'pradeepchhetri'
+Elapsed: 0.194 sec. Processed 47.21 million rows
+
+SET use_query_condition_cache = 0, use_skip_indexes_if_final = 1;
+SELECT count() FROM hackernews_history FINAL WHERE by = 'pradeepchhetri'
+Elapsed: 0.068 sec. Processed 6.01 million rows
+
+SET use_query_condition_cache = 0, use_skip_indexes_if_final = 1, use_skip_indexes_if_final_exact_mode = 1;
+SELECT count() FROM hackernews_history FINAL WHERE by = 'pradeepchhetri'
+Elapsed: 0.068 sec. Processed 6.01 million rows
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Shankar Iyer。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/back8.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">一些有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>相关子查询：支持更多类型</h2>
+
+<p style="margin-top: -1em;">&mdash; 是依赖外层作用域中列的子查询。</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">SELECT * FROM users AS <b style="color: brown;">u1</b> WHERE EXISTS <span style="color: blue;">(
+    SELECT * FROM users2 AS u2 WHERE <b style="color: brown;">u1.age</b> = u2.age)</span>
+</code></p>
+
+<p>它们可出现在多种语境中：EXISTS、IN、标量……</p>
+<p>在 <b>25.4</b> 中，我们支持了 <b>WHERE</b> 子句中使用 <b>EXISTS</b> 运算符的相关子查询。</p>
+<p>在 <b style="color: green;">25.5</b> 中，我们支持 <b style="color: green;">标量相关子查询</b> 出现在 <b>WHERE</b> 子句中
+<br/>，还支持相关子查询 <b style="color: green;">出现在 SELECT 中</b>!</p>
+
+<p>现在足以在不修改查询的情况下覆盖 <b>TPC-H</b> 测试套件。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Dmitry Novik。</p>
+</section>
+
+<section class="slide">
+<h2>向量搜索进入 Beta 阶段</h2>
+
+<p><b>22.9</b> &mdash; 实验性版本</p>
+<p style="color: gray; font-size: 14pt;">由 Arthur Filatenkov、Vladimir Makarov、Danila Mishin、
+Nikita Vasilenko、Alexander Piachonkin、Nikita Evsiukov、Hakob Sagatelyan 引入。</p>
+
+<p><b>23.8</b> &mdash; 集成 USearch 库</p>
+<p style="color: gray; font-size: 14pt;">由 Davit Vardanyan 引入。</p>
+
+<p><b>25.1</b> &mdash; 更快的向量索引</p>
+<p style="color: gray; font-size: 14pt;">由 Robert Schulze、Michael Kolupaev 实现。</p>
+
+<p><b style="color: green;">25.5</b> &mdash; Beta</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Shankar Iyer、Robert Schulze。</p>
+</section>
+
+<section class="slide">
+<h2>向量搜索进入 Beta 阶段</h2>
+
+<p>支持预筛选和后筛选模式。</p>
+
+<p>SET <b>vector_search_filter_strategy</b> = auto|postfilter|prefilter</p>
+
+<p>确定混合搜索中筛选数据的方式。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Shankar Iyer。</p>
+</section>
+
+
+<section class="slide">
+<h2>集成</h2>
+
+<p><b>ClickPipes</b> 对 <b>Azure Blob Storage</b> 的支持进入私有预览阶段。</b></p>
+
+<p><b>dbt</b> v1.9.0 新增 <b>微批处理</b> 策略
+<br/>，并支持 <b>列级 TTL</b>.</p>
+
+<p><b>Java</b> 客户端通过新的 <b>RowBinaryWriter</b>加快插入。</p>
+
+<p><b>Grafana</b> 集成 v4.9.0 在 SQL 编辑器中增加建议，
+<br/>以及 SQL 格式化工具。
+<br/>改进跟踪支持：新增类型、状态、插桩库、链接、事件和状态数据。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">额外内容</span></h2>
+</section>
+
+<section class="slide">
+<h2>AgentHouse</h2>
+
+<p style="font-size: 150%;"><a href="https://llm.clickhouse.com/">https://llm.clickhouse.com/</a></p>
+<p>通过 ClickHouse MCP 服务器
+<br/>连接到 ClickHouse 演示数据集的聊天智能体。</p>
+<p>ClickHouse MCP 服务器也可连接你的数据库！</p>
+
+<!-- How has the ClickHouse popularity grown in 2025? -->
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/foursquare.png); background-size: cover;">
+<h2 style="color: white;"><span style="background: rgba(0, 0, 0, 0.5)">地图可视化</span></h2>
+
+<p style="color: white;"><span style="background: rgba(0, 0, 0, 0.5)">Foursquare 数据集示例：</span></p>
+<p style="color: white;"><span style="background: rgba(0, 0, 0, 0.5)"><a href="https://adsb.exposed/?dataset=Places&amp;zoom=5&amp;lat=52.3085&amp;lng=5.8008&amp;query=7c5e396ef56770ed633faf666a2073a2">https://adsb.exposed/?dataset=Places</a></span></p>
+
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/openhouse.png); background-size: cover;">
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流活动</h2>
+<p>
+
+<span class="hilite">&mdash; 🇯🇵 东京，6 月 5 日</span>
+<br/><span class="hilite">&mdash; 🇨🇾 塞浦路斯，6 月 10 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 华盛顿特区，6 月 12 日</span>
+<br/><span class="hilite">&mdash; 🇮🇱 特拉维夫，6 月 17 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 亚特兰大，7 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 纽约，7 月 15 日</span>
+</p>
+<p><span class="hilite">我会亲自参加其中一些活动 :)</span></p>
+</section>
+
+
+
+<section class="slide">
+<h2>阅读园地 📖</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: 1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;">&mdash; ClickHouse Cloud 中的仪表板
+<br/>&mdash; ClickHouse 与 Parquet
+<br/>&mdash; 我们如何实现 MySQL CDC
+<br/>&mdash; Chartmetric &mdash; 音乐艺人分析
+<br/>&mdash; BoundaryML &mdash; 如何让 AI 输出结构化数据
+<br/>&mdash; Wallarm, Flock Safety, Real Estate Analytics
+</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.5/pictures/back4.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/wxicecqZOuw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
