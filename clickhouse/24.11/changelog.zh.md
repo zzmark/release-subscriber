@@ -19,7 +19,7 @@
 * 通过 Dictionary 存储、dictionary 表函数或直接 SELECT 字典读取数据时，拥有字典的 `SELECT` 或 `dictGet` 权限之一即可。这与此前防止 ACL 绕过的尝试一致：[https://github.com/ClickHouse/ClickHouse/pull/57362](https://github.com/ClickHouse/ClickHouse/pull/57362) 和 [https://github.com/ClickHouse/ClickHouse/pull/65359](https://github.com/ClickHouse/ClickHouse/pull/65359)，也使后者向后兼容。 [#72051](https://github.com/ClickHouse/ClickHouse/pull/72051) ([Nikita Mikhaylov](https://github.com/nikitamikhaylov)).
 
 <h4 id="experimental-feature">
-  Experimental feature
+  实验性功能
 </h4>
 
 * 实现 `allow_feature_tier`，作为禁用全部实验性/beta 功能的全局开关。 [#71841](https://github.com/ClickHouse/ClickHouse/pull/71841) [#71145](https://github.com/ClickHouse/ClickHouse/pull/71145) ([Raúl Marín](https://github.com/Algunenano)).
