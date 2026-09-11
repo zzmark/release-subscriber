@@ -7,7 +7,7 @@
 </Frame>
 
 <h4 id="upgrade-notes-2">
-  Upgrade Notes
+  升级说明
 </h4>
 
 * 现在，后台合并、变更操作和 `OPTIMIZE` 不再增加 `SelectedRows` 和 `SelectedBytes` 指标；它们仍像此前一样增加 `MergedRows` 和 `MergedUncompressedBytes`。这只会影响指标值，使其更合理。此变更不引入兼容性问题，但由于指标变化可能令人疑惑，因此列入此类别。[#37040](https://github.com/ClickHouse/ClickHouse/pull/37040)（[Nikolai Kochetov](https://github.com/KochetovNicolai)）。
