@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.7 版本发布会议</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.7 版本发布会议">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.7 版本发布会议</h1>
+        <p>作者：Alexey Milovidov，2025-07-24。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 25px; line-height: 110%; font-size: 56pt; color: white; text-shadow: black 1px 0 10px; text-align: center;">ClickHouse 25.7 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 25.7 版本</h2>
+<p>1.（50 分钟）ClickHouse 25.7 的新内容。</p>
+<p>1.（5 分钟）嘉宾分享。</p>
+<p>3.（5 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">25.7 版本</span></h2>
+<p><span class="hilite">ClickHouse 夏季版本。</span></p>
+<p><span class="hilite">— 27 项新功能 🌺</span></p>
+<p><span class="hilite">— 26 项性能优化 🍦</span></p>
+<p><span class="hilite">— 98 项缺陷修复 🐞</span></p>
+</section>
+<!--
+
+小功能
+
+system.formats
+彩色括号
+金融函数
+地理：WKB 写入、polygonsIntersect
+SZ3
+色彩科学
+数据源的 Read/Write 授权
+参数化 CREATE USER
+NumericIndexedVector
+
+性能
+
+默认启用并行分布式 INSERT SELECT
+异步日志
+JOIN 优化
+仅包含 count 的聚合
+
+主要功能
+
+轻量级更新
+Iceberg 写入
+其他 Iceberg 功能：位置删除、结构演进中的复杂类型
+Databricks 管理的表
+向量相似度搜索进入 Beta 阶段
+
+额外内容
+
+AI
+面向 AI 的 AWS Marketplace
+
+集成
+
+MySQL CDC 公开 Beta：https://clickhouse.com/blog/mysql-cdc-connector-clickpipes-beta
+ClickPipes 向系统表记录日志
+Confluent Cloud 中的完全托管连接器
+Kafka Connect 的 JSON 支持
+Airbyte ClickHouse 目标连接器 v2
+
+额外内容
+
+共享目录
+ClickBench 更新
+
+咖啡店基准测试
+MongoDB 分析基准测试
+
+阅读
+
+更新 1、2
+OpenAI
+Anthropic
+Tesla
+大语言模型可观测性
+Polygon
+
+
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">小而实用的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>system.formats</h2>
+
+<p><code style="font-size: 12pt; margin-top: -1em; line-height: 1.2;">:) SELECT * FROM <b style="color: green;">system.formats</b> WHERE name = 'JSONEachRow'
+
+Row 1:
+──────
+name:                         JSONEachRow
+is_input:                     1
+is_output:                    1
+supports_parallel_parsing:    1
+supports_parallel_formatting: 1
+is_tty_friendly:              1
+content_type:                 application/x-ndjson; charset=UTF-8
+supports_random_access:       0
+has_schema_inference:         1
+has_external_schema:          0
+prefers_large_blocks:         0
+supports_append:              0
+supports_subsets_of_columns:  1
+</code></p>
+
+<p>演示。</p>
+
+<!--
+
+SELECT count() FROM system.formats
+SELECT count() FROM system.formats WHERE is_input
+SELECT count() FROM system.formats WHERE is_output
+SELECT count() FROM system.formats WHERE is_input AND is_output
+SELECT count() FROM system.formats WHERE is_input AND NOT is_output
+SELECT name FROM system.formats WHERE is_input AND NOT is_output
+
+ClickHouse 还缺少哪种格式？
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2>金融函数</h2>
+
+<p>&mdash; <b>financialInternalRateOfReturn</b> (IRR)</p>
+<p>&mdash; <b>financialInternalRateOfReturnExtended</b> (XIRR)</p>
+<p>&mdash; <b>financialNetPresentValue</b> (NPV)</p>
+<p>&mdash; <b>financialNetPresentValueExtended</b> (XNPV)</p>
+
+<p>演示。</p>
+
+<!--
+
+SELECT financialInternalRateOfReturn([-1, 1])
+SELECT financialInternalRateOfReturn([-1, 0, 0, 0, 1])
+SELECT financialInternalRateOfReturn([-1, 0.1, 0.1, 0.1, 0.1 + 1])
+SELECT financialInternalRateOfReturn([-1, 1, 1])
+SELECT financialInternalRateOfReturn([-1, 0.6180339887498948, 1.618033988749895])
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Joanna Hulboj。</p>
+</section>
+
+
+<section class="slide">
+<h2>新的地理函数</h2>
+
+<p><span style="color: gray;">自 21.4 起：
+<br/>&mdash; polygonsIntersectionCartesian
+<br/>&mdash; polygonsIntersectionSpherical
+<br/>&mdash; 计算交集，并以 MultiPolygon 返回。
+</span></p>
+<p>自 25.7 起：
+<br/><b style="color: green;">&mdash; polygonsIntersectCartesian
+<br/>&mdash; polygonsIntersectSpherical</b>
+<br/>&mdash; 检查多边形是否相交，返回 0 或 1。
+</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Paul Lamb。</p>
+</section>
+
+<section class="slide">
+<h2>新的地理函数</h2>
+
+<p><code style="font-size: 14pt; margin-top: -1em; line-height: 1.5;">:) SELECT [[(0, 0), (0, 1), (1, 1), (1, 0)]]::Polygon AS poly,
+          wkt(poly), hex(<b style="color: green;">wkb(poly)</b>)
+
+Row 1:
+──────
+poly:           [[(0,0),(0,1),(1,1),(1,0)]]
+wkt(poly):      POLYGON((0 0,0 1,1 1,1 0,0 0))
+hex(<b style="color: green;">wkb(poly)</b>): 010300000001000000040000000000000000000000000000000000000
+00000000000000000000000000000F03F000000000000F03F000000000000F03F00000000
+0000F03F0000000000000000
+</code></p>
+
+<p><b>wkb</b> &mdash; 将几何数据写为“<b>W</b>ell-<b>K</b>nown <b>B</b>inary”格式。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2>色彩空间函数</h2>
+
+<img style="float: right; width: 40%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/oklch.png"/>
+
+<p>在 sRGB 和 OKLCH 之间转换：</p>
+<p>&mdash; <b>colorOKLCHToSRGB((l, c, h), gamma)</b>
+<br/>&mdash; <b>colorSRGBToOKLCH((r, g, b), gamma)</b>
+</p>
+
+<p><b>OKLCH</b> &mdash; 感知均匀的色彩空间。</p>
+<p>适用于：对颜色进行算术运算、混合颜色、生成渐变、以程序方式选取颜色。</p>
+
+<p>演示。</p>
+
+<!--
+
+https://adsb.exposed/?dataset=Planes&zoom=6&lat=52.4893&lng=4.6025&query=f3fa6f78cbef2ffb60baafae766e333a
+
+https://adsb.exposed/?dataset=Planes&zoom=6&lat=52.4089&lng=6.1639&query=2ae6768a6083c9fb1517514e61055eb4
+
+https://adsb.exposed/?dataset=Planes&zoom=11&lat=52.2970&lng=4.7794&query=9ba733743fe7e64053f55d92b4ac1fc0
+
+https://adsb.exposed/?dataset=Planes&zoom=11&lat=52.3271&lng=4.7278&query=6ce27658c10bd2071e56b07f8df654e2
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Kirill Kopnev。</p>
+</section>
+
+
+<section class="slide">
+<h2>彩色括号</h2>
+
+<p>用于 clickhouse-client。</p>
+
+<p>演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Konstantin Bogdanov。</p>
+</section>
+
+<!--
+<section class="slide">
+<h2>新的压缩编解码器 SZ3</h2>
+
+<p>ClickHouse 支持自定义压缩编解码器，可在列级、表级或服务器配置级别指定。</p>
+
+<p>SZ3 &mdash; 是一组面向浮点数据的<b>有损</b>压缩器，
+<br>例如科学测量数据和向量嵌入。</p>
+
+<p>用法：SZ3(algorithm, error_bound_mode, error_bound)
+<br/>默认相对误差界限为 1%，也可以显式设置。</p>
+
+<p>演示</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+</section>
+-->
+
+
+<section class="slide">
+<h2>压缩数值向量</h2>
+
+<p>一组用于创建和操作以下结构的函数： <b style="color: green;">位切片索引</b> (BSI)
+<br/>&mdash; 以压缩形式表示 <b>稀疏向量</b> ，其中元素为数值
+<br/>&emsp; （从 UInt8/16/32 索引到数值的映射）</p>
+
+<p>使用聚合函数构建索引：
+<br/><span style="font-family: monospace; font-size: 14pt;">SELECT <b>groupNumericIndexedVectorState</b>(idx, val)</span></p>
+<p>从 Map 构建索引： <span style="font-family: monospace; font-size: 14pt;"><b>numericIndexedVectorBuild</b>(map)</span></p>
+
+<p style="font-family: monospace; font-size: 14pt;"><b>numericIndexedVectorToMap</b>, <b>numericIndexedVectorCardinality</b>, <b>numericIndexedVectorAllValueSum</b>, <b>numericIndexedVectorGetValue</b>, <b>numericIndexedVectorPointwiseAdd/Subtract/Multiply/Equal/Less/</b>...</p>
+
+<p>应用：腾讯 A/B 测试实验中的指标计算。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：FriendLey。</p>
+</section>
+
+<section class="slide">
+<h2>压缩数值向量</h2>
+
+<p>一组用于创建和操作以下结构的函数： <b style="color: green;">位切片索引</b> (BSI)
+<br/>&mdash; 以压缩形式表示 <b>稀疏向量</b> ，其中元素为数值
+<br/>&emsp; （从 UInt8/16/32 索引到数值的映射）</p>
+
+<p>应用：腾讯 A/B 测试实验中的指标计算。</p>
+
+<p>演示。</p>
+
+<!--
+
+-- 普通表
+--------------------
+DROP TABLE IF EXISTS metric_raw;
+CREATE TABLE metric_raw(segment_id UInt32, value UInt32)
+ENGINE = MergeTree()
+ORDER BY segment_id;
+
+DROP TABLE IF EXISTS expose_raw;
+CREATE TABLE expose_raw(segment_id UInt32, offset UInt32)
+ENGINE = MergeTree()
+ORDER BY segment_id;
+
+INSERT INTO metric_raw
+SELECT number, rand32(number) % 16
+FROM numbers(1e8);
+
+INSERT INTO expose_raw
+SELECT number, rand32(number + 1) % 10
+FROM numbers(1e8);
+
+
+-- BSI 表
+-----------------
+DROP TABLE IF EXISTS metric_bsi;
+CREATE TABLE metric_bsi
+(
+    value_vec AggregateFunction(groupNumericIndexedVectorState, UInt32, UInt32)
+) ENGINE = AggregatingMergeTree
+ORDER BY tuple();
+
+INSERT INTO metric_bsi
+SELECT groupNumericIndexedVectorState(segment_id, value)
+FROM metric_raw;
+
+
+DROP TABLE IF EXISTS expose_bsi;
+CREATE TABLE expose_bsi
+(
+    offset_vec AggregateFunction(groupNumericIndexedVectorState, UInt32, UInt32)
+) ENGINE = AggregatingMergeTree
+ORDER BY tuple();
+
+INSERT INTO expose_bsi
+SELECT groupNumericIndexedVectorState(segment_id, offset)
+FROM expose_raw;
+
+
+-- 3  JOIN 加筛选之后的普通聚合基准测试
+----------------------------------------------------
+SELECT sum(m.value) FROM metric_raw AS m
+INNER JOIN expose_raw AS e ON e.segment_id = m.segment_id
+WHERE e.offset BETWEEN 2 AND 5
+FORMAT Null;
+
+
+-- 4  向量基准测试
+------------------------
+WITH
+    (SELECT finalizeAggregation(value_vec)  FROM metric_bsi) AS metric_vec,
+    (SELECT finalizeAggregation(offset_vec) FROM expose_bsi) AS offset_vec,
+    numericIndexedVectorPointwiseMultiply(
+        numericIndexedVectorPointwiseGreaterEqual(offset_vec, 2),
+        numericIndexedVectorPointwiseLessEqual(offset_vec, 5)
+    ) AS mask_vec
+SELECT numericIndexedVectorAllValueSum(
+       numericIndexedVectorPointwiseMultiply(metric_vec, mask_vec))
+FORMAT Null;
+
+-- 5  比较大小
+-------------------
+SELECT table AS tbl,
+  formatReadableSize(sum(bytes_on_disk)) AS on_disk,
+  formatReadableSize(sum(data_uncompressed_bytes)) AS uncompressed
+FROM system.parts
+WHERE active
+  AND table IN ('metric_raw','expose_raw','metric_bsi','expose_bsi')
+GROUP BY tbl
+ORDER BY tbl;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：FriendLey。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/back9.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">略显枯燥的安全功能</span></h2>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">外部数据的 READ 和 WRITE 授权</h2>
+
+<p>在 25.6 及以前版本：</p>
+<p><code>GRANT S3 ON *.* TO user</code></p>
+
+<p>在 25.7 中：</p>
+<p><code style="font-size: 12pt; line-height: 1.5;"><span style="color: gray;">$ cat config.d/read_write_grants.yaml</span>
+access_control_improvements:
+    enable_read_write_grants: true
+</code></p>
+<p><code>GRANT READ, WRITE ON S3 TO user</code></p>
+
+<p>允许限制对外部数据源的读取或写入，<br/>例如 S3、URL、File 等。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Artem Brustovetskii。</p>
+</section>
+
+<section class="slide">
+<h2>参数化 CREATE USER 查询</h2>
+
+<p><code style="font-size: 16pt; line-height: 1.5;">SET param_username = 'test123';
+CREATE USER {username:Identifier};</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Diskein。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/back3.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>加快简单聚合</h2>
+
+<p>如果查询仅包含 <b>count()</b> 聚合函数，
+<br/>将使用优化后的代码路径。</p>
+
+<p>示例：
+<code style="font-size: 14pt; line-height: 1.5; margin-top: 0.5em;">SELECT RegionID, <b>count()</b>
+FROM hits
+GROUP BY RegionID
+ORDER BY count() DESC LIMIT 10</code></p>
+
+<pre>25.6: <b style="color: red;">42 ms</b>, 2.39 billion rows/s.
+25.7: <b style="color: green;">32 ms</b>, 3.11 billion rows/s.</pre>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Amos Bird。</p>
+</section>
+
+
+<section class="slide">
+<h2>异步日志</h2>
+
+<p><code style="font-size: 12pt; line-height: 1.5;"><span style="color: gray;">$ cat config.d/logger_async.yaml</span>
+logger:
+    <b>async</b>: true  <span style="color: gray;"># This is the default in 25.7, but can be disabled</span>
+</code></p>
+
+<p>日志记录不再因写入而阻塞，在输出到终端或慢速磁盘时可提高速度，尤其有利于短查询。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">clickhouse-benchmark --query "
+    SELECT count() FROM hits WHERE AdvEngineID != 0"
+</code></p>
+
+<pre>25.6: <b style="color: red;">225</b> QPS, 14.5 billion rows/sec.
+25.7: <b style="color: green;">255</b> QPS, 16.4 billion rows/sec.</pre>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Raúl Marín。</p>
+</section>
+
+<section class="slide">
+<h2>JOIN 优化</h2>
+
+<p>Hash JOIN 的底层优化：</p>
+
+<p>&mdash; 优化 RIGHT 和 FULL JOIN</p>
+<p>&mdash; 优化包含多个 OR 条件的 JOIN</p>
+<p>&mdash; 让 INNER JOIN 与 IN 运算符一样快</p>
+<p>&mdash; 更精确地为结果分配内存</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Nikita Taranov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">默认启用分布式 INSERT SELECT</h2>
+
+<p>在同一集群内，从一张 Distributed 表插入到另一张 Distributed 表时，SELECT 和 INSERT 流水线都会在所有机器上并行运行。</p>
+
+<p>如果启用 <b>enable_parallel_replicas</b> ，在同一集群内从一张 Replicated 表插入到另一张 Replicated 表时，也会跨机器并行执行。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Igor Nikonov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/back4.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">一些有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>轻量级更新</h2>
+
+<p>完整功能的 UPDATE 语句：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">UPDATE my_table
+SET col1 = val1, col2 = val2, ...
+WHERE <i>condition</i>
+
+UPDATE hits SET Title = 'Updated Title'
+WHERE EventDate = today();
+
+UPDATE wikistat SET hits = hits + 1, time = now()
+WHERE path = 'ClickHouse';
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov。</p>
+</section>
+
+<section class="slide">
+<h2>轻量级更新</h2>
+
+<p>支持 <b>MergeTree</b>, <b>ReplacingMergeTree</b>, <b>CollapsingMergeTree</b>,
+<br>，包括 <b>Replicated</b> 表。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">CREATE TABLE hits
+(...) ENGINE = MergeTree
+SETTINGS <b style="color: green;">enable_block_number_column</b> = 1,
+         <b style="color: green;">enable_block_offset_column</b> = 1;
+
+SET allow_experimental_lightweight_update = 1;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov。</p>
+</section>
+
+<section class="slide">
+<h2>轻量级更新</h2>
+
+<p>UPDATE 的性能类似于
+<br/>使用相同列和条件的 INSERT SELECT。</p>
+
+<p>UPDATE 创建一个 <i>补丁数据片段</i> ，引用被修改的记录。
+<br/>补丁数据片段在读取和后台合并期间应用。</p>
+
+<p>更新之后的 SELECT 性能：</p>
+<img style="width: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/lwu2.png"/>
+
+<p><b style="color: green;">比即时应用变更操作快两倍</b> 。
+<br/>相较完全更新后的数据，仅增加 <b style="color: green;">20%</b> 的开销。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/updates.png) center/contain no-repeat;">
+</section>
+
+<section class="slide">
+<h2>轻量级更新</h2>
+
+<p>UPDATE 的性能：</p>
+<img style="width: 80%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/lwu1.png"/>
+</section>
+
+<section class="slide">
+<h2>轻量级更新</h2>
+
+<p>额外功能：</p>
+<pre>SET <b>lightweight_delete_mode</b> = 'lightweight_update';</pre>
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Anton Popov。</p>
+</section>
+
+
+<section class="slide">
+<h2>向 Iceberg 插入</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">CREATE TABLE iceberg_table_s3 ENGINE = IcebergS3(...);
+INSERT INTO iceberg_table_s3 VALUES (...);</code></p>
+
+<p>从版本 <b style="color: green;">25.7</b>开始，我们支持向已有 Iceberg 表插入数据！</p>
+
+<p>演示</p>
+
+<!--
+
+./clickhouse-server
+
+SHOW CREATE TABLE iceberg_table_s3;
+SELECT * FROM default.iceberg_table_s3;
+SET allow_experimental_insert_into_iceberg = 1;
+INSERT INTO iceberg_table_s3 VALUES (83653, 'Read iceberg data files by field ids');
+SELECT * FROM default.iceberg_table_s3;
+
+-->
+
+<p style="color: gray;">后续版本将支持：
+<br/>&mdash; 创建新的 Iceberg 表；<br/>&mdash; 在数据湖目录中创建 Iceberg 表；<br/> &mdash; Iceberg 后台合并。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2>更多 Iceberg 功能</h2>
+
+<p>支持包含 <b>复杂数据类型</b>的结构演进。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+
+<p>支持 <b>压缩的</b> metadata.json 文件。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexander Sapin。</p>
+
+<p>按列 ID 读取数据文件，以支持 <b>重命名的列</b>.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Konstantin Vedernikov。</p>
+</section>
+
+<section class="slide">
+<h2>更多 Iceberg 支持</h2>
+
+<p>从版本 <b style="color: green;">25.7</b>开始，ClickHouse 支持<br/><b>由 Databricks 管理的</b> Iceberg 表。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">CREATE DATABASE unity_iceberg_preview
+ENGINE = DataLakeCatalog('https://dbc-0514751c-5c15.cloud.databricks.com/
+api/2.1/unity-catalog/<b style="color: green;">iceberg-rest</b>')
+SETTINGS catalog_type = 'rest', catalog_credential = '...',
+    warehouse = '...', oauth_server_uri = '...',
+    auth_scope = 'all-apis,sql'</code></p>
+
+<p>演示</p>
+
+<!--
+
+CREATE DATABASE unity_iceberg_preview
+ENGINE = DataLakeCatalog('https://dbc-0514751c-5c15.cloud.databricks.com/api/2.1/unity-catalog/iceberg-rest')
+SETTINGS catalog_type = 'rest', catalog_credential = '695cefe8-614a-4a97-a140-46018db8c7ef:dosef2dd6253dd0223f9959011c9a98d81f2', warehouse = 'byoc_databricks', oauth_server_uri = 'https://dbc-0514751c-5c15.cloud.databricks.com/oidc/v1/token', auth_scope = 'all-apis,sql';
+
+USE unity_iceberg_preview;
+
+SHOW TABLES;
+
+SELECT
+    pickup_zip,
+    avg(fare_amount) AS avg_fare
+FROM `default.nyctaxi`
+GROUP BY pickup_zip
+ORDER BY avg_fare DESC
+LIMIT 10;
+
+-->
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">额外内容</span></h2>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/back10.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">嘉宾分享</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>ClickPipes</b> 支持将错误记录到系统表</p>
+<p><b>Confluent Cloud</b> 现在提供完全托管的 ClickHouse 连接器</p>
+<p><b>Kafka Connect</b> 新增对 <b>JSON</b> 数据类型的支持</p>
+<p><b>Airbyte</b> 发布 ClickHouse 目标连接器 v2</p>
+<p><b>MySQL CDC</b> 在 ClickPipes 中进入公开 Beta 阶段</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/mysql.png) center/contain no-repeat;">
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流活动</h2>
+<p style="line-height: 1.5">
+<span class="hilite">&mdash; 🇯🇵 东京，7 月 29 日</span>
+<br/><span class="hilite">&mdash; 🇮🇩 雅加达，8 月 6 日</span>
+<br/><span class="hilite">&mdash; 🇰🇷 首尔，8 月 7 日</span>
+<br/><span class="hilite">&mdash; 🇵🇭 马尼拉，8 月 13 日</span>
+<br/><span class="hilite">&mdash; 🇮🇱 特拉维夫，9 月 9 日</span>
+<br/><span class="hilite">&mdash; 🇦🇪 迪拜，9 月 16 日</span>
+</p>
+</section>
+
+
+
+<section class="slide">
+<h2>阅读园地 📖</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: -1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;">
+<br/>&mdash; 我们如何在 ClickHouse 中实现 <b>快速 UPDATE</b> ；
+<br/>&mdash; 客户故事： <b>OpenAI</b>, <b>Anthropic</b>, <b>Tesla</b>
+<br/>&mdash; ClickHouse 的安全远程 <b>MCP</b> 服务器
+<br/>&mdash; 我们如何实现 <b>MySQL CDC</b>
+<br/>&mdash; <b>通过 ClickHouse</b> 实现大语言模型可观测性
+<br/>&mdash; <b>基于智能体的</b> Pydantic 分析
+</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.7/pictures/back8.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/P1TsTzktl0Q" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--视频插件-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/视频插件-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
