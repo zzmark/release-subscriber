@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：24.3 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：24.3 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：24.3 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2024-03-26。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 60px; line-height: 150%; font-size: 56pt;"><span class="hilite">ClickHouse 版本<br/>24.3 LTS</span></h1>
+    </section>
+
+<section class="slide">
+<h2>24.3 版本网络研讨会</h2>
+<p>1.（55 分钟）ClickHouse 24.3 新内容。</p>
+<p>2.（5 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">24.3 LTS 版本</span></h2>
+<p><span class="hilite">ClickHouse 春季版本。</span></p>
+<p><span class="hilite">— 12 项新功能 🌸</span></p>
+<p><span class="hilite">— 18 项性能优化 🐦</span></p>
+<p><span class="hilite">— 60 项缺陷修复 🦋</span></p>
+</section>
+<!--
+
+Small
+
+system.keywords
+ATTACH PARTITION ALL
+getClientHTTPHeader
+redirects
+Size capped memory tables
+Attach from a different disk
+tar backups
+Bonus: S3 Express + reading
+
+Usability
+
+String and Enum interchangable
+Pretty row numbers
+Default format in CLI
+Highlight digits
+MergeTree is a default table engine
+Files without extensions in clickhouse-local
+
+Performance
+
+256 integers
+dotProduct
+
+Main
+
+Analyzer
+Userspace Page Cache
+
+Integrations
+
+S3 Connector in ClickPipes
+Avro format for Kafka in ClickPipes
+
+Reading
+
+One trillion rows challenge
+chDB is part of ClickHouse
+LLM chatbot
+Schema as a code with Atlas
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">精巧实用的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>system.keywords</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT * FROM <b style="color: green;">system.keywords</b>
+
+     ┌─keyword──────────────────┐
+  1. │ ADD COLUMN               │
+  2. │ ADD CONSTRAINT           │
+  3. │ ADD INDEX                │
+  4. │ ADD PROJECTION           │
+  5. │ ADD STATISTIC            │
+</code></p>
+
+<p>总共有多少个关键字？</p>
+
+<!--
+
+QQ
+SELECT SELECT FROM FROM
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Nikita Mikhailov。</p>
+</section>
+
+<section class="slide">
+<h2>ATTACH PARTITION ALL</h2>
+
+<p>分离所有分区。表将变为空表：</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">:) ALTER TABLE hits DETACH PARTITION <b style="color: green;">ALL</b>
+</code></p>
+
+<p>从 detached 目录附加所有分区：</p>
+<p><code style="font-size: 14pt; line-height: 1.25;">:) ALTER TABLE hits ATTACH PARTITION <b style="color: green;">ALL</b>
+</code></p>
+
+<p>无需演示。功能很简单，行为符合预期 :)</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Kirill Nikiforov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt">从其他磁盘 ATTACH PARTITION</h2>
+
+<p>允许从另一块磁盘 ATTACH（或 MOVE、REPLACE）PARTITION（或 PART），
+<br/>包括外部文件系统（如 S3）。</p>
+
+<p>类似 MOVE PARTITION TO DISK/VOLUME，但在表之间操作。</p>
+
+<p>演示。</p>
+
+<!--
+
+ATTACH TABLE uk_price_paid_web UUID 'cf712b4f-2ca8-435c-ac23-c4393efe52f7'
+(
+    price UInt32,
+    date Date,
+    postcode1 LowCardinality(String),
+    postcode2 LowCardinality(String),
+    type Enum8('other' = 0, 'terraced' = 1, 'semi-detached' = 2, 'detached' = 3, 'flat' = 4),
+    is_new UInt8,
+    duration Enum8('unknown' = 0, 'freehold' = 1, 'leasehold' = 2),
+    addr1 String,
+    addr2 String,
+    street LowCardinality(String),
+    locality LowCardinality(String),
+    town LowCardinality(String),
+    district LowCardinality(String),
+    county LowCardinality(String)
+)
+ENGINE = MergeTree
+ORDER BY (postcode1, postcode2, addr1, addr2)
+SETTINGS disk = disk(type = web, endpoint = 'https://raw.githubusercontent.com/ClickHouse/web-tables-demo/main/web/')
+
+SELECT
+    toYear(date) AS year,
+    round(avg(price)) AS price,
+    bar(price, 0, 1000000, 80)
+FROM uk_price_paid_web
+GROUP BY year
+ORDER BY year ASC;
+
+CREATE TABLE uk_price_paid_local
+(
+    price UInt32,
+    date Date,
+    postcode1 LowCardinality(String),
+    postcode2 LowCardinality(String),
+    type Enum8('other' = 0, 'terraced' = 1, 'semi-detached' = 2, 'detached' = 3, 'flat' = 4),
+    is_new UInt8,
+    duration Enum8('unknown' = 0, 'freehold' = 1, 'leasehold' = 2),
+    addr1 String,
+    addr2 String,
+    street LowCardinality(String),
+    locality LowCardinality(String),
+    town LowCardinality(String),
+    district LowCardinality(String),
+    county LowCardinality(String)
+)
+ENGINE = MergeTree
+ORDER BY (postcode1, postcode2, addr1, addr2);
+
+ALTER TABLE uk_price_paid_local ATTACH PARTITION () FROM uk_price_paid_web;
+
+SELECT
+    toYear(date) AS year,
+    round(avg(price)) AS price,
+    bar(price, 0, 1000000, 80)
+FROM uk_price_paid_local
+GROUP BY year
+ORDER BY year ASC;
+
+ALTER TABLE uk_price_paid_local DROP PARTITION ALL
+
+INSERT INTO uk_price_paid_local SELECT * FROM uk_price_paid_web
+
+SET max_insert_threads = 16
+
+ALTER TABLE uk_price_paid_local DROP PARTITION ALL
+
+INSERT INTO uk_price_paid_local SELECT * FROM uk_price_paid_web
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Unalian。</p>
+</section>
+
+
+<section class="slide">
+<h2>容量受限的 Memory 表</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE test ... ENGINE = Memory
+SETTINGS <b style="color: green;">max_bytes_to_keep</b> = '1G';
+<span style="color: gray;">-- max_rows_to_keep, min_bytes_to_keep, min_rows_to_keep</span>
+</code></p>
+
+<p><b>max_bytes_to_keep</b>, <b>max_rows_to_keep</b>
+<br/>&mdash; 触发旧数据清理的阈值；</p>
+
+<p><b>min_bytes_to_keep</b>, <b>min_rows_to_keep</b>
+<br/>&mdash; 若指定，清理时不会删除使保留量低于该阈值的数据块；</p>
+
+<p>演示</p>
+
+<!--
+
+CREATE TABLE numbers_capped (x UInt64) ENGINE = Memory SETTINGS max_bytes_to_keep = '1G';
+
+INSERT INTO numbers_capped SELECT * FROM numbers(100_000_000);
+
+SELECT count() FROM numbers_capped;
+
+INSERT INTO numbers_capped SELECT * FROM numbers(100_000_000);
+
+SELECT count() FROM numbers_capped;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Jake Bamrah。</p>
+</section>
+
+<section class="slide">
+<h2>tar 格式的 BACKUP</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) BACKUP TABLE test TO File('backup1.<b style="color: green;">tar</b>');
+
+<span style="color: gray;">-- File, Disk, S3, and AzureBlobStorage work:</span>
+
+:) BACKUP TABLE test TO S3(
+    'https://mybucket.s3.amazonaws.com/backups/1.<b style="color: green;">tar</b>', ...);
+</code></p>
+
+<p>其他支持的格式为 <b>.zip</b> 和目录。</p>
+<p>注意：备份到 S3 时，与直接使用一组文件相比，
+<br/>使用 .zip/.tar 容器意义不大。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Josh Hildred。</p>
+</section>
+
+<section class="slide">
+<h2>支持 S3 Express One Zone</h2>
+
+<table style="line-height: 1.25">
+<tr>
+<td>
+<b style="color: green;">&plus;</b> 低延迟；
+<br/><b style="color: green;">&plus;</b> 更高的每秒请求数；
+<br/><b style="color: green;">&plus;</b> GET/PUT 价格减半；
+</td>
+<td>
+<b style="color: red;">&minus;</b> 更高的存储成本（7⨯）；
+<br/><b style="color: red;">&minus;</b> 较低的可用性；
+<br/><b style="color: red;">&minus;</b> 受限的 API；
+<br/><b style="color: red;">&minus;</b> 需要新的库；</p>
+</td>
+</tr>
+</table>
+
+<p style="margin-top: -1em;">使用场景：
+<br/>&mdash; 单个可用区内的高速共享存储；
+<br/>&mdash; S3 标准层之前的缓存；</p>
+
+<p>AWS 博客： <a href="https://aws.amazon.com/blogs/storage/clickhouse-cloud-amazon-s3-express-one-zone-making-a-blazing-fast-analytical-database-even-faster/">ClickHouse Cloud &amp; Amazon S3 Express One Zone：<br/>让飞快的分析数据库更快</a></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Nikita Taranov。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/back4.jpg); background-size: cover;">
+<h2><span class="hilite">易用性改进</span></h2>
+</section>
+
+
+<section class="slide">
+<h2>Enum 与字符串</h2>
+
+<p>24.3 之前：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">Code: 386. DB::Exception: <span style="color: red;">There is no supertype</span> for types
+Enum8('Hello' = 1, 'World' = 2), String because some of them are
+String/FixedString and some of them are not:
+While processing [str, enum]. (NO_COMMON_TYPE)</code></p>
+
+<p>现在按需将 Enum 和 String 转换为共同类型。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">:) SELECT [str, enum], <span style="color: gray;">-- Array(String)</span>
+          cond ? str : enum; <span style="color: gray;">-- String</span></code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2>Pretty 格式中的行号</h2>
+
+<p><code style="font-size: 10pt; line-height: 1.25; overflow-x: scroll;">
+    ┌─────price─┬─addr1───────────┬─addr2────────────────────────────┬─street────────────────────────────┬─town────────────────┐
+ 1. │ 594300000 │ 55              │ UNIT 53                          │ BAKER STREET                      │ LONDON              │
+ 2. │ 569200000 │ 2               │                                  │ STANHOPE ROW                      │ LONDON              │
+ 3. │ 523000000 │ ONE THAMES      │ PHASE 1                          │ NINE ELMS LANE                    │ LONDON              │
+ 4. │ 448500000 │ 22              │                                  │ SUMNER STREET                     │ LONDON              │
+ 5. │ 448300979 │ UNIT 8          │                                  │ HAWICK CRESCENT INDUSTRIAL ESTATE │ NEWCASTLE UPON TYNE │
+ 6. │ 421364142 │ BEAGLE HOUSE, 1 │                                  │ BRAHAM STREET                     │ LONDON              │
+ 7. │ 415000000 │ 37              │                                  │ DIGBETH                           │ WALSALL             │
+ 8. │ 415000000 │ 37 - 39         │                                  │ DIGBETH                           │ WALSALL             │
+ 9. │ 411500000 │ 30              │ FIRST, SEVENTH AND EIGHTH FLOORS │ GRESHAM STREET                    │ LONDON              │
+10. │ 400000000 │ THE O2, 1       │ INTERCONTINENTAL LONDON          │ WATERVIEW DRIVE                   │ LONDON              │
+    └───────────┴─────────────────┴──────────────────────────────────┴───────────────────────────────────┴─────────────────────┘
+
+10 rows in set. Elapsed: 0.052 sec. Processed 27.91 million rows, 849.14 MB (537.12 million rows/s., 16.34 GB/s.)
+</code></p>
+
+<p>由设置 <b style="color: green;">output_format_pretty_row_numbers</b> 控制。<br/>这是旧功能。有什么新变化？</p>
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>数字显示更加美观</h2>
+
+<p><code style="font-size: 10pt; line-height: 1.25; overflow-x: scroll;">
+    ┌─────price─┬─addr1───────────┬─addr2────────────────────────────┬─street────────────────────────────┬─town────────────────┐
+ 1. │ 59<u>4</u>30<u>0</u>000 │ 55              │ UNIT 53                          │ BAKER STREET                      │ LONDON              │
+ 2. │ 56<u>9</u>20<u>0</u>000 │ 2               │                                  │ STANHOPE ROW                      │ LONDON              │
+ 3. │ 52<u>3</u>00<u>0</u>000 │ ONE THAMES      │ PHASE 1                          │ NINE ELMS LANE                    │ LONDON              │
+ 4. │ 44<u>8</u>50<u>0</u>000 │ 22              │                                  │ SUMNER STREET                     │ LONDON              │
+ 5. │ 44<u>8</u>30<u>0</u>979 │ UNIT 8          │                                  │ HAWICK CRESCENT INDUSTRIAL ESTATE │ NEWCASTLE UPON TYNE │
+ 6. │ 42<u>1</u>36<u>4</u>142 │ BEAGLE HOUSE, 1 │                                  │ BRAHAM STREET                     │ LONDON              │
+ 7. │ 41<u>5</u>00<u>0</u>000 │ 37              │                                  │ DIGBETH                           │ WALSALL             │
+ 8. │ 41<u>5</u>00<u>0</u>000 │ 37 - 39         │                                  │ DIGBETH                           │ WALSALL             │
+ 9. │ 41<u>1</u>50<u>0</u>000 │ 30              │ FIRST, SEVENTH AND EIGHTH FLOORS │ GRESHAM STREET                    │ LONDON              │
+10. │ 40<u>0</u>00<u>0</u>000 │ THE O2, 1       │ INTERCONTINENTAL LONDON          │ WATERVIEW DRIVE                   │ LONDON              │
+    └───────────┴─────────────────┴──────────────────────────────────┴───────────────────────────────────┴─────────────────────┘
+
+10 rows in set. Elapsed: 0.052 sec. Processed 27.91 million rows, 849.14 MB (537.12 million rows/s., 16.34 GB/s.)
+</code></p>
+
+<p>由设置 <b style="color: green;">output_format_pretty_highlight_digit_groups</b> 控制。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>CLI 的默认格式</h2>
+
+<p>演示</p>
+
+<!--
+
+ch -q "SELECT * FROM 'phrase.txt'"
+ch -q "SELECT * FROM 'phrase.txt' FORMAT Pretty"
+ch -q "SELECT * FROM 'phrase.txt'" > test.tsv; cat test.tsv
+ch -q "SELECT * FROM 'phrase.txt'" > test.csv; cat test.csv
+ch -q "SELECT * FROM 'phrase.txt'" > test.json; cat test.json
+ch -q "SELECT * FROM 'phrase.txt' FORMAT Markdown"
+ch -q "SELECT * FROM 'phrase.txt'" --format Markdown
+ch -q "SELECT * FROM 'phrase.txt'" | less
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2>ClickHouse Local：所有文件格式</h2>
+
+<p>演示</p>
+
+<!--
+
+ch -q "SELECT * FROM 'wtf' FORMAT Pretty"
+echo "Hello, world" > wtf
+ch -q "SELECT * FROM 'wtf' FORMAT Pretty"
+
+curl https://api.github.com/repos/ClickHouse/ClickHouse/stargazers | ch -q "SELECT login, type FROM file(stdin)"
+ch -q "SELECT login, type FROM url('https://api.github.com/repos/ClickHouse/ClickHouse/stargazers')"
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Pavel Kruglov。</p>
+</section>
+
+
+<section class="slide">
+<h2>MergeTree 成为默认引擎</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE test
+(
+    x UInt64,
+    s String,
+    PRIMARY KEY(x)
+);
+</code></p>
+
+<p>哇，可以用了。</p>
+<p>由设置 <b>default_table_engine</b> 控制，
+<br/>其默认值为 <b>MergeTree</b> 。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>主键的内存占用</h2>
+
+<p>主键包含的列往往多于索引实际所需的列。</p>
+<p>例如 PRIMARY KEY (user_id, <b>timestamp</b>, <b style="color: red;">url</b>)</p>
+<p>&mdash; 这里， <b>timestamp</b> 是高基数列，
+<br/>&emsp; 通常每个粒度都会变化，因此后续列没有用处： <b style="color: red;">url</b>.</p>
+
+<p>从 24.3 起，我们可以选择 <b style="color: green;">不将主键中无用的列</b> 加载到内存。</p>
+
+<p>由 MergeTree 表的新设置控制：<br/><b style="color: green;">primary_key_ratio_of_unique_prefix_values_to_skip_suffix_columns</b>
+<br/>（默认为 0.9）</p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>更快的 UInt256 序列化</h2>
+
+<p>快了多少？</p>
+
+<p><code style="line-height: 1.5;">SELECT count() FROM system.numbers_mt
+WHERE NOT ignore(toString(toUInt256(rand64())))</code></p>
+
+<p style="color: gray; font-size: 14pt;">开发者：Raul Marin。</p>
+</code></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/back6.jpg); background-size: cover;">
+<h2 style="color: yellow;">一些<br/>有趣的功能</h2>
+</section>
+
+<section class="slide">
+<h2>默认启用 Analyzer！</h2>
+
+<p><b>Analyzer</b> &mdash; 是 ClickHouse 中用于查询分析<br/>与优化的新基础架构。</p>
+<p>它提供更好的兼容性和更完整的功能，<br/>并支持复杂的查询优化。</p>
+
+<p>24.2: <b>allow_experimental_analyzer = 0</b>，该功能处于 <b style="color: red;">实验阶段</b>.</p>
+<p>24.3: <b>allow_experimental_analyzer = 1</b>，该功能处于 <b style="color: green;">beta</b>.</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Maksim Kita、Nikolai Kochetov、Dmitriy Novik、Vladimir Cherkasov，<br/>Igor Nikonov, Yakov Olkhovskiy, ...</p>
+</section>
+
+<section class="slide">
+<h2>Analyzer</h2>
+<p><code style="font-size: 70%; line-height: 1.25; margin-top: -1.5em;">WITH example AS (
+    <b>SELECT</b> '2021-01-01' AS date,
+        1 AS node, 1 AS user)
+<b>SELECT</b> extra_data <b>FROM</b> (
+    <b>SELECT</b> join1.*
+    <b>FROM</b> example
+    <b>LEFT JOIN</b> (
+        <b>SELECT</b> '2021-01-01' AS date,
+            1 AS extra_data) AS join1
+    <b>ON</b> example.date = join1.date
+    <b>LEFT JOIN</b> (
+        <b>SELECT</b> '2021-01-01' AS date) AS join2
+    <b>ON</b> example.date = join2.date)
+</code></p>
+<p><span style="color: red;">此前：</span> <span style="color: gray;">Missing columns: 'extra_data' while processing query...</span></p>
+<p><span style="color: green;">现在：</span> &mdash; 运行完美。</p>
+</section>
+
+<section class="slide">
+<h2>Analyzer</h2>
+<code style="font-size: 9pt; line-height: 1.25; margin-top: -3em; white-space: pre-wrap;">SELECT * <b>FROM</b> (SELECT SUM(COALESCE(SEQ_VONR_MO_CALL_CONN_FAIL_TIMES_C, 0)) AS VONR_MO_CALL_CONN_FAIL_TIMES, MT.`102520001` AS `102520001`, MT.`181361814368` AS `181361814368`, MT.`102520102` AS `102520102`, MT.`102520101` AS `102520101`, MT.`102520104` AS `102520104`, MT.`183111861371` AS `183111861371`, MT.`102530101` AS `102530101`, MT.`102540101` AS `102540101`, MT.`102520103` AS `102520103`, MT.`102510101` AS `102510101` <b>FROM</b> ( SELECT COALESCE(SUM(VONR_MO_CALL_CONN_FAIL_TIMES), 0) AS SEQ_VONR_MO_CALL_CONN_FAIL_TIMES_C, COM_FAIL_CAUSE AS `102520001`, NULL AS `102520102`, COM_FAIL_CAUSE AS `102510101`, NULL AS `102520101`, D183111570684_H101.`183111861371` AS `183111861371`, NULL AS `102520104`, NULL AS `102520103`, H_COMPREHENSIVE_FAILURE_CAUSE.`102540101` AS `102540101`, H_COMPREHENSIVE_FAILURE_CAUSE.`102530101` AS `102530101`, concat('14', '-', '255', '-', '255', '-', SIP_RELEASE_CODE) AS `181361814368` <b>FROM</b> TEST_DATABASE.SDR_TEST LEFT <b>JOIN</b> ( SELECT concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID) AS `102510101`, UNIFIED_CAUSE_ID AS `183111861371`, concat(FAILCAUSE, '(', PD, ')') AS NAME_102510101 <b>FROM</b> TEST_DATABASE.DIM_TEST GROUP BY concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID), UNIFIED_CAUSE_ID, concat(FAILCAUSE, '(', PD, ')') ) AS D183111570684_H101 ON COM_FAIL_CAUSE = D183111570684_H101.`102510101` LEFT <b>JOIN</b> ( SELECT concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID) AS `102520001`, SCENE_ID AS `102540101`, CLASS_ID AS `102530101`, SCENE_NAME AS NAME_102540101 <b>FROM</b> TEST_DATABASE.DIM_TEST GROUP BY concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID), SCENE_ID, CLASS_ID, SCENE_NAME ) AS H_COMPREHENSIVE_FAILURE_CAUSE ON COM_FAIL_CAUSE = H_COMPREHENSIVE_FAILURE_CAUSE.`102520001` LEFT <b>JOIN</b> ( SELECT concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID) AS `181361814368`, CAUSE AS NAME_181361814368 <b>FROM</b> TEST_DATABASE.DIM_TEST GROUP BY concat(PROTOCOL_ID, '-', FIRFAILMSG_ID, '-', PD_ID, '-', CAUSE_ID), CAUSE ) AS DIM_FAILCAUSE_ALL_181361814368 ON concat('14', '-', '255', '-', '255', '-', SIP_RELEASE_CODE) = DIM_FAILCAUSE_ALL_181361814368.`181361814368` WHERE (H_COMPREHENSIVE_FAILURE_CAUSE.NAME_102540101 IS NOT NULL) AND (D183111570684_H101.NAME_102510101 IS NOT NULL) AND (DIM_FAILCAUSE_ALL_181361814368.NAME_181361814368 IS NOT NULL) GROUP BY `102520001`, `102520102`, `102510101`, `102520101`, D183111570684_H101.`183111861371`, `102520104`, `102520103`, H_COMPREHENSIVE_FAILURE_CAUSE.`102540101`, H_COMPREHENSIVE_FAILURE_CAUSE.`102530101`, `181361814368` ) AS MT GROUP BY MT.`102520001`, MT.`181361814368`, MT.`102520102`, MT.`102520101`, MT.`102520104`, MT.`183111861371`, MT.`102530101`, MT.`102540101`, MT.`102520103`, MT.`102510101` ) AS ST WHERE ST.VONR_MO_CALL_CONN_FAIL_TIMES > 0 ORDER BY VONR_MO_CALL_CONN_FAIL_TIMES DESC LIMIT 0, 5000
+</code>
+</section>
+
+<section class="slide">
+<h2>Analyzer</h2>
+<p style="margin-top: -1em;">为什么？ &mdash; 因为 ClickHouse 的 SQL 支持太强大了！</p>
+
+<p style="line-height: 1.5">查询中任意位置的别名：
+<br/><code style="font-size: 14pt;">SELECT (a + 1 AS b) * 2 AS c FROM table ORDER BY b + a</code></p>
+
+<p style="line-height: 1.5">嵌套与复杂数据结构、ARRAY JOIN：
+<br/><code style="font-size: 14pt;">SELECT a.b.c[1].d.2 FROM table ARRAY JOIN arr AS a</code></p>
+
+<p style="line-height: 1.5">数组与高阶函数：
+<br/><code style="font-size: 14pt;">SELECT arrayMap((x, y) -> x + arrayFilter(z -> z > 0, y), arr1, arr2)</code></p>
+
+<p style="line-height: 1.5">列匹配器与转换器：
+<br/><code style="font-size: 14pt;">SELECT t.* APPLY toString, COLUMNS('^metric_'), <br/>&emsp; * EXCEPT(hello) REPLACE(x + 1 AS x)</code></p>
+
+<p>CTE、别名列、参数化视图、分布式连接……</p>
+</section>
+
+<section class="slide">
+<h2>Analyzer</h2>
+
+<p>它带来了功能的 <b style="color: green;">一致性</b> 与 <b style="color: green;">完整性</b> 。</p>
+
+<p>一条查询中的多个 ARRAY JOIN：</p>
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT number, nested_array, nested_array_element FROM numbers(1)
+    <b style="color: green;">ARRAY JOIN</b> [[1,2,3], [4, 5]] AS nested_array
+    <b style="color: green;">ARRAY JOIN</b> nested_array AS nested_array_element;</code></p>
+
+<p>lambda 函数的别名：</p>
+<p><code style="font-size: 14pt;">WITH <b style="color: green;">x -> x * 2</b> AS f SELECT f(3)</code></p>
+
+<p>像列一样使用 Tuple 元素：</p>
+<p><code style="font-size: 14pt;">WITH <b style="color: green;">(1, 'Hello')</b> AS t SELECT format('{}: {}', <b style="color: green;">t.*</b>)</code></p>
+</section>
+
+<section class="slide">
+<h2>Analyzer</h2>
+
+<p>它带来了功能的 <b style="color: green;">一致性</b> 与 <b style="color: green;">完整性</b> 。</p>
+
+<p>可以为 JOIN 中任意表表达式指定 SAMPLE：</p>
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT t1.id, t2.id
+    FROM test_table_join_1 AS t1 <b style="color: green;">SAMPLE 1/2</b>
+    INNER JOIN test_table_join_2 AS t2 <b style="color: green;">SAMPLE 1/2</b> ON t1.id = t2.id;</code></p>
+
+<p>现在也可以为 JOIN 中任意表表达式指定 FINAL：</p>
+<p><code style="font-size: 14pt; line-height: 1.5;">SELECT t1.id, t2.id, t1.value, t2.value
+    FROM test_table_join_1 AS t1 <b style="color: green;">FINAL</b>
+    INNER JOIN test_table_join_2 AS t2 <b style="color: green;">FINAL</b> ON t1.id = t2.id;</code></p>
+</section>
+
+
+<section class="slide">
+<h2>Analyzer</h2>
+
+<p>而且速度更快！</p>
+
+<p>对于包含大量 JOIN 的大型查询，
+<br/>性能提升 <b style="color: green;">最高可达 5 倍</b>:</p>
+<img style="width: 100%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/query_interpretation_long.png"/>
+</section>
+
+
+<section class="slide">
+<h2>Analyzer</h2>
+
+<p>从版本 <b style="color: green;">24.3</b>起：处于 beta 阶段，默认启用。</p>
+
+<p>通过所有必需的功能测试和集成测试。</p>
+
+<p>可通过以下设置禁用： <b>allow_experimental_analyzer</b> = 0.</p>
+
+<p><b>24.4</b> .. <b>24.5</b>：计划提升为生产可用，
+<br/>并移除旧的查询分析实现。</p>
+
+<p style="color: gray; font-size: 12pt;">截至 24.3 版本，分析器尚不支持以下实验性功能：
+<br/>窗口视图、annoy 和 usearch 索引、假设约束。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">集成</span></h2>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+
+<p><b>ClickPipes</b> 在 ClickHouse Cloud 中现已支持从以下来源流式导入： <b>S3</b>!
+<br/>&mdash; 可通过功能标志启用测试，请联系支持团队。</p>
+
+<p><b>同一款 <b>ClickPipes</b> 现在也为 Kafka 支持 <b>Avro</b> 格式。</b></p>
+
+<p>改进了 <b>dbt</b>, <b>Metabase</b>, <b>Tableau</b>, <b>Grafana</b>.</p>
+</section>
+
+<section class="slide">
+<img style="float: right; margin-top: -1em; margin-right: -4em; width: 40%; image-rendering: pixelated; margin-bottom: -10em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/chdb.png"/>
+<h2>阅读园地</h2>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; 一万亿行挑战；
+<br/>&mdash; chDB 加入 ClickHouse 家族；
+<br/>&mdash; 如何使用 ClickHouse 构建 LLM 聊天机器人；
+<br/>&mdash; 用 Atlas 将模式作为代码管理；
+</p>
+
+<p>视频录像： <a href="https://www.youtube.com/c/ClickHouseDB">https://www.youtube.com/c/ClickHouseDB</a></p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.3/pictures/back8.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/FGhdXXXTuTg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
