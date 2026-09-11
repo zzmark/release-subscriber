@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.4 版本交流会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.4 版本交流会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.4 版本交流会</h1>
+        <p>作者：Alexey Milovidov，2025-04-22。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/back3.jpg); background-size: cover;">
+        <h1 style="margin-top: 50px; line-height: 110%; font-size: 56pt; color: yellow; text-shadow: black 1px 0 10px; text-align: center;">ClickHouse 25.4 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>ClickHouse 25.4“春季”版本</h2>
+<p>1.（45 分钟）ClickHouse 25.4 新增内容。</p>
+<p>2.（10 分钟）嘉宾演讲。</p>
+<p>3.（5 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/back1.jpg); background-size: cover;">
+<h2><span class="hilite">25.4 版本</span></h2>
+<p><span class="hilite">ClickHouse 版本发布。</span></p>
+<p><span class="hilite">— 25 项新功能 🌸</span></p>
+<p><span class="hilite">— 23 项性能优化 🦋</span></p>
+<p><span class="hilite">— 58 项错误修复 🐝</span></p>
+</section>
+<!--
+
+Small
+
+default_compression_codec
+Persistent databases in clickhouse-local
+Random early drop of queries
+Inline credentials for Kafka
+bind_host for cluster nodes
+
+Performance
+
+Lazy columns
+Filters from WHERE to JOIN
+Sharding for JOINs
+
+Main
+
+Correlated subqueries
+CPU scheduling
+
+Iceberg: time travel
+Iceberg: in-memory cache
+Iceberg: data pruning on min/max
+Delta Lake: on Azure
+Delta Lake: partition pruning
+
+ClickHouse-native data lake
+
+
+Guest Talk
+
+Integrations
+
+Private Link for ClickPipes
+Terraform for ClickPipes
+Prometheus metrics for ClickPipes
+Notifications for ClickPipes
+Mutual TLS
+
+Metabase: now official
+
+Updates to ODBC, JDBC, and Java client.
+
+
+Bonus
+
+SSH protocol (password)
+Observability in ClickHouse Cloud
+OpenHouse
+
+
+Reading
+
+MySQL CDC
+Ruby analytics
+Dash0, Poizon, Last9
+A year of Rust in ClickHouse
+Query Condition Cache
+Make Before Break
+Harvey
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">几个小功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>默认压缩编解码器</h2>
+
+<p>适用于 <b>MergeTree</b> 表。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-right: -2em;">CREATE TABLE t (
+    time DateTime CODEC(ZSTD(3)), <span style="color: gray;">-- codec on a column level</span>
+    user_id UInt64, <span style="color: gray;">-- this column will use the default codec</span>
+    ...
+) ORDER BY time
+SETTINGS <b style="color: green;">default_compression_codec = 'ZSTD(1)'</b> <span style="color: gray;">-- codec on a table level</span>
+</code></p>
+
+<p style="font-size: 70%; color: gray;">顺便一提，也可以在服务器配置中全局指定默认编解码器：</p>
+<p><code style="font-size: 12pt; line-height: 1.25; white-space: pre-wrap; margin-right: -2em;">$ cat config.d/compression.yaml
+compression:
+    case:
+        min_part_size: 1000000000 <span style="color: gray;"># Optional condition</span>
+        method: 'zstd'
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Gvoelfin。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">clickhouse-local 中的持久化数据库</h2>
+
+<p><code style="font-size: 16pt; line-height: 1.25; white-space: pre-wrap;"><span style="color: gray;"># Use the specified paths for databases
+# instead of a temporary location:</span>
+
+$ ch --path .
+
+<span style="color: gray;"># The database will remain available
+# for subsequent invocations.</span>
+</code></p>
+
+<p>演示。</p>
+
+<!--
+
+ch --path example
+CREATE TABLE test (s String) ENGINE = MergeTree ORDER BY ();
+INSERT INTO test VALUES ('Hello'), ('world');
+ch --path example
+SELECT * FROM test
+ls -l example
+ls -l example/data/default/test
+ls -l example/data/default/test/all_1_1_0
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>过载时随机提前丢弃查询</h2>
+
+<p>两个新的查询设置：<b>min_os_cpu_wait_time_ratio_to_throw</b><br/>和 <b>max_os_cpu_wait_time_ratio_to_throw</b>.</p>
+
+<p>当等待 CPU 的线程数与正在 CPU 上运行的线程数之比超过 <b>min</b> 阈值时，服务器开始随机拒绝部分查询。当该比值接近 <b>max</b> 时，服务器将拒绝所有查询。</p>
+
+<p>实现<b style="color: green;">渐进式降级</b>，防止服务完全不可用。</p>
+
+<p>演示。</p>
+
+<!--
+
+clickhouse-benchmark --concurrency 1000 --query "SELECT max(SHA256(toString(number))) FROM numbers(1e6)" --min_os_cpu_wait_time_ratio_to_throw 0.1 max_os_cpu_wait_time_ratio_to_throw 0.5
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Katsman、Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>内联配置 Kafka 凭据</h2>
+
+<p><code style="font-size: 16pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE kafka_sasl (key UInt32, value String)
+ENGINE = Kafka
+SETTINGS kafka_broker_list = 'kafka_sasl:19092',
+         kafka_security_protocol = 'sasl_plaintext',
+         kafka_sasl_mechanism = 'SCRAM-SHA-256',
+         <b style="color: green;">kafka_sasl_username = 'Vasya',</b>
+         <b style="color: green;">kafka_sasl_password = 'qwerty',</b>
+         kafka_topic_list = 'topic',
+         kafka_group_name = 'group',
+         kafka_format = 'JSONEachRow';
+</code></p>
+
+<p>不再需要为每个新的 Kafka 端点编辑配置文件。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Christoph Wurm。</p>
+</section>
+
+<section class="slide">
+<h2>集群配置中的绑定主机</h2>
+
+<p><code style="font-size: 16pt; line-height: 1.25; white-space: pre-wrap;">$ cat config.d/cluster.yaml
+
+remote_servers:
+  default:
+    shard:
+      replica:
+        host: '10.0.0.2'
+        port: 9000
+        <b style="color: green;">bind_host: '10.0.0.1'</b>
+</code></p>
+
+<p>适用于服务器具有<b>多个网络接口</b>，而分布式连接应使用其中一个的情况。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Todd Yocum。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/back7.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>延迟读取列</h2>
+
+<p>不立即读取列的数据，而是记录需要读取哪些数据，等真正需要时再读取。</p>
+
+<p>在查询流水线的最后阶段之前，列值可以在各阶段间传递和被过滤，但不参与计算。</p>
+
+<p>演示。</p>
+
+<!--
+
+1. Cloud service
+
+SET query_plan_optimize_lazy_materialization = 1, query_plan_max_limit_for_lazy_materialization = 100, compatibility = '25.5', read_through_distributed_cache = 0, use_page_cache_with_distributed_cache = 0, enable_filesystem_cache = 1;
+
+SET query_plan_optimize_lazy_materialization = 1;
+SELECT view_count, like_count, dislike_count, title FROM youtube ORDER BY view_count DESC LIMIT 10;
+
+SET query_plan_optimize_lazy_materialization = 0;
+SELECT view_count, like_count, dislike_count, title FROM youtube ORDER BY view_count DESC LIMIT 10;
+
+2. https://play.clickhouse.com/play?user=play#U0VMRUNUIGRvbWFpbiwgY29udGVudCBGUk9NIG1pbmljcmF3bCBPUkRFUiBCWSByYW5rIExJTUlUIDEw
+
+SELECT domain, content FROM minicrawl ORDER BY rank LIMIT 10
+SELECT domain, content FROM minicrawl ORDER BY rank LIMIT 10 SETTINGS query_plan_optimize_lazy_materialization = 0;
+
+SELECT * FROM system.text_log_0 ORDER BY event_time_microseconds DESC LIMIT 10 SETTINGS query_plan_optimize_lazy_materialization = 0;
+SELECT * FROM system.text_log_0 ORDER BY event_time_microseconds DESC LIMIT 10 SETTINGS query_plan_optimize_lazy_materialization = 1;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Xiaozhe Yu。</p>
+</section>
+
+<section class="slide">
+<h2>合并过滤条件以优化 JOIN</h2>
+
+<p>难以置信，这以前居然不支持……</p>
+
+<p>演示。</p>
+
+<!--
+
+ch
+CREATE TABLE users (uid Int16, name String, age Int16) ENGINE=MergeTree() ORDER BY age;
+INSERT INTO users SELECT 1 as uid, 'Max' as name, number as age FROM numbers_mt(10000);
+
+SET query_plan_merge_filter_into_join_condition = 0;
+SELECT * FROM (SELECT * FROM users u1 INNER JOIN users u2 ON 1) WHERE age = u2.age;
+SET query_plan_merge_filter_into_join_condition = 1;
+SELECT * FROM (SELECT * FROM users u1 INNER JOIN users u2 ON 1) WHERE age = u2.age;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Dmitry Novik。</p>
+</section>
+
+<section class="slide">
+<h2>JOIN 动态分片</h2>
+
+<p>如果按主键或主键前缀对两张 MergeTree 表执行 JOIN，<br/>就会在查询流水线中创建独立通道，分别处理不同主键范围，使工作更好地并行化。</p>
+
+<p>演示。</p>
+
+<!--
+
+clickhouse-client
+SHOW CREATE TABLE hits;
+
+SELECT count() FROM hits h1 INNER JOIN hits h2 ON h1.CounterID = h2.CounterID AND h1.EventDate = h2.EventDate AND h1.UserID = h2.UserID AND h1.URL = h2.Referer;
+
+SET query_plan_join_shard_by_pk_ranges = 1;
+
+SELECT count() FROM hits h1 INNER JOIN hits h2 ON h1.CounterID = h2.CounterID AND h1.EventDate = h2.EventDate AND h1.UserID = h2.UserID AND h1.URL = h2.Referer;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Nikolai Kochetov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/back5.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">一些有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>相关子查询</h2>
+
+<p>&mdash;是依赖外层作用域列的子查询。</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">SELECT * FROM users AS <b style="color: brown;">u1</b> WHERE EXISTS <span style="color: blue;">(
+    SELECT * FROM users2 AS u2 WHERE <b style="color: brown;">u1.age</b> = u2.age)</span>
+</code></p>
+
+<p>可出现在 EXISTS、IN、标量等多种上下文中。</p>
+<p>现在，我们支持在<br/> <b>WHERE</b> 子句内，将相关子查询用于 <b style="color: green;">EXISTS</b> 运算符！</p>
+
+<p>演示。</p>
+
+<!--
+
+CREATE TABLE users (uid Int16, name String, age Int16) ENGINE=Memory;
+INSERT INTO users VALUES (1231, 'John', 33);
+INSERT INTO users VALUES (6666, 'Ksenia', 48);
+INSERT INTO users VALUES (8888, 'Alice', 50);
+
+CREATE TABLE users2 (uid Int16, name String, age Int16) ENGINE=Memory;
+INSERT INTO users2 VALUES (1231, 'John', 33);
+
+SELECT * FROM users u1
+WHERE EXISTS (
+  SELECT * FROM users2 u2
+  WHERE u1.age = u2.age
+);
+
+SELECT *
+FROM users AS u1
+WHERE (age = 50) OR exists((
+    SELECT *
+    FROM users2 AS u2
+    WHERE u1.age = u2.age
+    UNION ALL
+    SELECT *
+    FROM users2 AS u2
+    WHERE u1.age != u2.age
+))
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Dmitry Novik。</p>
+</section>
+
+<section class="slide">
+<h2>CPU 工作负载调度器</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap; margin-top: -1em;">CREATE RESOURCE cpu (MASTER THREAD, WORKER THREAD);
+CREATE WORKLOAD all;
+CREATE WORKLOAD admin IN all SETTINGS max_concurrent_threads = 10;
+CREATE WORKLOAD production IN all SETTINGS max_concurrent_threads = 100;
+CREATE WORKLOAD analytics IN production
+    SETTINGS max_concurrent_threads = 60, weight = 9;
+CREATE WORKLOAD ingestion IN production;
+
+SET workload = 'analytics';
+</code></p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">CREATE RESOURCE worker_cpu (WORKER THREAD);
+CREATE RESOURCE master_cpu (MASTER THREAD);
+CREATE WORKLOAD all
+    SETTINGS max_concurrent_threads = 100 FOR worker_cpu,
+             max_concurrent_threads = 1000 FOR master_cpu;</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Sergei Trifonov。</p>
+</section>
+
+<section class="slide">
+<h2>Iceberg 表的时间旅行</h2>
+
+<p>允许查询表在过去某个时刻的状态。</p>
+
+<p>演示</p>
+
+<!--
+SET allow_experimental_database_glue_catalog = 1;
+
+CREATE DATABASE glue
+ENGINE = DataLakeCatalog
+SETTINGS catalog_type = 'glue', region = 'us-west-2', aws_access_key_id = 'AKIA...', aws_secret_access_key = '...';
+
+USE glue;
+
+SELECT count() FROM "iceberg_benchmark.time_travel";
+
+SELECT count()
+FROM `iceberg_benchmark.time_travel`
+SETTINGS iceberg_timestamp_ms = 1742497721135;
+
+SELECT count()
+FROM 'iceberg_benchmark.time_travel'
+SETTINGS iceberg_snapshot_id = 7670355786252116484;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Brett Hoerner、Dan Ivanik。</p>
+</section>
+
+<section class="slide">
+<h2>Iceberg 元数据缓存</h2>
+<p>避免重复读取相同的元数据和清单文件。</p>
+
+<p>演示</p>
+
+<!--
+
+SELECT
+    traficsourceid,
+    searchengineid,
+    advengineid,
+    multiIf((searchengineid = 0) AND (advengineid = 0), referer, '') AS src,
+    url AS Dst,
+    COUNT(*) AS pageviews
+FROM `iceberg_benchmark.hitsdailypartitioned`
+WHERE (counterid = 62) AND (eventdate >= '2013-07-01') AND (eventdate <= '2013-07-31') AND (isrefresh = 0)
+GROUP BY
+    traficsourceid,
+    searchengineid,
+    advengineid,
+    src,
+    Dst
+ORDER BY pageviews DESC
+LIMIT 1000, 10;
+
+SELECT * FROM system.events WHERE name LIKE 'Iceberg%';
+
+SELECT count(), uniq(userid) FROM `iceberg_benchmark.hitsdailypartitioned`;
+
+SELECT * FROM system.events WHERE name LIKE 'Iceberg%';
+
+SELECT count() FROM `iceberg_benchmark.hitsdailypartitioned`;
+SELECT count() FROM `iceberg_benchmark.hitsdailypartitioned` SETTINGS use_iceberg_metadata_files_cache = 0;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Han Fei。</p>
+</section>
+
+<section class="slide">
+<h2>Delta Lake 分区裁剪</h2>
+
+<p>要启用分区裁剪，请切换到新实现：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">SELECT *
+FROM deltaLake('s3://unitycatalogdemobucket/delta_hits_partitioned/', '...', '...', SETTINGS <b style="color: green;">allow_experimental_delta_kernel_rs = 1</b>)
+WHERE CounterID = 62
+  AND EventDate >= '2013-07-14' AND EventDate &lt;= '2013-07-15'
+GROUP BY EventDate ORDER BY EventDate
+</code></p>
+
+<p>此前：<b style="color: red;">18.486</b> 秒。<br/>现在：<b style="color: green;">4.389</b> 秒。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Ksenia Sumarokova。</p>
+</section>
+
+<section class="slide">
+<h2>还有其他内容……</h2>
+
+<p>支持在 <b>Delta Lake</b> 中使用 <b>Azure</b> Blob Storage。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Smita Kulkarni。</p>
+</section>
+
+<section class="slide">
+<h2>使用 MergeTree 表构建数据湖</h2>
+
+<p>只读磁盘上的 MergeTree 表可以<b>刷新</b>自身状态，并在出现新数据片段时<b>在后台加载</b>。</p>
+
+<p>这允许在外部托管、持续更新的数据集之上运行<b>数量不受限的读取端</b>。</p>
+
+<p>适合数据共享和发布。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2>使用 MergeTree 表构建数据湖</h2>
+
+<p style="margin-top: -1em;"><code style="font-size: 12pt; line-height: 1.25;"><span style="color: gray;">-- there should be a single writer (at most):</span>
+CREATE TABLE writer (...) ORDER BY ()
+SETTINGS table_disk = true,
+  disk = disk(
+      type = object_storage,
+      object_storage_type = s3,
+      endpoint = 'https://mybucket.s3.us-east-1.amazonaws.com/data/',
+      metadata_type = plain_rewritable);
+
+<span style="color: gray;">-- there could be unlimited number of readers in any locations:</span>
+CREATE TABLE reader (...) ORDER BY ()
+SETTINGS table_disk = true, <b style="color: green;">refresh_parts_interval = 1</b>,
+  disk = disk(
+      <b style="color: green;">readonly = true</b>,
+      type = object_storage,
+      object_storage_type = s3,
+      endpoint = 'https://mybucket.s3.us-east-1.amazonaws.com/data/',
+      metadata_type = plain_rewritable);
+</code></p>
+
+<p>演示</p>
+
+<!--
+
+ch
+
+CREATE TABLE hackernews_history UUID '66491946-56e3-4790-a112-d2dc3963e68a'
+(
+    `update_time` DateTime DEFAULT now(),
+    `id` UInt32,
+    `deleted` UInt8,
+    `type` Enum8('story' = 1, 'comment' = 2, 'poll' = 3, 'pollopt' = 4, 'job' = 5),
+    `by` LowCardinality(String),
+    `time` DateTime,
+    `text` String,
+    `dead` UInt8,
+    `parent` UInt32,
+    `poll` UInt32,
+    `kids` Array(UInt32),
+    `url` String,
+    `score` Int32,
+    `title` String,
+    `parts` Array(UInt32),
+    `descendants` Int32
+)
+ENGINE = ReplacingMergeTree(update_time)
+ORDER BY id
+SETTINGS refresh_parts_interval = 60, disk = disk(readonly = true, type = 's3_plain_rewritable', endpoint = 'https://clicklake-test-2.s3.eu-central-1.amazonaws.com/', use_environment_credentials = false);
+
+SELECT count() FROM hackernews_history;
+
+SELECT time, by, text FROM hackernews_history ORDER BY time DESC LIMIT 10;
+
+SELECT count() FROM hackernews_history;
+
+-->
+
+</section>
+
+
+<section class="slide">
+<h2>嘉宾演讲</h2>
+<p><b>Sai Srirampur</b> 和 <b>Amogh Bharadwaj</b>，ClickHouse 工程师。</p>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+
+<p>大量新功能加入 <b>ClickPipes</b>:</p>
+<p>&mdash; AWS <b>Private Link</b> 支持；<br/>&mdash; 通过 ClickHouse <b>Terraform</b> 提供程序管理；<br/>&mdash; <b>Prometheus</b> 指标出现在云端点中；<br/>&mdash; 支持电子邮件、Slack 和 UI 通知；<br/>&mdash; Kafka 的双向 TLS 身份验证；</p>
+
+<p><b>Metabase</b>：默认随附 ClickHouse 集成。</p>
+
+<p>更新了 <b>ODBC</b>, <b>JDBC</b> 和 <b>Java</b> 客户端。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">额外内容</span></h2>
+</section>
+
+<section class="slide">
+<h2>额外内容</h2>
+
+<p>试试这个：</p>
+<p><code style="font-size: 32pt; padding: 1em;"><b>ssh play@play.clickhouse.com</b></code></p>
+
+<p>借助<b>内嵌 SSH</b> 服务器，现在可以在包括 Windows、Android、iPad 在内的任何平台上使用 ClickHouse 交互式体验。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流活动</h2>
+<p>
+<span class="hilite">&mdash; 🇺🇸 丹佛，4 月 23 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 奥斯汀，5 月 13 日</span>
+<br/><span class="hilite">&mdash; 🇬🇧 伦敦，5 月 14 日</span>
+<br/><span class="hilite">&mdash; 🇹🇷 伊斯坦布尔，5 月 15 日</span>
+<br/><span class="hilite">&mdash; 🇨🇳 深圳，5 月 17 日</span>
+</p>
+<p><span class="hilite">我会亲自参加其中的一些活动 :)</span></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/openhouse.png); background-size: cover;">
+</section>
+
+
+<section class="slide">
+<h2>阅读角 📖</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: 1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;">&mdash; ClickHouse 使用 Rust 的这一年 🦀<br/>&mdash; MySQL CDC 🐬
+<br/>&mdash; 查询条件缓存 🤑<br/>&mdash; 延迟物化 🏖️<br/>&mdash; 先建后拆：我们如何管理 ClickHouse<br/>&mdash; 可观测性：Dash0、Poizon、Last9 💹<br/>&mdash; 安全：Harvey 👮</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.4/pictures/back4.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/7wbfKTlieOo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
