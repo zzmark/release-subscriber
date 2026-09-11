@@ -36,7 +36,7 @@
 * 允许在 `CREATE USER <user> IDENTIFIED WITH sha256_hash` 中显式指定 `SALT`。[#37377](https://github.com/ClickHouse/ClickHouse/pull/37377)（[Yakov Olkhovskiy](https://github.com/yakov-olkhovskiy)）。
 * 新增 `input_format_csv_skip_first_lines/input_format_tsv_skip_first_lines` 两项设置，允许跳过 CSV/TSV 文件开头指定数量的行。[#37537](https://github.com/ClickHouse/ClickHouse/pull/37537)（[Kruglov Pavel](https://github.com/Avogar)）。
 * `showCertificate` 函数显示当前服务器的 SSL 证书。[#37540](https://github.com/ClickHouse/ClickHouse/pull/37540)（[Yakov Olkhovskiy](https://github.com/yakov-olkhovskiy)）。
-* 支持在具名集合中配置数据字典的 HTTP 数据源。[#37581](https://github.com/ClickHouse/ClickHouse/pull/37581)（[Yakov Olkhovskiy](https://github.com/yakov-olkhovskiy)）。
+* 支持在命名集合中配置数据字典的 HTTP 数据源。[#37581](https://github.com/ClickHouse/ClickHouse/pull/37581)（[Yakov Olkhovskiy](https://github.com/yakov-olkhovskiy)）。
 * 新增窗口函数 `nonNegativeDerivative(metric_column, timestamp_column[, INTERVAL x SECOND])`。[#37628](https://github.com/ClickHouse/ClickHouse/pull/37628)（[Andrey Zvonov](https://github.com/zvonand)）。
 * 实现修改 `ReplicatedMergeTree` 表的注释。[#37416](https://github.com/ClickHouse/ClickHouse/pull/37416)（[Vasily Nemkov](https://github.com/Enmk)）。
 * 新增 `SYSTEM UNFREEZE` 查询，无论对应表是否已删除，都能删除整个备份。[#36424](https://github.com/ClickHouse/ClickHouse/pull/36424)（[Vadim Volodin](https://github.com/PolyProgrammist)）。
@@ -164,7 +164,7 @@
 * 修复 `STEP` 子句包含负间隔时的 `WITH FILL` 修饰符。修复 [#37514](https://github.com/ClickHouse/ClickHouse/issues/37514)。[#37600](https://github.com/ClickHouse/ClickHouse/pull/37600)（[Anton Popov](https://github.com/CurtizJ)）。
 * 修复 ` join_use_nulls = 1` 时非法的 joinGet 数组用法。修复 [#37562](https://github.com/ClickHouse/ClickHouse/issues/37562)。[#37650](https://github.com/ClickHouse/ClickHouse/pull/37650)（[Amos Bird](https://github.com/amosbird)）。
 * 修复交叉连接中列数不匹配的问题，关闭 [#37561](https://github.com/ClickHouse/ClickHouse/issues/37561)。[#37653](https://github.com/ClickHouse/ClickHouse/pull/37653)（[Vladimir C](https://github.com/vdimir)）。
-* 修复通过具名集合配置 mysql 数据库时，对其中的表执行 `show create table` 导致的段错误。关闭 [#37683](https://github.com/ClickHouse/ClickHouse/issues/37683)。[#37690](https://github.com/ClickHouse/ClickHouse/pull/37690)（[Kseniia Sumarokova](https://github.com/kssenii)）。
+* 修复通过命名集合配置 mysql 数据库时，对其中的表执行 `show create table` 导致的段错误。关闭 [#37683](https://github.com/ClickHouse/ClickHouse/issues/37683)。[#37690](https://github.com/ClickHouse/ClickHouse/pull/37690)（[Kseniia Sumarokova](https://github.com/kssenii)）。
 * 修复 RabbitMQ 存储创建时未使用 SETTINGS 子句，导致服务器重启后无法启动该存储的问题。关闭 [#37463](https://github.com/ClickHouse/ClickHouse/issues/37463)。[#37691](https://github.com/ClickHouse/ClickHouse/pull/37691)（[Kseniia Sumarokova](https://github.com/kssenii)）。
 * 在只读模式下禁止对 SQL 用户定义函数执行 CREATE/DROP。关闭 [#37280](https://github.com/ClickHouse/ClickHouse/issues/37280)。[#37699](https://github.com/ClickHouse/ClickHouse/pull/37699)（[Maksim Kita](https://github.com/kitaisreal)）。
 * 修复可执行用户定义函数的 Nullable 参数格式化。关闭 [#35897](https://github.com/ClickHouse/ClickHouse/issues/35897)。[#37711](https://github.com/ClickHouse/ClickHouse/pull/37711)（[Maksim Kita](https://github.com/kitaisreal)）。
