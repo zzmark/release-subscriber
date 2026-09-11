@@ -100,7 +100,7 @@
 * 将部分客户端代码提取到独立文件，即使调试构建也应用最高可用优化级别。关闭：[#65745](https://github.com/ClickHouse/ClickHouse/issues/65745)。 [#67215](https://github.com/ClickHouse/ClickHouse/pull/67215) ([Nikita Mikhaylov](https://github.com/nikitamikhaylov)).
 
 <h4 id="bug-fix">
-  Bug Fix
+  缺陷修复
 </h4>
 
 * 仅涉及实验性 Variant 类型：修复 Variant 与 AggregateFunction 类型组合时的崩溃。 [#67122](https://github.com/ClickHouse/ClickHouse/pull/67122) ([Kruglov Pavel](https://github.com/Avogar)).
