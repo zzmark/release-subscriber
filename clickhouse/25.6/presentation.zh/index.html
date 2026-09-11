@@ -203,19 +203,19 @@ yes "WITH (SELECT max(x) FROM t) AS a, (SELECT 0 + max(x) FROM t) AS b SELECT a 
 
 <!--
 <section class="slide">
-<h2>Writing To Merge Tables</h2>
+<h2>向 Merge 表写入</h2>
 
-<p style="margin-top: -1em;"><b>Merge</b> is a table engine that provides a unified view over a set of tables:</p>
+<p style="margin-top: -1em;"><b>Merge</b> 是一种表引擎，为一组表提供统一视图：</p>
 <p><code style="font-size: 16pt;">CREATE TABLE t ENGINE = <b>Merge</b>(database, '^table_regexp_\d+$')</code></p>
 
-<p>In previous ClickHouse versions, <b>Merge</b> tables only allowed SELECTs.</p>
+<p>此前的 ClickHouse 版本中，<b>Merge</b> 表仅允许 SELECT。</p>
 
-<p>Since version <b style="color: green;">25.6</b>, it's possible to do INSERTs into <b>Merge</b> tables:</p>
+<p>从版本 <b style="color: green;">25.6</b>开始，可以向 <b>Merge</b> 表执行 INSERT：</p>
 
-<p style="line-height: 1.5"><code style="font-size: 16pt;">ENGINE = <b>Merge</b>(database, '^table_\d+$', <b style="color: green;">auto</b>)</code>&mdash; will write to the latest (by the lexicographical order) table.</p>
-<p style="line-height: 1.5"><code style="font-size: 16pt;">ENGINE = <b>Merge</b>(database, '^table_\d+$', <b style="color: green;">table_123</b>)</code>&mdash; will write to the explicitly specified table.</p>
+<p style="line-height: 1.5"><code style="font-size: 16pt;">ENGINE = <b>Merge</b>(database, '^table_\d+$', <b style="color: green;">auto</b>)</code>&mdash; 将写入按字典序排列的最后一张表。</p>
+<p style="line-height: 1.5"><code style="font-size: 16pt;">ENGINE = <b>Merge</b>(database, '^table_\d+$', <b style="color: green;">table_123</b>)</code>&mdash; 将写入显式指定的表。</p>
 
-<p style="color: gray; font-size: 14pt; margin-top: 1em;">Developer: Anton Ivashkin.</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Anton Ivashkin。</p>
 </section>
 -->
 
@@ -443,9 +443,9 @@ SELECT now()::<b>Time</b>;</code></p>
 clickhouse-benchmark --query "SELECT sum(cityHash64(*)) FROM hits"
 ch dig
 
-# queries
-# logs
-# flamegraphs
+# 查询
+# 日志
+# 火焰图
 
 -->
 
@@ -573,10 +573,10 @@ lexer_module = await WebAssembly.instantiate(bytes);
     <div class="progress"></div>
     <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
 
-    <!--Video plugin-->
+    <!--视频插件-->
     <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
     <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
-    <!--/Video plugin-->
+    <!--/视频插件-->
 <footer class="badge">
     <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
 </footer>
