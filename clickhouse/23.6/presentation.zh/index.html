@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：23.6 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：23.6 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：23.6 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2023-06-29。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/summer1.jpg); background-size: cover;">
+        <h1 style="margin-top: 80px; line-height: 150%; color: white; font-size: 64pt; text-shadow: 1px 1px 10px black;">ClickHouse<br/> 23.6 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>23.6 版本网络研讨会</h2>
+<p>1.（50 分钟）ClickHouse 23.6 新内容。</p>
+<p>2.（10 分钟）问&amp;答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/summer2.jpg); background-size: cover;">
+<h2><span class="hilite">23.6 版本</span></h2>
+<p><span class="hilite">ClickHouse 夏季版本。</span></p>
+<p><span class="hilite">— 10 项新功能 🌞</span></p>
+<p><span class="hilite">— 12 项性能优化 🕶️</span></p>
+<p><span class="hilite">— 31 项缺陷修复 ⛱️</span></p>
+</section>
+
+<!--
+
+transform
+MongoDB 5.1+、6
+INTO OUTFILE TRUNCATE
+处理后重命名文件
+跳过空文件
+clickhouse-client 中的连接字符串
+session_timezone
+
+性能：
+
+放宽数据片段过多的限制
+ReplicatedMergeTree 与 5000 张表
+Parquet 写入
+Parquet 读取
+排序优化
+
+Redis
+叠加数据库
+带前缀的 WITH FILL（？）
+
+集成
+
+云服务
+
+专属服务
+GCP 正式可用
+
+亮点
+
+chdb
+SigNoz
+urleng
+
+阅读
+
+选择合适的 JOIN 算法
+来自 Postgres 的 CDC
+
+-->
+
+<section class="slide">
+<h2>transform 函数支持所有数据类型</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">SELECT transform(
+    what,
+    [from1, from2, ...],
+    [to1, to2, ...],
+    default);
+
+SELECT CASE what
+    WHEN from1 THEN to1
+    WHEN from2 THEN to2
+    ELSE default END;
+</code></p>
+
+<p><b>23.5</b>：仅支持数值、字符串和日期时间；<br/>
+<b>23.6</b>：支持 <b style="color: green;">所有类型</b>；</p>
+
+<p style="color: gray;">注意：即使在 23.6 中，from 和 to 值仍必须是常量。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: -0.5em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">SELECT ... INTO OUTFILE '...' TRUNCATE</h2>
+
+<p>23.5 版本引入了 <b>APPEND</b> 修饰符。
+<br/>23.6 版本新增 <b style="color: green;">TRUNCATE</b> 修饰符。</p>
+
+<p><code style="line-height: 1.1; font-size: 14pt;">:) SELECT * FROM numbers(10)
+   INTO OUTFILE 'numbers.tsv'
+
+Ok.
+
+:) SELECT * FROM numbers(10)
+   INTO OUTFILE 'numbers.tsv'
+
+Cannot open file numbers.tsv, errno: 17,
+strerror: File exists, consider using APPEND or TRUNCATE. <span style="color: gray;">-- this is fine</span>
+
+:) SELECT * FROM numbers(10)
+   INTO OUTFILE 'numbers.tsv' <b style="color: green;">TRUNCATE</b>
+
+<b style="color: green;">Ok.</b></code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: -1em;">开发者：Manas Alekar。</p>
+</section>
+
+
+<section class="slide">
+<h2>数据导入时跳过空文件</h2>
+
+<p>新设置： <b>s3_skip_empty_files</b>、 <b>hdfs_skip_empty_files</b>、
+<br/><b>engine_file_skip_empty_files</b>、 <b>engine_url_skip_empty_files</b>。</p>
+
+<p>有什么用途？</p>
+<p>&mdash; 空的 CSV、TSV、JSONEachRow、RowBinary、Native 文件<br/>&mdash; 是有效的空数据集；</p>
+<p>&mdash; 但空的 Parquet 或 ORC 文件无效， &mdash; 我们希望跳过它们。</p>
+
+<p>问题：是否需要一个设置，在导入时跳过所有损坏文件？</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Pavel Kruglov。</p>
+</section>
+
+
+<section class="slide">
+<h2>处理后重命名文件</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">clickhouse-local --rename_files_after_processing '%f.processed' --query "
+    INSERT INTO table SELECT * FROM file('*.parquet')"</code></p>
+
+<p>&mdash; 目录中不断出现新文件时，<br/>&emsp; 可用它构建简单的数据处理流水线；</p>
+<p>&mdash; 可以按任意模式重命名，<br/>&emsp; 并移动到相对于当前路径的其他目录；</p>
+<p>&mdash; 模式可包含处理时的 <b>时间戳</b> ；</p>
+
+<p>演示</p>
+
+<!--
+
+SELECT 1 INTO OUTFILE 'data.parquet';
+ls -l
+SELECT * FROM file('*.parquet');
+SELECT * FROM file('*.parquet');
+SET rename_files_after_processing = '%f.processed';
+
+-->
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Aleksey Golub。</p>
+</section>
+
+<section class="slide">
+<h2>处理后重命名文件</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.5;">clickhouse-local --rename_files_after_processing '%f.processed' --query "
+    INSERT INTO table SELECT * FROM file('*.parquet')"</code></p>
+
+<p>后续版本的功能需求：</p>
+
+<p>&mdash; 扩展到 S3 和 HDFS；</p>
+<p>&mdash; 为 INSERT SELECT 提供更强保证；</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">clickhouse-client 的连接字符串</h2>
+
+<p>常规方式：</p>
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -1em;">clickhouse-client --host myhost.clickhouse.cloud --secure --password</code></p>
+
+<p>另一种方式（自 23.6 起）：</p>
+<p><code style="font-size: 12pt; line-height: 1.5; margin-right: -1em;">clickhouse-client 'clickhouse://user:password@myhost.clickhouse.cloud/database?secure'</code></p>
+
+<!--<p>为什么？</p>
+<p>&mdash; 为依赖连接字符串的集成与工具提供统一形式；</p>-->
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Alexey Gerasimchuck。</p>
+</section>
+
+
+<section class="slide">
+<h2>session_timezone</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.1; margin-top: -1em;">:) SELECT now()
+
+┌───────────────now()─┐
+│ 2023-06-29 13:11:16 │
+└─────────────────────┘
+
+:) SELECT now('America/Los_Angeles')
+
+┌─now('America/Los_Angeles')─┐
+│        2023-06-29 04:11:21 │
+└────────────────────────────┘
+
+:) SET <b style="color: green;">session_timezone</b> = 'America/Los_Angeles';
+:) SELECT now();
+
+┌───────────────now()─┐
+│ 2023-06-29 04:11:29 │
+└─────────────────────┘
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Andrey Zvonov。</p>
+</section>
+
+
+<section class="slide">
+<h2>与 MongoDB 5.1+ 集成</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE test_mongo ... ENGINE = <b>MongoDB</b>(
+  'mongo1:27017', 'test', 'simple_table', 'testuser', 'clickhouse');
+
+SELECT * FROM test_mongo;
+
+SELECT * FROM <b>mongodb</b>(
+  'mongo1:27017', 'test', 'simple_table', 'testuser', 'clickhouse',
+  'x String, y UInt64, ...');
+</code></p>
+
+<p>此前：在 MongoDB 5.1 之前工作正常。</p>
+<p>但： <span style="color: red;">他们修改了协议</span> :(</p>
+<p>现在：已经支持到 <b style="color: green;">MongoDB 6</b>。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Nikolai Degterinskiy。</p>
+</section>
+
+
+<section class="slide">
+<h2>性能优化</h2>
+</section>
+
+<section class="slide">
+<h2>放宽“数据片段过多”的限制</h2>
+
+<p style="margin-top: -1em;">多少才算太多？
+<br/>&mdash; parts_to_delay_insert, parts_to_throw_insert;</p>
+
+<p>如何施加背压？
+<br/>&mdash; 是否应降低长时间运行插入的速度？</p>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/parts.png" style="width: 100%" />
+</section>
+
+<section class="slide">
+<h2>放宽“数据片段过多”的限制</h2>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/parts.png" style="width: 100%; margin-top: -1em;" />
+
+<p>示例：在单台机器上用 4 个线程插入 4000 亿条记录，<br/>每秒 700 万条，同时执行仪表盘的 SELECT 查询。</p>
+
+<p>决定：在插入期间启用 <span style="color: green;">背压</span> 机制<br/>并 <span style="color: green;">将数据片段最大数量的默认</span> 值提高至 3000。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 30pt;">ReplicatedMergeTree 中的后台线程</h2>
+
+<p>23.6 之前：</p><p>&mdash; 过于积极地调度后台线程
+<br/>（清理与合并选择）导致
+<br/>CPU 使用率高，并向 Keeper 发出过量请求。</p>
+
+<p>23.6 版本：</p><p>&mdash; 为没有插入操作的表引入退避机制。</p>
+
+<p>结果：</p><p>&mdash; 服务器上即使有 <b style="color: green;">5000 张 ReplicatedMergeTree</b> 表，CPU 使用率也适中；
+<br/><b style="color: green;">降至原来的 1/3</b> ——Keeper 请求数量和网络流量都是如此！</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Alexander Tokmakov。</p>
+
+</section>
+
+<section class="slide">
+<h2>对接近有序的数据排序</h2>
+
+<p>如果未假设数据有序，
+<br/>但 <em>它实际</em> 在某些范围内有序， &mdash; 就检测并利用这一点。</p>
+
+<p>演示</p>
+
+<!--
+
+~/work/ClickHouse/programs/server/clickhouse-23.2 local
+clickhouse-local
+
+SELECT number FROM numbers(100000000) ORDER BY toString(number) LIMIT 90000000, 10;
+
+-->
+
+<p style="margin-top: 10em; color: gray; font-size: 14pt;">开发者：Maksim Kita、Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>从本地文件读取 Parquet</h2>
+
+<p>clickhouse-local 读取分区 Parquet 文件的性能提高至原来的 2 倍 🔥
+clickhouse-local 读取单个 Parquet 文件的性能提高至原来的 4 倍 ❤️‍🔥</p>
+
+<div style="height: 40%; overflow-y: hidden;"><img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/parquet.png" style="width: 100%;" /></div>
+
+<!--
+
+~/work/ClickHouse/programs/server/clickhouse-23.4 local
+clickhouse-local
+
+SELECT CounterID, uniq(UserID) AS u FROM file('hits.parquet') GROUP BY ALL ORDER BY u DESC LIMIT 10
+
+-->
+
+<p style="margin-top: 1em;">演示。</p>
+
+<p style="margin-top: -1em; color: gray; font-size: 14pt;">开发者：Michael Kolupaev。已包含在 23.5 版本中。</p>
+</section>
+
+<section class="slide">
+<h2>一些有趣的功能</h2>
+</section>
+
+<section class="slide">
+<h2>Redis 表</h2>
+
+<p>ClickHouse + Redis = ❤</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25;">CREATE TABLE test_redis (...)
+    ENGINE = <b>Redis</b>('host:6379', 0, 'password')
+    PRIMARY KEY k;
+
+SELECT * FROM test_redis;
+SELECT * FROM test_redis WHERE k = 'whatever';
+SELECT * FROM test_redis WHERE k IN ('a', 'b');
+
+SELECT * FROM <b>redis</b>(
+  'host:6379', k, 'k String, v String', 0, 'password');
+</code></p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Jacky Woo</p>
+</section>
+
+<section class="slide">
+<h2>Redis 表</h2>
+
+<p>ClickHouse + Redis = ❤</p>
+
+<p style="line-height: 1.5;">支持 SELECT 和 INSERT，
+<br/>按单键、多个键或全表扫描执行 SELECT，
+<br/>与 Redis 表执行 JOIN，
+<br/>以及 ALTER UPDATE 和 DELETE！</p>
+
+<p style="color: gray;">下一步呢？支持 Redis 中的哈希数据类型？</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Jacky Woo</p>
+</section>
+
+
+<section class="slide">
+<h2>一项秘密功能</h2>
+<p>它有机会随 23.6 版本发布。</p>
+<p>……但不保证。</p>
+<p style="margin-top: 2em; font-size: 28pt;"><b>叠加数据库</b></p>
+<p style="font-size: 28pt;">通过 Filesystem、S3 和 HDFS 数据库引擎实现！</p>
+</section>
+
+
+<section class="slide">
+<h2>集成</h2>
+<p><b>Confluent Cloud 支持 ClickHouse</b>：</p>
+<p>可作为自定义连接器安装此集成。</p>
+
+<p style="margin-top: 2em;">更新了 <b>Metabase</b>； <b>Node.js</b>、 <b>Python</b>和 <b>Go</b> 驱动。</p>
+
+<p style="margin-top: 2em;">ClickHouse Cloud 的官方 <b>Terraform</b> 提供程序：
+<br/><a href="https://registry.terraform.io/providers/ClickHouse/clickhouse/latest">https://registry.terraform.io/providers/ClickHouse/clickhouse/latest</a></p>
+</section>
+
+
+<section class="slide">
+<h2>云服务更新</h2>
+<p><b>GCP</b></p>
+<p>&mdash; ClickHouse Cloud 自 6 月 20 日起在 GCP 正式可用！</p>
+<p><b>专属层级</b></p>
+<p>&mdash; 专属环境；
+<br/>&mdash; 高级隔离与安全能力；
+<br/>&mdash; 自定义计算选项；
+<br/>&mdash; 计划升级；
+<br/>&mdash; 可用性 SLA；
+<br/>&mdash; 指定首席支持工程师；</p>
+</section>
+
+<section class="slide">
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/chdb.png" style="width: 50%; margin-top: 1em;"/>
+<p>“chDB 是由 ClickHouse 驱动的嵌入式 OLAP SQL 引擎”</p>
+<p>提供 Python 模块，以及 Rust、Go、Node.js 和 Bun 库。</p>
+<p>类似于 clickhouse-local，但 <b>嵌入到你的应用中</b>。</p>
+<p>支持本地和远程数据集，以及 <b>Pandas DataFrame</b>。</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;"><a href="https://chdb.io/">https://chdb.io/</a> 开发者：Auxten、Lorenzo Mangani。</p>
+</section>
+
+<section class="slide">
+<h2>URLENG.com</h2>
+<p>“不限数量的 ClickHouse URL 表，如同 SQL/JSON 数据的粘贴分享服务。”</p>
+<p>在互联网上某台服务器上分享<br/>你的查询结果和小型数据集。</p>
+<p>不提供任何保证，仅用于演示/实验。</p>
+
+<p style="margin-top: 3em; color: gray; font-size: 14pt;"><a href="https://get.urleng.com/">https://get.urleng.com/</a> 开发者：Lorenzo Mangani。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">展示你的 ClickHouse 集成</h2>
+<p style="line-height: 1.5;">如果希望在 ClickHouse 网络研讨会上展示你的项目，
+<br/>请联系 tyler@clickhouse.com，或通过以下链接与我们沟通： <a href="https://clickhouse.com/slack">https://clickhouse.com/slack</a></p>
+</section>
+
+
+
+<section class="slide">
+<h2>阅读园地</h2>
+<img style="float: right; margin-top: -1em; margin-right: -2em; width: 40%; image-rendering: pixelated;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/ai.png"/>
+
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; 选择合适的连接算法
+<br/>&mdash; 使用 ClickHouse、<br/>&emsp; Kafka Connect 和 Confluent Cloud 实现实时事件流处理
+<br/>&mdash; 从 Postgres 到 ClickHouse 的 CDC</p>
+
+<p style="margin-top: 2em;">面向 AI 的 ClickHouse：向量、嵌入、语义搜索及更多内容……</p>
+<p>视频回放： <a href="https://www.youtube.com/c/ClickHouseDB">https://www.youtube.com/c/ClickHouseDB</a></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/wing.jpg); background-size: cover; background-position: right; color: white; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">夏季交流会</h2>
+<p>🇫🇷 巴黎，7 月 4 日；</p>
+<p>🇺🇸 波士顿，7 月 18 日；</p>
+<p>🇺🇸 纽约，7 月 19 日；</p>
+<p>🇨🇦 多伦多，7 月 20 日；</p>
+<p>🇸🇬 新加坡，7 月 27 日；</p>
+<p>🇺🇸 旧金山，8 月 8 日；</p>
+<p>🇳🇱 阿姆斯特丹，8 月 31 日；</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2023-release-23.6/pictures/summer3.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white;">问&amp;答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/cuf_hYn7dqU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
