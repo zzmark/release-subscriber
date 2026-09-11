@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：25.2 版本交流会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：25.2 版本交流会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：25.2 版本交流会</h1>
+        <p>作者：Alexey Milovidov，2025-02-27。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 10px; line-height: 110%; font-size: 56pt; color: white; text-shadow: black 1px 0 10px; text-align: center;">ClickHouse 25.2 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>25.2 版本交流会</h2>
+<p>1.（45 分钟）ClickHouse 25.2 新增内容。</p>
+<p>2.（10 分钟）嘉宾演讲。</p>
+<p>3.（5 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/back9.jpg); background-size: cover;">
+<h2><span class="hilite">25.2 版本</span></h2>
+<p><span class="hilite">ClickHouse 二月版本。</span></p>
+<p><span class="hilite">— 12 项新功能 🧸</span></p>
+<p><span class="hilite">— 15 项性能优化 🍫</span></p>
+<p><span class="hilite">— 72 项错误修复 💐</span></p>
+</section>
+<!--
+
+Small
+
+subcolumns in DEFAULT and MATERIALIZED
+COW storage policy
+Easy attaching of external tables
+JSONCompactEachRowWithProgress
+Prepared Statements in the Postgres wire protocol
+
+Performance
+
+Parquet bloom filters
+Infer conditions
+Parallel Hash Join is more parallel
+
+Main
+
+DatabaseBackup
+
+Guest Talk
+
+Delta Rust Kernel
+
+Bonus
+
+Web UI navigation
+JSONBench
+Fast Formats
+Kubenetmon
+BYOC
+Roadmap 2025
+
+Integrations
+
+Postgres CDC
+Email notifications
+Virtual columns
+
+Reading
+
+JSONBench
+FOSDEM 2025
+FastFormats
+Data Lakes
+Agent-Facing Analytics
+Memorial Sloan
+JSONBench
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">小功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>在 DEFAULT 表达式中使用子列</h2>
+
+<p style="color: red; margin-top: -1em;">25.1:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE test
+(
+    data JSON
+    time DateTime DEFAULT <span style="color: red;">getSubcolumn(data 'created_at')</span>
+) ORDER BY <b>data.actor_login::String</b>
+</code></p>
+
+<p style="color: green;">25.2:</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE test
+(
+    data JSON
+    time DateTime DEFAULT <b style="color: green;">data.created_at</b>
+) ORDER BY <b style="color: green;">data.actor_login</b>::String
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Pavel Kruglov。</p>
+</section>
+
+
+<section class="slide">
+<h2>写时复制存储策略</h2>
+
+<p>允许<b>即时挂载快照</b>，同时使表<b style="color: green;">可写</b>.
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">$ cat config.d/cow_policy.yaml
+storage_configuration:
+  disks:
+    web:
+      type: web
+      endpoint: 'https://raw.githubusercontent.com/ClickHouse/web-tables-demo/main/web/'
+  policies:
+    cow_policy_multi_disk:
+      volumes:
+        disks:
+          disk:
+          - web      <span style="color: gray;"># a the readonly disk with a snapshot</span>
+          - default  <span style="color: gray;"># a writable disk</span>
+</code></p>
+
+</section>
+
+<section class="slide">
+<h2>写时复制存储策略</h2>
+
+<p>允许<b>即时挂载快照</b>，同时使表<b style="color: green;">可写</b>.
+
+<p>表基于外部数据集，<br/>但修改在本地执行。</p>
+
+<p>演示</p>
+
+<!--
+
+CREATE TABLE uk_price_paid UUID 'cf712b4f-2ca8-435c-ac23-c4393efe52f7'
+(
+    price UInt32,
+    date Date,
+    postcode1 LowCardinality(String),
+    postcode2 LowCardinality(String),
+    type Enum8('other' = 0, 'terraced' = 1, 'semi-detached' = 2, 'detached' = 3, 'flat' = 4),
+    is_new UInt8,
+    duration Enum8('unknown' = 0, 'freehold' = 1, 'leasehold' = 2),
+    addr1 String,
+    addr2 String,
+    street LowCardinality(String),
+    locality LowCardinality(String),
+    town LowCardinality(String),
+    district LowCardinality(String),
+    county LowCardinality(String)
+)
+ENGINE = MergeTree
+ORDER BY (postcode1, postcode2, addr1, addr2)
+SETTINGS disk = disk(type = web, endpoint = 'https://raw.githubusercontent.com/ClickHouse/web-tables-demo/main/web/');
+
+SELECT count() FROM uk_price_paid;
+
+SELECT
+    toYear(date) AS year,
+    round(avg(price)) AS price,
+    bar(price, 0, 1000000, 80)
+FROM uk_price_paid
+GROUP BY year
+ORDER BY year ASC;
+
+INSERT INTO uk_price_paid FORMAT JSONEachRow {"price": 123000, "date": "2025-01-01", "type": "terraced"};
+
+cat config.d/cow_policy.yaml
+
+ATTACH TABLE uk_price_paid UUID 'cf712b4f-2ca8-435c-ac23-c4393efe52f7'
+(
+    price UInt32,
+    date Date,
+    postcode1 LowCardinality(String),
+    postcode2 LowCardinality(String),
+    type Enum8('other' = 0, 'terraced' = 1, 'semi-detached' = 2, 'detached' = 3, 'flat' = 4),
+    is_new UInt8,
+    duration Enum8('unknown' = 0, 'freehold' = 1, 'leasehold' = 2),
+    addr1 String,
+    addr2 String,
+    street LowCardinality(String),
+    locality LowCardinality(String),
+    town LowCardinality(String),
+    district LowCardinality(String),
+    county LowCardinality(String)
+)
+ORDER BY (postcode1, postcode2, addr1, addr2)
+SETTINGS storage_policy = 'cow_policy_multi_disk'
+
+SELECT * FROM uk_price_paid WHERE price = 123000 AND date = '2025-01-01';
+INSERT INTO uk_price_paid FORMAT JSONEachRow {"price": 123000, "date": "2025-01-01", "type": "terraced"};
+SELECT * FROM uk_price_paid WHERE price = 123000 AND date = '2025-01-01';
+
+OPTIMIZE TABLE uk_price_paid FINAL;
+
+SELECT * FROM uk_price_paid WHERE price = 123000 AND date = '2025-01-01';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">另见“表分支”：CREATE TABLE t2 <b>CLONE AS</b> t1;</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Azat Khuzhin。</p>
+
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 30pt;">不依赖数据库挂载外部表</h2>
+
+<p>在 25.1 及更早版本中，外部表必须放在<br/>模拟数据库内部组织形式的目录结构中：</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25; white-space: pre-wrap;">$ ls -lR
+
+./web/<span style="color: red;">store/cf7/cf712b4f-2ca8-435c-ac23-c4393efe52f7</span>:
+
+drwxrwxr-x 2 milovidov milovidov 4096 feb 27 08:25 all_1_27_2
+drwxrwxr-x 2 milovidov milovidov 4096 feb 27 08:25 detached
+-rw-rw-r-- 1 milovidov milovidov    1 feb 27 08:25 format_version.txt
+
+CREATE TABLE uk_price_paid <span style="color: red;">UUID 'cf712b4f-2ca8-435c-ac23-c4393efe52f7'</span>
+(
+ ...
+) ORDER BY (postcode1, postcode2, addr1, addr2)
+SETTINGS disk = disk(type = web, endpoint =
+'https://raw.githubusercontent.com/ClickHouse/web-tables-demo/main/web/');
+</code></p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">不依赖数据库挂载外部表</h2>
+
+<p>在 <b>25.2</b> 中，可以直接将磁盘指向表的数据目录来挂载表。</p>
+
+<p><code style="font-size: 13pt; line-height: 1.25; white-space: pre-wrap;">$ ls -lR
+
+./uk_price_paid:
+
+drwxrwxr-x 2 milovidov milovidov 4096 feb 27 08:29 all_1_27_2
+drwxrwxr-x 2 milovidov milovidov 4096 feb 27 08:29 detached
+-rw-rw-r-- 1 milovidov milovidov    1 feb 27 08:29 format_version.txt
+
+CREATE TABLE uk_price_paid
+(
+ ...
+) ORDER BY (postcode1, postcode2, addr1, addr2)
+SETTINGS <b style="color: green;">table_disk = 1</b>, disk = disk(type = web, endpoint =
+'https://raw.githubusercontent.com/ClickHouse/web-tables-demo/table_disk/uk_price_paid/');
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Azat Khuzhin。</p>
+
+<!--
+
+CREATE TABLE uk_price_paid
+(
+    price UInt32,
+    date Date,
+    postcode1 LowCardinality(String),
+    postcode2 LowCardinality(String),
+    type Enum8('other' = 0, 'terraced' = 1, 'semi-detached' = 2, 'detached' = 3, 'flat' = 4),
+    is_new UInt8,
+    duration Enum8('unknown' = 0, 'freehold' = 1, 'leasehold' = 2),
+    addr1 String,
+    addr2 String,
+    street LowCardinality(String),
+    locality LowCardinality(String),
+    town LowCardinality(String),
+    district LowCardinality(String),
+    county LowCardinality(String)
+)
+ENGINE = MergeTree
+ORDER BY (postcode1, postcode2, addr1, addr2)
+SETTINGS table_disk = 1, disk = disk(type = web, endpoint = 'https://raw.githubusercontent.com/ClickHouse/web-tables-demo/table_disk/uk_price_paid/')
+
+-->
+</section>
+
+<section class="slide">
+<h2>JSONCompactEachRowWithProgress</h2>
+
+<p>用于<b>通过 HTTP 流式传输事件</b></p>
+<p style="margin-right: -3em;">从 <b>25.1</b> 起已有：<br/>&mdash; JSONEachRowWithProgress
+<br/>&mdash; JSONStringsEachRowWithProgress
+</p>
+<p style="margin-right: -3em;">从 <b style="color: green">25.2</b> 起还新增：<br/>&mdash; JSONCompactEachRowWithProgress
+<br/>&mdash; JSONCompactStringsEachRowWithProgress
+</p>
+
+<p>它们以流的形式传输换行分隔的 JSON 事件，每个事件可以是以下之一：<br/><b>progress</b>, <b>meta</b>, <b>row</b>, <b>totals</b>, <b>extremes</b>, <b>exception</b>，一旦产生便立即发送。</p>
+
+<!--
+
+https://play.clickhouse.com/
+
+Progress:
+
+SELECT number, sleep(.2) FROM numbers(1e6) WHERE number % 100000 = 123
+
+SELECT count() FROM github_events WHERE actor_login = 'alexey-milovidov'
+SELECT repo_name, firstLine(body) FROM github_events WHERE actor_login = 'alexey-milovidov' AND body != '' AND repo_name NOT LIKE '%ClickHouse%'
+SELECT repo_name, firstLine(body) FROM github_events WHERE actor_login = 'nickitat' AND body != '' AND repo_name NOT LIKE '%ClickHouse%'
+
+Cancellation:
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>JSONCompactEachRowWithProgress</h2>
+
+<p><code style="font-size: 10pt; line-height: 1.25; overflow-x: scroll; margin-top: -1em;">$ curl http://localhost:8123/ -d "SELECT number % 3 AS k, count()
+FROM numbers(1e9) GROUP BY k WITH TOTALS FORMAT JSONCompactEachRowWithProgress"
+
+{"progress":{"read_rows":"74631669","read_bytes":"597053352","total_rows_to_read":"1000000000","elapsed_ns":"100040117"}}
+{"progress":{"read_rows":"151160199","read_bytes":"1209281592","total_rows_to_read":"1000000000","elapsed_ns":"200065327"}}
+{"progress":{"read_rows":"227754138","read_bytes":"1822033104","total_rows_to_read":"1000000000","elapsed_ns":"300115954"}}
+{"progress":{"read_rows":"304348077","read_bytes":"2434784616","total_rows_to_read":"1000000000","elapsed_ns":"400193152"}}
+{"progress":{"read_rows":"380680380","read_bytes":"3045443040","total_rows_to_read":"1000000000","elapsed_ns":"500227569"}}
+...
+{"progress":{"read_rows":"762472713","read_bytes":"6099781704","total_rows_to_read":"1000000000","elapsed_ns":"1000340080"}}
+{"progress":{"read_rows":"838870425","read_bytes":"6710963400","total_rows_to_read":"1000000000","elapsed_ns":"1100394164"}}
+{"progress":{"read_rows":"914548638","read_bytes":"7316389104","total_rows_to_read":"1000000000","elapsed_ns":"1200466502"}}
+{"progress":{"read_rows":"990880941","read_bytes":"7927047528","total_rows_to_read":"1000000000","elapsed_ns":"1300489758"}}
+{"progress":{"read_rows":"1000000000","read_bytes":"8000000000","total_rows_to_read":"1000000000","elapsed_ns":"1312531422"}}
+{"meta":[{"name":"k","type":"UInt8"},{"name":"count()","type":"UInt64"}]}
+{"row":[0, "333333334"]}
+{"row":[1, "333333333"]}
+{"row":[2, "333333333"]}
+{"totals":{"k":0,"count()":"1000000000"}}</code></p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 30pt;">PgSQL 协议中的预处理语句</h2>
+
+<p>你知道吗？&mdash; ClickHouse 支持 PostgreSQL 协议！</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">$ cat config.xml
+<span style="color: gray;">&lt;!-- Compatibility with PostgreSQL protocol. --></span>
+&lt;postgresql_port>9005&lt;/postgresql_port>
+
+$ clickhouse-client
+
+:) CREATE USER pg IDENTIFIED WITH plaintext_password BY 'qwerty'
+:) GRANT SELECT ON default.hits TO pg
+
+$ psql --host 127.0.0.1 --port 9005 --user pg default
+</code></p>
+
+<p>ClickHouse 可以为你模拟 PostgreSQL！</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt;">PgSQL 协议中的预处理语句</h2>
+
+<p><code style="font-size: 12pt; line-height: 1.25; white-space: pre-wrap;">$ psql --host 127.0.0.1 --port 9005 --user pg default
+Password for user pg:
+psql (14.15 (Ubuntu 14.15-0ubuntu0.22.04.1), server 25.3.1.1)
+WARNING: psql major version 14, server major version 25.
+         Some psql features might not work.
+Type "help" for help.
+
+default=> <b style="color: green;">PREPARE</b> select_test AS
+default-> SELECT count(), uniq(UserID) FROM hits WHERE CounterID = $1;
+SELECT 0
+default=> <b style="color: green;">EXECUTE</b> select_test (62)
+default-> ;
+ count() | uniq(UserID)
+---------+--------------
+ 738172  | 62292
+(1 row)
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Scanhex12。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/back5.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>为 Parquet 写入布隆过滤器</h2>
+
+<p>导出到 Parquet 时，ClickHouse 会为列写入布隆过滤器。</p>
+<p>查询 Parquet 时，ClickHouse 会使用这些布隆过滤器。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5; white-space: pre-wrap;"><span style="color: gray;">-- bloom filters will be created by default:</span>
+:) SELECT * FROM hits INTO OUTFILE 'hits.parquet';
+<span style="color: gray;">-- you can disable it to save space a little:</span>
+:) SET output_format_parquet_write_bloom_filter = 0;
+:) SELECT * FROM hits INTO OUTFILE 'hits_old.parquet';
+</code></p>
+
+<p>演示。</p>
+
+<!--
+
+cd ~/work
+ch
+SET input_format_parquet_bloom_filter_push_down = 1;
+SELECT count() FROM 'hits_old.parquet' WHERE UserID = 2077796663926284422;
+SELECT count() FROM 'hits.parquet' WHERE UserID = 2077796663926284422;
+SELECT count() FROM 'hits_old.parquet' WHERE SearchPhrase = 'google';
+SELECT count() FROM 'hits.parquet' WHERE SearchPhrase = 'google'
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Michael Kolupaev。</p>
+</section>
+
+
+<section class="slide">
+<h2>利用传递关系推导条件</h2>
+
+<p><code style="font-size: 12pt; line-height: 1.5; white-space: pre-wrap; margin-right: -4em;">CREATE TABLE calls
+(
+    start_time DateTime,
+    end_time DateTime,
+    message String
+) ORDER BY <b>end_time</b>;
+
+-- uses the index:
+SELECT uniq(message) FROM calls WHERE end_time >= '2025-08-01';
+-- <span style="color: red;">does not use the index</span>:
+SELECT uniq(message) FROM calls WHERE start_time >= '2025-08-01';
+-- <span style="color: green;">uses the index since <b>25.2</b>:</span>
+SELECT uniq(message) FROM calls WHERE start_time >= '2025-08-01' AND end_time > start_time;
+</code></p>
+
+<!--
+
+INSERT INTO calls SELECT '2024-01-01 01:01:01'::DateTime + number AS start_time, start_time + rand() % 100000 AS end_time, randomPrintableASCII(100) AS message FROM numbers(50000000);
+
+SELECT count() FROM calls;
+SELECT uniq(message) FROM calls WHERE end_time >= '2025-08-01';
+SELECT uniq(message) FROM calls WHERE start_time >= '2025-08-01';
+SELECT uniq(message) FROM calls WHERE start_time >= '2025-08-01' AND end_time > start_time;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：ShiChao Jin。</p>
+</section>
+
+<section class="slide">
+<h2>更快的并行哈希 JOIN</h2>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/parallel_hash.png" style="height: 75%; margin-top: -2em;"></img>
+<p style="color: gray; font-size: 14pt; margin-top: 0em;">开发者：Nikita Taranov。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/back6.jpg); background-size: cover;">
+<h2 style="font-size: 32pt; margin-left: -1em;"><span class="hilite">一些</span><br/><span class="hilite">有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>Backup 数据库引擎</h2>
+<p>将备份作为只读数据库访问。</p>
+<p>即时挂载备份，无需复制数据。</p>
+
+<p><code style="font-size: 14pt; line-height: 1.5; white-space: pre-wrap;">:) BACKUP DATABASE default TO File('backup1');
+:) CREATE DATABASE backup ENGINE = <b style="color: green;">Backup('default', File('backup1'))</b>;
+</code></p>
+
+<p>支持本地及外部存储上的完整备份和增量备份。</p>
+<p>是打包和分发数据库的好办法！</p>
+
+<!--
+
+CREATE DATABASE backup ENGINE = Backup('default', File('hits'));
+SHOW TABLES FROM backup;
+SELECT count() FROM backup.hits;
+SELECT CounterID, count() FROM backup.hits GROUP BY CounterID ORDER BY count() DESC LIMIT 10;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Maksim Kita。</p>
+</section>
+
+<section class="slide">
+<h2>Iceberg 分区裁剪</h2>
+<p>SET use_iceberg_partition_pruning = 1;</p>
+
+<p>演示。</p>
+
+<!--
+
+SET use_iceberg_partition_pruning = 0;
+
+SELECT count(), uniq(userid)
+FROM iceberg('https://hits-dataset.s3.us-west-2.amazonaws.com/hitspartitioned/', 'EXAMPLE', 'EXAMPLE')
+WHERE eventdate BETWEEN '2013-07-14' AND '2013-07-15';
+
+SET use_iceberg_partition_pruning = 1;
+
+SELECT count(), uniq(userid)
+FROM iceberg('https://hits-dataset.s3.us-west-2.amazonaws.com/hitspartitioned/', 'EXAMPLE', 'EXAMPLE')
+WHERE eventdate BETWEEN '2013-07-14' AND '2013-07-15';
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Dan Ivanik。</p>
+</section>
+
+<section class="slide">
+<h2>集成 Delta Rust Kernel</h2>
+
+<p>ClickHouse 中对 <b>Delta Lake</b> 支持的全新实现，<br/>借助来自 <b>Databricks</b> 的库。</p>
+
+<p>版本 <b style="color: green;">25.2</b> 包含早期阶段的实现：</p>
+<p><code style="font-size: 14pt; line-height: 1.5; white-space: pre-wrap;">CREATE TABLE t ENGINE = DeltaLake(
+  s3, filename = 'xyz/', url = 'http://minio1:9001/test/')
+SETTINGS allow_experimental_delta_kernel_rs = 1;
+</code></p>
+
+<p style="color: gray;">带来结构演进、删除等支持。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Kseniia Sumarokova。</p>
+</section>
+
+<section class="slide">
+<h2>嘉宾演讲</h2>
+<p><b>Oussama Saoudi</b>，Databricks 软件工程师</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/back7.jpg); background-size: cover;">
+<h2><span class="hilite">额外内容</span></h2>
+</section>
+
+<section class="slide">
+<h2>Web UI 中的数据库导航</h2>
+<p>演示：<a href="https://play.clickhouse.com/">https://play.clickhouse.com/</a></p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/jsonbench.png); background-size: cover;">
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/fastformats.png); background-size: cover;">
+</section>
+
+<section class="slide">
+<h2 style="font-size: 28pt;">Kubenetmon &mdash; Kubernetes 网络流量计量</h2>
+<p><a href="https://github.com/ClickHouse/kubenetmon">https://github.com/ClickHouse/kubenetmon</a></p>
+<p>&mdash; 我们开发的服务，用于监测 <b>ClickHouse Cloud</b></p>
+<p>&mdash; 中的数据传输；使用 <b>ClickHouse</b> 存储数据（显而易见）</p>
+<p>&mdash; 现已<b style="color: green;">开源</b>!</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Ilia Andreiev。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/byoc.png); background-size: cover;">
+</section>
+
+<section class="slide">
+<a href="https://github.com/ClickHouse/ClickHouse/issues/74046"><img style="width: 100%" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/roadmap.png"></a>
+</section>
+
+<section class="slide">
+<h2>集成</h2>
+
+<p><b>Postgres 连接器</b> 在 ClickPipes 中进入公开测试阶段。</p>
+<p><b>ClickPipes</b> 支持虚拟列。</p>
+<p><b>ODBC</b> 驱动改进对 <b>PowerBI</b> 的支持。</p>
+<p><b>Java</b> 和 <b>Go</b> 改进对 <b>JSON</b> 数据类型的支持。</p>
+<p><b>DBT</b> 的视图物化更新现在具有原子性。</p>
+<p>更新了 <b>Metabase</b> 和 <b>Grafana</b>.</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流活动</h2>
+<p>
+<span class="hilite">&mdash; 🇨🇳 上海，3 月 1 日</span>
+<br/><span class="hilite">&mdash; 🇫🇷 巴黎，3 月 4 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 西雅图，3 月 5 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 旧金山，3 月 19 日</span>
+<br/><span class="hilite">&mdash; 🇮🇳 德里，3 月 22 日</span>
+<br/><span class="hilite">&mdash; 🇨🇭 苏黎世，3 月 24 日</span>
+<br/><span class="hilite">&mdash; 🇭🇺 布达佩斯，3 月 25 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 波士顿，3 月 25 日</span>
+<br/><span class="hilite">&mdash; 🇮🇱 特拉维夫，3 月 26 日</span>
+<br/><span class="hilite">&mdash; 🇺🇸 纽约，3 月 26 日</span>
+<br/><span class="hilite">&mdash; 🇳🇴 奥斯陆，4 月 8 日</span>
+<br/><span class="hilite">&mdash; 🇬🇧 伦敦，5 月 14 日</span>
+</p>
+<p><span class="hilite">我会亲自参加其中的一些活动 :)</span></p>
+</section>
+
+
+<section class="slide">
+<h2>阅读角 🧶</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: 1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+
+<p style="line-height: 1.5;">&mdash; 用于 Tableau 的 ClickHouse 连接器<br/>&mdash; 十亿文档 JSON 挑战<br/>&mdash; 输入格式比拼<br/>&mdash; ClickHouse 在 FOSDEM 2025：JSON、模糊测试、DNS<br/>&mdash; ClickHouse BYOC
+<br/>&mdash; 使用 ClickHouse 攀登 Iceberg<br/>&mdash; 用于 ClickPipes 的 Postgres CDC 连接器<br/>&mdash; 面向智能体的分析<br/>&mdash; 开源 Kubenetmon</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2025-release-25.2/pictures/back8.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">问答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/1XnA9_s5YOM" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>
