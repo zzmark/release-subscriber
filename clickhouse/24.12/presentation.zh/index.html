@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：24.12 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：24.12 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+        .hilite { background: rgba(255, 255, 255, 80%); padding: 5px; }
+        .slide table tr:not(:last-of-type)>* { background: none; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：24.12 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2024-12-19。</p>
+    </header>
+    <section class="slide" id="cover" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/back1.jpg); background-size: cover;">
+        <h1 style="margin-top: 10px; line-height: 110%; font-size: 56pt; color: white; text-shadow: black 1px 0 10px; text-align: center;">ClickHouse 24.12 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>24.12 版本网络研讨会</h2>
+<p>1.（40 分钟）ClickHouse 24.12 的新变化。</p>
+<p>2.（15 分钟）嘉宾分享。</p>
+<p>2.（5 分钟）提问&amp;解答。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/back2.jpg); background-size: cover;">
+<h2><span class="hilite">24.12 版本</span></h2>
+<p><span class="hilite">ClickHouse 圣诞版本。</span></p>
+<p><span class="hilite">— 16 项新功能 🎁</span></p>
+<p><span class="hilite">— 16 项性能优化 ⛸️</span></p>
+<p><span class="hilite">— 36 项缺陷修复 ⛄</span></p>
+</section>
+<!--
+
+Small
+
+translate to delete characters
+Setting HTTP headers
+Cache for primary key, loading, prewarm
+Settings are sent from the server
+automatic spilling to disk
+LIKE for Enum
+IN with unknown Enum elements
+? extended table aliases
+
+
+Experimental Features
+
+Reverse primary key
+
+
+Performance
+
+Parallel hash join by default
+JOIN reordering
+Extracting common expressions in conditions
+Bonus: Non-equi JOINs by default
+Sorting of LowCardinality
+argMin/argMax
+Deserialization of aggregate functions
+Faster parallel replicas
+Faster restoration from backups
+Faster materialized views
+Faster merge tables
+
+Main
+
+Schema evolution for Iceberg
+Iceberg REST catalog
+
+Guest talk
+
+Bonus
+
+Variant, Dynamic, JSON types are in beta
+Subcolumns as keys
+ALTER from Object to JSON
+
+
+Integrations
+
+
+Bonus
+
+Strategic partnership with AWS
+
+Reading
+
+Strategic partnership with AWS
+Medallion architecture
+Product analytics
+Query optimizations
+From BigQuery to ClickHouse
+Our re:Invent announcements
+
+
+-->
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/back3.jpg); background-size: cover;">
+<h2><span class="hilite">小功能 🎁</span></h2>
+</section>
+
+<section class="slide">
+<h2>扩展表别名 🍬</h2>
+
+<p>表别名可以重新定义列名：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">SELECT a, b FROM
+(
+  SELECT number, number * 2 FROM numbers(10)
+) AS <b style="color: green;">x(a, b)</b>;
+
+CREATE VIEW <b style="color: green;">my_view(a, b)</b> AS SELECT 1, 2;
+
+WITH <b style="color: green;">t(a, b)</b> AS (SELECT 1, 2)
+SELECT a, b FROM t;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Yarik Briukhovetskyi。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">函数 `translate` 可以删除字符</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) SELECT translate('ClickHouse', 'HCc', 'm')
+<span style="color: gray;">-- change H to m and delete characters C and c:</span>
+
+   ┌─res──────┐
+1. │ likhouse │
+   └──────────┘
+</code></p>
+
+<p>同时也支持 <b>translateUTF8</b> 函数。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Shuai Xu。</p>
+</section>
+
+<section class="slide">
+<h2>设置自定义 HTTP 响应头 🍭</h2>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) CREATE OR REPLACE VIEW pictures AS SELECT '...' AS img;
+
+:) CREATE USER viewer SETTINGS <b style="color: green;">http_response_headers =
+    $${'Content-Type': 'image/svg+xml'}$$</b>;
+
+:) GRANT SELECT ON pictures TO viewer;
+</code></p>
+
+<p>使用场景：
+<br/>&mdash; 控制客户端缓存；
+<br/>&mdash; 为可下载文件设置 content-disposition；
+<br/>&mdash; 控制 content-type；
+</p>
+
+<p>演示</p>
+
+<!--
+
+http://localhost:8123/?default_format=RawBLOB&query=SELECT%20%27%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2254%22%20height%3D%2248%22%20viewBox%3D%220%200%209%208%22%3E%20%3Cstyle%3E%20.o{fill%3A%23fc0}%20.r{fill%3A%23f00}%20%3C%2Fstyle%3E%20%3Cpath%20class%3D%22r%22%20d%3D%22M0%2C7%20h1%20v1%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M0%2C0%20h1%20v7%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M2%2C0%20h1%20v8%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M4%2C0%20h1%20v8%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M6%2C0%20h1%20v8%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M8%2C3.25%20h1%20v1.5%20h-1%20z%22%2F%3E%20%3C%2Fsvg%3E%27
+
+http://localhost:8123/?default_format=RawBLOB&http_response_headers=%7b%27Content-Type%27:%27image/svg%2bxml%27%7d&query=SELECT%20%27%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2254%22%20height%3D%2248%22%20viewBox%3D%220%200%209%208%22%3E%20%3Cstyle%3E%20.o{fill%3A%23fc0}%20.r{fill%3A%23f00}%20%3C%2Fstyle%3E%20%3Cpath%20class%3D%22r%22%20d%3D%22M0%2C7%20h1%20v1%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M0%2C0%20h1%20v7%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M2%2C0%20h1%20v8%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M4%2C0%20h1%20v8%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M6%2C0%20h1%20v8%20h-1%20z%22%2F%3E%20%3Cpath%20class%3D%22o%22%20d%3D%22M8%2C3.25%20h1%20v1.5%20h-1%20z%22%2F%3E%20%3C%2Fsvg%3E%27
+
+CREATE OR REPLACE VIEW pictures AS SELECT '<svg xmlns="http://www.w3.org/2000/svg" width="54" height="48" viewBox="0 0 9 8"> <style> .o{fill:#fc0} .r{fill:#f00} </style> <path class="r" d="M0,7 h1 v1 h-1 z"/> <path class="o" d="M0,0 h1 v7 h-1 z"/> <path class="o" d="M2,0 h1 v8 h-1 z"/> <path class="o" d="M4,0 h1 v8 h-1 z"/> <path class="o" d="M6,0 h1 v8 h-1 z"/> <path class="o" d="M8,3.25 h1 v1.5 h-1 z"/> </svg>' AS img;
+
+CREATE USER viewer SETTINGS http_response_headers = $${'Content-Type': 'image/svg+xml'}$$;
+GRANT SELECT ON pictures TO viewer;
+
+http://localhost:8123/?user=viewer&default_format=RawBLOB&query=SELECT%20*%20FROM%20pictures
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Alexey Milovidov。</p>
+</section>
+
+<section class="slide">
+<h2>主键缓存 🍯</h2>
+
+<p>2024 &mdash; 对主键进行了大量优化：</p>
+
+<p style="color: gray;">24.2：延迟加载主键
+<br/>24.2：优化主键的内存占用
+<br/>24.3：跳过主键中无用的列
+<br/>24.4: SYSTEM UNLOAD PRIMARY KEY</p>
+
+<p>24.12：表的数据片段主键可通过 LRU 缓存管理：</p>
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">ALTER TABLE t MODIFY SETTING <b>primary_key_lazy_load = 1</b>,
+                             <b style="color: green;">use_primary_key_cache = 1</b>,
+                             <b style="color: green;">prewarm_primary_key_cache = 1;</b></code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Anton Popov。</p>
+</section>
+
+
+<section class="slide">
+<h2>主键缓存 🍯</h2>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/quadrillion.png" style="float: right; height: 80%;">
+<p>有什么用？</p>
+<p>&mdash; 适用于共享存储集群上拥有超过一千万亿条记录的表。</p>
+</section>
+
+<section class="slide">
+<h2>客户端接收服务器设置</h2>
+
+<p>格式化和解析选项等客户端相关设置，可以在服务器端指定。</p>
+<p><b>clickhouse-client</b> 会接收并应用这些设置。</p>
+
+<p>演示</p>
+<!--
+
+CREATE OR REPLACE TABLE test (d DateTime) ENGINE = Memory;
+INSERT INTO test VALUES ('Mon, Dec 16 2024 23:55');
+SET date_time_input_format = 'best_effort';
+INSERT INTO test VALUES ('Mon, Dec 16 2024 23:55');
+
+CREATE USER demo SETTINGS date_time_input_format = 'best_effort';
+GRANT INSERT ON test TO demo;
+
+clickhouse-client --user demo
+INSERT INTO test VALUES ('Mon, Dec 16 2024 23:55');
+-->
+</section>
+
+<section class="slide">
+<h2>自动溢写到磁盘 🍮</h2>
+<p>内存不足以执行 GROUP BY 或 ORDER BY 时，ClickHouse 支持将磁盘作为临时存储。</p>
+<p>此功能自 <b>2015</b>年起提供，由以下设置控制： <b>max_bytes_before_external_group_by</b>, <b>max_bytes_before_external_sort</b>。</p>
+<p>ClickHouse Cloud 默认也配置了此功能，采用固定阈值。</p>
+<p><b style="color: green;">现在可以自动调整！</b></p>
+
+<p>演示</p>
+
+<!--
+
+ch
+
+ATTACH TABLE hits UUID 'c449dfbf-ba06-4d13-abec-8396559eb955'
+(
+    `WatchID` BIGINT NOT NULL,
+    `JavaEnable` SMALLINT NOT NULL,
+    `Title` TEXT NOT NULL,
+    `GoodEvent` SMALLINT NOT NULL,
+    `EventTime` TIMESTAMP NOT NULL,
+    `EventDate` Date NOT NULL,
+    `CounterID` INTEGER NOT NULL,
+    `ClientIP` INTEGER NOT NULL,
+    `RegionID` INTEGER NOT NULL,
+    `UserID` BIGINT NOT NULL,
+    `CounterClass` SMALLINT NOT NULL,
+    `OS` SMALLINT NOT NULL,
+    `UserAgent` SMALLINT NOT NULL,
+    `URL` TEXT NOT NULL,
+    `Referer` TEXT NOT NULL,
+    `IsRefresh` SMALLINT NOT NULL,
+    `RefererCategoryID` SMALLINT NOT NULL,
+    `RefererRegionID` INTEGER NOT NULL,
+    `URLCategoryID` SMALLINT NOT NULL,
+    `URLRegionID` INTEGER NOT NULL,
+    `ResolutionWidth` SMALLINT NOT NULL,
+    `ResolutionHeight` SMALLINT NOT NULL,
+    `ResolutionDepth` SMALLINT NOT NULL,
+    `FlashMajor` SMALLINT NOT NULL,
+    `FlashMinor` SMALLINT NOT NULL,
+    `FlashMinor2` TEXT NOT NULL,
+    `NetMajor` SMALLINT NOT NULL,
+    `NetMinor` SMALLINT NOT NULL,
+    `UserAgentMajor` SMALLINT NOT NULL,
+    `UserAgentMinor` VARCHAR(255) NOT NULL,
+    `CookieEnable` SMALLINT NOT NULL,
+    `JavascriptEnable` SMALLINT NOT NULL,
+    `IsMobile` SMALLINT NOT NULL,
+    `MobilePhone` SMALLINT NOT NULL,
+    `MobilePhoneModel` TEXT NOT NULL,
+    `Params` TEXT NOT NULL,
+    `IPNetworkID` INTEGER NOT NULL,
+    `TraficSourceID` SMALLINT NOT NULL,
+    `SearchEngineID` SMALLINT NOT NULL,
+    `SearchPhrase` TEXT NOT NULL,
+    `AdvEngineID` SMALLINT NOT NULL,
+    `IsArtifical` SMALLINT NOT NULL,
+    `WindowClientWidth` SMALLINT NOT NULL,
+    `WindowClientHeight` SMALLINT NOT NULL,
+    `ClientTimeZone` SMALLINT NOT NULL,
+    `ClientEventTime` TIMESTAMP NOT NULL,
+    `SilverlightVersion1` SMALLINT NOT NULL,
+    `SilverlightVersion2` SMALLINT NOT NULL,
+    `SilverlightVersion3` INTEGER NOT NULL,
+    `SilverlightVersion4` SMALLINT NOT NULL,
+    `PageCharset` TEXT NOT NULL,
+    `CodeVersion` INTEGER NOT NULL,
+    `IsLink` SMALLINT NOT NULL,
+    `IsDownload` SMALLINT NOT NULL,
+    `IsNotBounce` SMALLINT NOT NULL,
+    `FUniqID` BIGINT NOT NULL,
+    `OriginalURL` TEXT NOT NULL,
+    `HID` INTEGER NOT NULL,
+    `IsOldCounter` SMALLINT NOT NULL,
+    `IsEvent` SMALLINT NOT NULL,
+    `IsParameter` SMALLINT NOT NULL,
+    `DontCountHits` SMALLINT NOT NULL,
+    `WithHash` SMALLINT NOT NULL,
+    `HitColor` CHAR NOT NULL,
+    `LocalEventTime` TIMESTAMP NOT NULL,
+    `Age` SMALLINT NOT NULL,
+    `Sex` SMALLINT NOT NULL,
+    `Income` SMALLINT NOT NULL,
+    `Interests` SMALLINT NOT NULL,
+    `Robotness` SMALLINT NOT NULL,
+    `RemoteIP` INTEGER NOT NULL,
+    `WindowName` INTEGER NOT NULL,
+    `OpenerName` INTEGER NOT NULL,
+    `HistoryLength` SMALLINT NOT NULL,
+    `BrowserLanguage` TEXT NOT NULL,
+    `BrowserCountry` TEXT NOT NULL,
+    `SocialNetwork` TEXT NOT NULL,
+    `SocialAction` TEXT NOT NULL,
+    `HTTPError` SMALLINT NOT NULL,
+    `SendTiming` INTEGER NOT NULL,
+    `DNSTiming` INTEGER NOT NULL,
+    `ConnectTiming` INTEGER NOT NULL,
+    `ResponseStartTiming` INTEGER NOT NULL,
+    `ResponseEndTiming` INTEGER NOT NULL,
+    `FetchTiming` INTEGER NOT NULL,
+    `SocialSourceNetworkID` SMALLINT NOT NULL,
+    `SocialSourcePage` TEXT NOT NULL,
+    `ParamPrice` BIGINT NOT NULL,
+    `ParamOrderID` TEXT NOT NULL,
+    `ParamCurrency` TEXT NOT NULL,
+    `ParamCurrencyID` SMALLINT NOT NULL,
+    `OpenstatServiceName` TEXT NOT NULL,
+    `OpenstatCampaignID` TEXT NOT NULL,
+    `OpenstatAdID` TEXT NOT NULL,
+    `OpenstatSourceID` TEXT NOT NULL,
+    `UTMSource` TEXT NOT NULL,
+    `UTMMedium` TEXT NOT NULL,
+    `UTMCampaign` TEXT NOT NULL,
+    `UTMContent` TEXT NOT NULL,
+    `UTMTerm` TEXT NOT NULL,
+    `FromTag` TEXT NOT NULL,
+    `HasGCLID` SMALLINT NOT NULL,
+    `RefererHash` BIGINT NOT NULL,
+    `URLHash` BIGINT NOT NULL,
+    `CLID` INTEGER NOT NULL
+)
+ENGINE = MergeTree
+PRIMARY KEY (CounterID, EventDate, UserID, EventTime, WatchID)
+SETTINGS disk = disk(type = cache, path = '/tmp/clickhouse/', max_size = '16G', disk = disk(type = web, endpoint = 'https://clickhouse-datasets-web.s3.us-east-1.amazonaws.com/'));
+
+SELECT URL, uniq(UserID) AS u FROM hits GROUP BY URL ORDER BY u DESC LIMIT 10;
+
+SET max_memory_usage_for_user = '5G';
+
+SELECT URL, uniq(UserID) AS u FROM hits GROUP BY URL ORDER BY u DESC LIMIT 10;
+
+SET max_bytes_ratio_before_external_group_by = 0.5, max_bytes_ratio_before_external_sort = 0.5;
+
+SELECT URL, uniq(UserID) AS u FROM hits GROUP BY URL ORDER BY u DESC LIMIT 10;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Azat Khuzhin。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 30pt">枚举类型的易用性 🍫</h2>
+<p>枚举类型支持 LIKE 运算符：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) CREATE TABLE test (x Enum('Hello', 'World')) ENGINE = Memory
+:) INSERT INTO test VALUES ('World')
+:) SELECT * FROM test WHERE x LIKE '%or%'
+
+   ┌─x─────┐
+1. │ World │
+   └───────┘
+
+<span style="color: gray;">-- 24.11:
+-- Code: 43. DB::Exception: Illegal type Enum8('Hello' = 1, 'World' = 2) of argument of function like: In scope SELECT * FROM test WHERE x LIKE '%or%'. (ILLEGAL_TYPE_OF_ARGUMENT)</span>
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：ZhangLiStar。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 30pt">枚举类型的易用性 🍫</h2>
+<p>相等和 IN 运算符接受未知值：</p>
+
+<p><code style="font-size: 14pt; line-height: 1.25; white-space: pre-wrap;">:) CREATE TABLE test (x Enum('Hello', 'World')) ENGINE = Memory
+:) INSERT INTO test VALUES ('World')
+:) SELECT * FROM test WHERE x IN ('Goodbye', 'World')
+
+   ┌─x─────┐
+1. │ World │
+   └───────┘
+
+<span style="color: gray;">-- 24.11:
+-- Code: 691. DB::Exception: Unknown element 'Goodbye' for enum: while converting 'Goodbye' to Enum8('Hello' = 1, 'World' = 2). (UNKNOWN_ELEMENT_OF_ENUM)</span>
+</code></p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：ZhangLiStar。</p>
+</section>
+
+
+<section class="slide">
+<h2>实验性功能</h2>
+</section>
+
+<section class="slide">
+<h2>表的反向排序 ✨</h2>
+
+<p><code style="font-size: 18pt; line-height: 1.25; white-space: pre-wrap;">CREATE TABLE ... ENGINE = MergeTree
+ORDER BY (EventDate <b style="color: green;">DESC</b>, CounterID, UserID)
+SETTINGS <b>allow_experimental_reverse_key = 1</b>;
+</code></p>
+
+<p>适合大多数查询使用反向顺序的情况。</p>
+
+<p>演示</p>
+
+<!--
+
+CREATE TABLE hits (CounterID UInt32, EventTime DateTime, UserID UInt64, URL String) ENGINE = MergeTree ORDER BY (CounterID, UserID);
+SET max_insert_threads = 16;
+INSERT INTO hits SELECT CounterID, EventTime, UserID, URL FROM url(https://clickhouse-public-datasets.s3.amazonaws.com/hits_compatible/hits.parquet);
+CREATE TABLE hits_asc (CounterID UInt32, EventTime DateTime, UserID UInt64, URL String) ENGINE = MergeTree ORDER BY (EventTime, CounterID, UserID);
+CREATE TABLE hits_desc (CounterID UInt32, EventTime DateTime, UserID UInt64, URL String) ENGINE = MergeTree ORDER BY (EventTime DESC, CounterID, UserID) SETTINGS allow_experimental_reverse_key = 1;
+INSERT INTO hits_asc SELECT * FROM hits;
+INSERT INTO hits_desc SELECT * FROM hits;
+
+SELECT EventTime, URL FROM hits ORDER BY EventTime DESC, URL ASC LIMIT 10;
+SELECT EventTime, URL FROM hits_asc ORDER BY EventTime DESC, URL ASC LIMIT 10;
+SELECT EventTime, URL FROM hits_desc ORDER BY EventTime DESC, URL ASC LIMIT 10;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Amos Bird。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/back4.jpg); background-size: cover;">
+<h2><span style="color: black;"><span class="hilite">性能改进</span></h2>
+</section>
+
+<section class="slide">
+<h2>默认使用并行哈希连接 🛷</h2>
+
+<p>JOIN 两侧均并行执行，几乎不增加内存开销。
+<br/>即使对于短查询也没有负面影响，因此将其设为默认。</p>
+
+<p>TPC-H, SF-100, Q3: <b style="color: red;">53</b> 秒 -> <b style="color: green;">2.6</b> 秒。</p>
+<p>TPC-H, SF-100, Q7: <b style="color: red;">94</b> 秒 -> <b style="color: green;">21</b> 秒。</p>
+
+<p>演示</b>
+
+<!--
+
+CREATE TABLE nation (
+    n_nationkey  Int32,
+    n_name       String,
+    n_regionkey  Int32,
+    n_comment    String)
+ORDER BY (n_nationkey);
+
+CREATE TABLE region (
+    r_regionkey  Int32,
+    r_name       String,
+    r_comment    String)
+ORDER BY (r_regionkey);
+
+CREATE TABLE part (
+    p_partkey     Int32,
+    p_name        String,
+    p_mfgr        String,
+    p_brand       String,
+    p_type        String,
+    p_size        Int32,
+    p_container   String,
+    p_retailprice Decimal(15,2),
+    p_comment     String)
+ORDER BY (p_partkey);
+
+CREATE TABLE supplier (
+    s_suppkey     Int32,
+    s_name        String,
+    s_address     String,
+    s_nationkey   Int32,
+    s_phone       String,
+    s_acctbal     Decimal(15,2),
+    s_comment     String)
+ORDER BY (s_suppkey);
+
+CREATE TABLE partsupp (
+    ps_partkey     Int32,
+    ps_suppkey     Int32,
+    ps_availqty    Int32,
+    ps_supplycost  Decimal(15,2),
+    ps_comment     String)
+ORDER BY (ps_partkey, ps_suppkey);
+
+CREATE TABLE customer (
+    c_custkey     Int32,
+    c_name        String,
+    c_address     String,
+    c_nationkey   Int32,
+    c_phone       String,
+    c_acctbal     Decimal(15,2),
+    c_mktsegment  String,
+    c_comment     String)
+ORDER BY (c_custkey);
+
+CREATE TABLE orders  (
+    o_orderkey       Int32,
+    o_custkey        Int32,
+    o_orderstatus    String,
+    o_totalprice     Decimal(15,2),
+    o_orderdate      Date,
+    o_orderpriority  String,
+    o_clerk          String,
+    o_shippriority   Int32,
+    o_comment        String)
+ORDER BY (o_orderkey);
+
+CREATE TABLE lineitem (
+    l_orderkey       Int32,
+    l_partkey        Int32,
+    l_suppkey        Int32,
+    l_linenumber     Int32,
+    l_quantity       Decimal(15,2),
+    l_extendedprice  Decimal(15,2),
+    l_discount       Decimal(15,2),
+    l_tax            Decimal(15,2),
+    l_returnflag     String,
+    l_linestatus     String,
+    l_shipdate       Date,
+    l_commitdate     Date,
+    l_receiptdate    Date,
+    l_shipinstruct   String,
+    l_shipmode       String,
+    l_comment        String)
+ORDER BY (l_orderkey, l_linenumber);
+
+INSERT INTO nation SELECT * FROM s3('https://clickhouse-datasets.s3.amazonaws.com/h/1/nation.tbl', NOSIGN, CSV) SETTINGS format_csv_delimiter = '|', input_format_defaults_for_omitted_fields = 1, input_format_csv_empty_as_default = 1;
+INSERT INTO region SELECT * FROM s3('https://clickhouse-datasets.s3.amazonaws.com/h/1/region.tbl', NOSIGN, CSV) SETTINGS format_csv_delimiter = '|', input_format_defaults_for_omitted_fields = 1, input_format_csv_empty_as_default = 1;
+INSERT INTO part SELECT * FROM s3('https://clickhouse-datasets.s3.amazonaws.com/h/1/part.tbl', NOSIGN, CSV) SETTINGS format_csv_delimiter = '|', input_format_defaults_for_omitted_fields = 1, input_format_csv_empty_as_default = 1;
+INSERT INTO supplier SELECT * FROM s3('https://clickhouse-datasets.s3.amazonaws.com/h/1/supplier.tbl', NOSIGN, CSV) SETTINGS format_csv_delimiter = '|', input_format_defaults_for_omitted_fields = 1, input_format_csv_empty_as_default = 1;
+INSERT INTO partsupp SELECT * FROM s3('https://clickhouse-datasets.s3.amazonaws.com/h/1/partsupp.tbl', NOSIGN, CSV) SETTINGS format_csv_delimiter = '|', input_format_defaults_for_omitted_fields = 1, input_format_csv_empty_as_default = 1;
+INSERT INTO customer SELECT * FROM s3('https://clickhouse-datasets.s3.amazonaws.com/h/1/customer.tbl', NOSIGN, CSV) SETTINGS format_csv_delimiter = '|', input_format_defaults_for_omitted_fields = 1, input_format_csv_empty_as_default = 1;
+INSERT INTO orders SELECT * FROM s3('https://clickhouse-datasets.s3.amazonaws.com/h/1/orders.tbl', NOSIGN, CSV) SETTINGS format_csv_delimiter = '|', input_format_defaults_for_omitted_fields = 1, input_format_csv_empty_as_default = 1;
+INSERT INTO lineitem SELECT * FROM s3('https://clickhouse-datasets.s3.amazonaws.com/h/1/lineitem.tbl', NOSIGN, CSV) SETTINGS format_csv_delimiter = '|', input_format_defaults_for_omitted_fields = 1, input_format_csv_empty_as_default = 1;
+
+SELECT
+    l_orderkey,
+    sum(l_extendedprice * (1 - l_discount)) AS revenue,
+    o_orderdate,
+    o_shippriority
+FROM
+    customer,
+    orders,
+    lineitem
+WHERE
+    c_mktsegment = 'BUILDING'
+    AND c_custkey = o_custkey
+    AND l_orderkey = o_orderkey
+    AND o_orderdate < DATE '1995-03-15'
+    AND l_shipdate > DATE '1995-03-15'
+GROUP BY
+    l_orderkey,
+    o_orderdate,
+    o_shippriority
+ORDER BY
+    revenue DESC,
+    o_orderdate;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Nikita Taranov。</p>
+</section>
+
+
+<section class="slide">
+<h2>自动 JOIN 重排 🎿</h2>
+
+<p>使用估算的表大小。</p>
+
+<p>由设置 <b>query_plan_join_swap_table</b>
+<br/>控制，默认启用。</p>
+
+<p>演示</p>
+
+<!--
+
+SELECT 100.00 * sum(
+    CASE
+    WHEN p_type LIKE 'PROMO%'
+    THEN l_extendedprice * (1 - l_discount)
+    ELSE 0 END) / sum(l_extendedprice * (1 - l_discount)) AS promo_revenue
+FROM part, lineitem
+WHERE l_partkey = p_partkey;
+
+SET query_plan_join_swap_table = 0;
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Vladimir Cherkasov。</p>
+</section>
+
+<section class="slide">
+<h2>JOIN 表达式优化 🎆</h2>
+
+<p>SET <b style="color: green;">optimize_extract_common_expressions</b> = 1;</p>
+
+<p><code>JOIN ... ON (<b style="color: green;">a=b</b> AND x) OR (<b style="color: green;">a=b</b> AND y) OR (<b style="color: green;">a=b</b> AND z)
+JOIN ... ON <b style="color: green;">a=b</b> AND (x OR y OR z)</code></p>
+<p>减少所需的哈希表数量，并改善条件下推。</p>
+
+<p>演示</p>
+
+<!--
+
+SELECT
+    sum(l_extendedprice * (1 - l_discount)) AS revenue
+FROM
+    lineitem,
+    part
+WHERE
+    (
+        p_partkey = l_partkey
+        AND p_brand = 'Brand#12'
+        AND p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')
+        AND l_quantity >= 1 AND l_quantity <= 1 + 10
+        AND p_size BETWEEN 1 AND 5
+        AND l_shipmode in ('AIR', 'AIR REG')
+        AND l_shipinstruct = 'DELIVER IN PERSON'
+    )
+    OR
+    (
+        p_partkey = l_partkey
+        AND p_brand = 'Brand#23'
+        AND p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')
+        AND l_quantity >= 10 AND l_quantity <= 10 + 10
+        AND p_size BETWEEN 1 AND 10
+        AND l_shipmode in ('AIR', 'AIR REG')
+        AND l_shipinstruct = 'DELIVER IN PERSON'
+    )
+    OR
+    (
+        p_partkey = l_partkey
+        AND p_brand = 'Brand#34'
+        AND p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')
+        AND l_quantity >= 20 AND l_quantity <= 20 + 10
+        AND p_size BETWEEN 1 AND 15
+        AND l_shipmode in ('AIR', 'AIR REG')
+        AND l_shipinstruct = 'DELIVER IN PERSON'
+    )
+SETTINGS optimize_extract_common_expressions = 1
+
+-->
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：János Benjamin Antal。</p>
+</section>
+
+<section class="slide">
+<h2>默认支持非等值 JOIN</h2>
+
+<p><code style="line-height: 1.25;"><span style="color: gray;">-- Equi join</span>
+SELECT t1.*, t2.* FROM t1 JOIN t2 ON t1.key = t2.key;
+
+<span style="color: gray;">-- Non-equi joins</span>
+SELECT t1.*, t2.* FROM t1 JOIN t2 ON t1.key <b style="color: green;">!=</b> t2.key;
+SELECT t1.*, t2.* FROM t1 JOIN t2 ON t1.key <b style="color: green;">></b> t2.key;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Vladimir Cherkasov。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">加快 LowCardinality 字符串插入</h2>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/low_cardinality.png" style="width: 100%;">
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Alexander Gololobov。</p>
+</section>
+
+<section class="slide">
+<h2>加快 argMin/argMax ⛷️</h2>
+
+<p><b>argMax(c_arg, c_max)</b></p><p>&mdash; 是一个聚合函数，<br/>&emsp; 返回 <b>c_arg</b> 的值，对应的 <b>c_max</b> 值为最大值。</p>
+<p>性能提升最高达 <b style="color: green;">10%</b> ，适用于整数等基础类型。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Alexander Sapin。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/back5.jpg); background-size: cover;">
+<h2><span class="hilite">有趣的功能</span></h2>
+</section>
+
+<section class="slide">
+<h2>嘉宾分享</h2>
+<p>来自 Iceberg 的创造者 🧊</p>
+</section>
+
+<section class="slide">
+<h2>Iceberg REST Catalog 🧊</h2>
+<p><code style="font-size: 12pt; line-height: 1.5; margin-left: -3em; margin-right: -4em;">CREATE DATABASE unity_demo
+ENGINE = <b style="color: green;">Iceberg</b>('https://dbc-55555555-5555.cloud.databricks.com/api/2.1/unity-catalog/iceberg')
+SETTINGS
+  catalog_type = <b style="color: green;">'rest'</b>,
+  catalog_credential = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:...',
+  warehouse = 'unity',
+  oauth_server_uri = 'https://dbc-55555555-5555.cloud.databricks.com/oidc/v1/token',
+  auth_scope = 'all-apis,sql';
+
+SHOW TABLES FROM unity_demo;
+SELECT * unity_demo."webinar.test";
+</code></p>
+<p>兼容 Unity、Polaris。</p>
+<p style="color: gray; font-size: 14pt; margin-top: 1em;">开发者：Kseniia Sumarokova。</p>
+</section>
+
+<section class="slide" style="background-color: black;">
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/iceberg1.png" style="width: calc(100% + 200px); margin-left: -100px; margin-right: -100px;">
+</section>
+
+<section class="slide" style="background-color: black;">
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/iceberg2.png" style="width: calc(100% + 200px); margin-left: -100px; margin-right: -100px;">
+</section>
+
+<section class="slide" style="background-color: black;">
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/iceberg3.png" style="width: calc(100% + 200px); margin-left: -100px; margin-right: -100px;">
+</section>
+
+<section class="slide" style="background-color: black;">
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/iceberg4.png" style="width: calc(100% + 200px); margin-left: -100px; margin-right: -100px;">
+</section>
+
+<section class="slide" style="background-color: black;">
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/iceberg5.png" style="width: calc(100% + 200px); margin-left: -100px; margin-right: -100px;">
+</section>
+
+<section class="slide">
+<h2>Iceberg REST Catalog 🧊</h2>
+<p>兼容 Unity、Polaris。</p>
+<p>演示。</p>
+<!--
+
+SET allow_experimental_database_iceberg = 1;
+
+CREATE DATABASE unity_demo
+ENGINE = Iceberg('https://dbc-516f4d78-42c9.cloud.databricks.com/api/2.1/unity-catalog/iceberg')
+SETTINGS catalog_type = 'rest', catalog_credential = 'c4c1331f-02cb-4765-9fd9-dccfe6ba2b61:dose0bae8994fa6e9ab22daf2e7ce8c88a1e', warehouse = 'unity', oauth_server_uri = 'https://dbc-516f4d78-42c9.cloud.databricks.com/oidc/v1/token', auth_scope = 'all-apis,sql';
+
+SHOW TABLES FROM unity_demo;
+
+SELECT * FROM unity_demo."webinar.final_demo" LIMIT 10;
+SELECT job_title, count(), avg(age) FROM unity_demo."webinar.final_demo" GROUP BY job_title ORDER BY count() DESC LIMIT 10;
+
+-->
+<p style="color: gray; font-size: 14pt; margin-top: 5em;">开发者：Kseniia Sumarokova。</p>
+</section>
+
+<section class="slide">
+<h2>Iceberg 的结构演进 </h2>
+<p>通过 <b>iceberg</b> 表函数可访问具有以下变化的表：</p>
+<p>&mdash; 随时间推移添加或删除列；</p>
+<p>&mdash; 重命名列；</p>
+<p>&mdash; 在基础类型之间更改数据类型；</p>
+<p style="color: gray; font-size: 14pt; margin-top: 3em;">开发者：Dan Ivanik。</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/back6.jpg); background-size: cover;">
+<h2><span class="hilite">额外消息</span></h2>
+</section>
+
+<section class="slide">
+<h2>Variant、Dynamic 和 JSON 类型 🍰</h2>
+
+<p>从实验性功能提升至 <b style="color: green;">Beta 阶段</b>。</p>
+<p>我们还将所有修复回移至上一版本 <b>24.11</b>。</p>
+
+<p>阅读介绍 <b>JSON</b> 数据类型架构的博客文章：
+<br/><a href="https://clickhouse.com/blog/a-new-powerful-json-data-type-for-clickhouse">https://clickhouse.com/blog/a-new-powerful-json-data-type-for-clickhouse</a>。</p>
+
+<p>现在支持通过 ALTER 将已弃用的 <span style="color: gray;">Object</span> 类型转换为 <b style="color: green;">JSON</b><br/>，便于迁移。</p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Pavel Kruglov。</p>
+</section>
+
+<section class="slide">
+<h2>Variant、Dynamic 和 JSON 类型 🍰</h2>
+
+<p>现在表的主键和索引支持 <b>子列</b> ：</p>
+
+<p><code style="line-height: 1.25;">CREATE TABLE log
+(
+    data JSON
+)
+ORDER BY <b style="color: green;">data.time</b>;
+</code></p>
+
+<p style="color: gray; font-size: 14pt; margin-top: 2em;">开发者：Pavel Kruglov。</p>
+</section>
+
+
+<section class="slide">
+<h2>集成</h2>
+
+<p>ClickPipes 中的 Postgres CDC，私有预览：
+<br/><a href="https://clickhouse.com/cloud/clickpipes/postgres-cdc-connector">https://clickhouse.com/cloud/clickpipes/postgres-cdc-connector</a></p>
+
+<img src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/cdc.png" style="width: 100%">
+
+<p>改进了 <b>dbt</b>, <b>Firetran</b>, <b>Kafka</b> 集成，
+<br/>以及 <b>Python</b> 和 <b>JavaScript</b> 连接器。</p>
+</section>
+
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/wing.jpg); background-size: cover;">
+<h2>线下交流会</h2>
+<p>
+<span class="hilite">&mdash; 🇯🇵 东京，1 月 23 日</span>
+<br/><span class="hilite">&mdash; 🇧🇪 FOSDEM，布鲁塞尔，2 月 1、2 日</span>
+<br/><span class="hilite">&mdash; 🇬🇧 伦敦，2 月 5 日</span>
+<br/><span class="hilite">&mdash; 🇦🇪 迪拜，2 月 10 日</span>
+</p>
+<p><span class="hilite">其中一些交流会我会亲自到场 :)</span></p>
+</section>
+
+
+<section class="slide">
+<h2>阅读角 🧶</h2>
+
+<img style="float: right; width: 30%; margin-right: -3em; image-rendering: pixelated; margin-top: 1em;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/blog.png"/>
+<p><a href="https://clickhouse.com/blog/">https://clickhouse.com/blog/</a></p>
+<p style="line-height: 1.5;">&mdash; 与 AWS 建立战略合作伙伴关系
+<br/>&mdash; ClickHouse 与 Medallion 架构
+<br/>&mdash; 我们如何在 ClickHouse 上构建产品分析
+<br/>&mdash; ClickHouse 中的查询优化
+<br/>&mdash; 从 BigQuery 迁移到 ClickHouse
+<br/>&mdash; 我们在 re:Invent 上发布的消息
+</p>
+</section>
+
+<section class="slide" style="background: url(https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2024-release-24.12/pictures/back7.jpg); background-size: cover; background-position: right; text-shadow: black 0 0 5px;">
+<h2 style="color: white; margin-left: -1em;">提问&amp;解答</a></h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/bv-ut-Q6vnc" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 剧场</a>
+</footer>
+</body>
+</html>

@@ -33,6 +33,12 @@ processing:
   changelog_mode: extract_version_section_from_year_page
   source_year_from_version: true
   preserve_original_section_text: true
+  source_text_corrections:
+    - version: "24.12"
+      reason: 官方年度 Markdown 的指标说明在 high 处截断；经用户明确授权，依据官方 PR 补齐句尾。
+      reference_url: https://github.com/ClickHouse/ClickHouse/pull/72490
+      original_suffix: susceptible to the high
+      corrected_suffix: susceptible to the high memory usage issue.
   published_date_source_order:
     - changelog_version_section
     - presentation_metadata
