@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>ClickHouse：22.8 版本网络研讨会</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.8/pictures/preview.jpg">
+    <meta property="og:title" content="ClickHouse：22.8 版本网络研讨会">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.8/pictures/preview.jpg">
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/themes/clickhouse/styles/styles.css">
+
+    <style>
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.6; font-size: 12pt; }
+        p.cloud span { color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+         table, tr, td { border: 0; }
+    </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>ClickHouse：22.8 版本网络研讨会</h1>
+        <p>作者：Alexey Milovidov，2022-08-18。</p>
+    </header>
+    <section class="slide" id="cover">
+        <img src="https://presentations.clickhouse.com/original_website/logo.svg" style="width: 15%; position: absolute; right: 20px; bottom: 20px;" />
+        <h1 style="margin-top: 80px; line-height: 150%; color: black; font-size: 64pt">ClickHouse<br/>22.8 版本</h1>
+    </section>
+
+<section class="slide">
+<h2>22.8 版本网络研讨会</h2>
+<p>1.（45 分钟）ClickHouse 22.8 新增内容。</p>
+<p>2.（15 分钟）问答。</p>
+</section>
+
+<section class="slide" style="background: linear-gradient(to bottom, #46CDFD, #FEE269);">
+<div style="float: right; font-size: 500%; line-height: 1.25">🌤</div>
+<h2>22.8 版本</h2>
+<p>ClickHouse 长期支持版本。</p>
+<p>支持至 2023 年 8 月。</p>
+<p style="color: gray;">21.8 版本已结束支持。</p>
+<p style="margin-top: 2em;">— 12 项新功能</p>
+<p>— 12 项性能优化</p>
+</section>
+
+<!--
+
+Self-extracting executable
+Extended range for Date32 and DateTime64
+Query parameters interactive
+exact_rows_before_limit
+Parallel distributed s3Cluster
+JSON log format
+SELECT INTO OUTFILE AND STDOUT
+Schema inference tunes
+
+DELETE
+Concurrency control
+DISTINCT in order
+Normalize AggregateFunction states
+
+DISTINCT optimization
+
+ClickFiddle
+RISC-V
+
+ClickHouse Cloud public launch is less than two months away!
+
+-->
+
+<section class="slide">
+<h2>自解压可执行文件</h2>
+<p>安装 ClickHouse 最简单的方式：</p>
+
+<p><code>curl https://clickhouse.com/ | sh</code></p>
+
+<p><b style="color: green;">单一二进制软件包</b>。安装最新版本，包含调试信息。</p>
+<p>可运行于各种 <b>Linux</b> (x86_64, aarch64, powerpc64le),<br/><b>macOS</b> (x86_64, M1), <b>FreeBSD</b> 和 <b>Windows</b> (WSL2).</p>
+<p>此前：<b style="color: red;">2.1 GB</b>。</p>
+<p>现在：<b style="color: green;">446 MB</b>，首次运行时约需 5 秒解压。</p>
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Arthur Filatenkov、Yakov Olkhovskiy。</p>
+</section>
+
+<section class="slide">
+<h2>扩展日期与时间范围</h2>
+<p>数据类型 <b>DateTime64</b> 和 <b>Date32</b> 的支持范围：</p>
+<p>此前：<b style="color: red;">1925&ndash;2283.</b></p>
+<p>现在：<b style="color: green;">1900&ndash;2300.</b></p>
+
+<p>采用前推格里高利历。</p>
+<p>动机：存储客户的出生日期。</p>
+<p style="margin-top: 3em; color: gray; font-size: 14pt;">开发者：Roman Vasin。</p>
+</section>
+
+<section class="slide">
+<h2>交互模式中的查询参数</h2>
+<p>……也支持 Native 协议</p>
+
+<p>演示</p>
+
+<!--
+
+SELECT 1
+SELECT {x:String}
+
+clickhouse-client --param_x Hello --query "SELECT {x:String}"
+curl 'http://localhost:8123/?param_x=Hello' --data-binary "SELECT {x:String}"
+
+SET param_x = 'Hello'
+SELECT {x:String}
+
+-->
+
+<p style="margin-top: 5em; color: gray; font-size: 14pt;">开发者：Nikita Taranov。</p>
+</section>
+
+
+<section class="slide">
+<h2>LIMIT 之前的精确行数</h2>
+<p><code>SET exact_rows_before_limit = 1</code></p>
+
+<p>演示</p>
+
+<!--
+
+SELECT number % 100000, count() FROM numbers_mt(10000000) GROUP BY 1 LIMIT 10 FORMAT JSONCompact
+SET exact_rows_before_limit = true
+SELECT number % 100000, count() FROM numbers_mt(10000000) GROUP BY 1 LIMIT 10 FORMAT JSONCompact
+
+-->
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Kevin Wan。</p>
+</section>
+
+<section class="slide">
+<h2 style="font-size: 32pt;">分布式 INSERT SELECT FROM s3Cluster</h2>
+<p><code style="font-size: 14pt;">SELECT * FROM <b>s3</b>('https://clickhouse-public-datasets.s3.amazonaws.com/
+wikistat/partitioned/wikistat*.native.zst');
+
+SELECT * FROM <b>s3Cluster</b>('default',
+    'https://clickhouse-public-datasets.s3.amazonaws.com/
+wikistat/partitioned/wikistat*.native.zst');
+
+INSERT INTO wikistat
+SELECT * FROM <b>s3Cluster</b>(
+    'https://clickhouse-public-datasets.s3.amazonaws.com/
+wikistat/partitioned/wikistat*.native.zst');
+</code></p>
+
+<p>如果目标表为 <b>Replicated</b> 或 <b>Distributed</b>
+<br/>，INSERT 将在集群中分布式执行。</p>
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Nikita Mihailov。</p>
+</section>
+
+<section class="slide">
+<h2>JSON 服务器日志格式</h2>
+<p>直接以 JSON 格式写入服务器日志。</p>
+
+<p>演示</p>
+
+<!--
+./clickhouse-server
+./clickhouse-server 2>&1 | grep '^\{' | jq .
+-->
+
+<p style="margin-top: 10em; color: gray; font-size: 14pt;">开发者：Mallik Hassan。</p>
+</section>
+
+
+<section class="slide">
+<h2>SELECT INTO OUTFILE AND STDOUT</h2>
+<p>打印结果并保存。</p>
+<p>演示</p>
+
+<!--
+
+SELECT SearchPhrase, count() AS c FROM hits WHERE SearchPhrase != '' GROUP BY 1 ORDER BY 2 DESC LIMIT 10;
+SELECT SearchPhrase, count() AS c FROM hits WHERE SearchPhrase != '' GROUP BY 1 ORDER BY 2 DESC LIMIT 10 INTO OUTFILE 'result.tsv';
+SELECT SearchPhrase, count() AS c FROM hits WHERE SearchPhrase != '' GROUP BY 1 ORDER BY 2 DESC LIMIT 10 INTO OUTFILE 'result2.tsv' AND STDOUT;
+
+-->
+
+<p style="margin-top: 1em; color: gray; font-size: 14pt;">开发者：Smita Kulkarni。</p>
+</section>
+
+<section class="slide">
+<h2>SELECT INTO OUTFILE AND STDOUT</h2>
+<p>打印结果并保存。</p>
+<p>待办：</p>
+<p>&mdash; INSERT ... AND SELECT?
+<br/>&mdash;  INSERT RETURNING?
+</p>
+</section>
+
+
+
+<section class="slide">
+<h2>DELETE 查询</h2>
+
+<p><code>SET mutations_sync = 1;
+
+<b style="color: red;">ALTER</b> TABLE hits
+DELETE WHERE Title LIKE '%Mongo%';</code></p>
+<p>&mdash; 205 秒（表中有 1 亿条记录）。</p>
+
+<p><code><b style="color: green;">DELETE</b> FROM hits
+WHERE Title LIKE '%Mongo%';</code></p>
+<p>&mdash; ??? 秒。</p>
+
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Jianmei Zhang、Alexander Gololobov。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">AggregateFunction 状态的兼容性</h2>
+
+<p>不同聚合函数可以具有<i>兼容的状态</i>。</p>
+<p><i>兼容的状态</i> 可以插入包含 <b>AggregateFunction</b> 类型列的表。</p>
+<p>有助于使用物化视图和投影。</p>
+
+<p>例如：<b>avg(price)</b> 和 <b>avgIf(price, category = 'flowers')</b></p>
+<p>例如：<b>quantile(0.5)(timing)</b> 和 <b>quantiles(0.5, 0.9)(timing)</b></p>
+
+<p style="color: gray;">演示</p>
+<!-- CREATE MATERIALIZED VIEW hits_mv ENGINE = MergeTree ORDER BY CounterID AS SELECT CounterID, countIfState(AdvEngineID != 0), quantileTimingState(0.9)(ConnectTiming) FROM hits GROUP BY CounterID;
+
+DESCRIBE TABLE hits_mv;
+
+INSERT INTO hits_mv SELECT CounterID, countState(), quantileTimingState(0.5)(ConnectTiming) FROM hits GROUP BY CounterID;
+
+docker run -it --network host --rm clickhouse/clickhouse-server:22.7 clickhouse server
+
+https://fiddle.clickhouse.com/0a06bb96-e24c-4b2d-9d2f-00821702ff13
+-->
+<p style="margin-top: 2em; color: gray; font-size: 14pt;">开发者：Amos Bird。</p>
+</section>
+
+
+<section class="slide">
+<h2 style="font-size: 32pt;">ClickFiddle</h2>
+<p style="margin-top: -1em;">用于检查旧版 ClickHouse 的工具：<br/>
+<a href="https://fiddle.clickhouse.com/">https://fiddle.clickhouse.com/</a></p>
+<img style="width: 100%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.8/pictures/fiddle.png"/>
+<p>支持读写查询、创建表等操作。</p>
+<p style="margin-top: 0em; color: gray; font-size: 14pt;">开发者：Igor Baliuk。</p>
+</section>
+
+
+<section class="slide">
+<h2>这是什么？</h2>
+<img style="width: 60%;" src="https://raw.githubusercontent.com/ClickHouse/ClickHouse-presentations/master/2022-release-22.8/pictures/riscv.png"/>
+<p>它很小，却能运行 ClickHouse。<a href="https://benchmark.clickhouse.com/hardware/#eyJtYWNoaW5lIjp7IkFNRCBFUFlDIDMuMiBHSHosIDR4MS44IFRCIEludGVsIFA0NjEwIE5WTSBTU0QiOmZhbHNlLCJBTUQgRVBZQyAzLjIgR0h6LCBJbnRlbCBQNDYxMCBOVk0gU1NEIjpmYWxzZSwiQU1EIEVQWUMgMy4yIEdIeiwgTWljcm9uIDUxMDAgTUFYIDk2MCBHQiI6ZmFsc2UsIkFNRCBFUFlDIDc0MDJQIEhERCI6ZmFsc2UsIkFNRCBFUFlDIDc0MDJQIFNTRCI6ZmFsc2UsIkFNRCBFUFlDIDc1MDJQIjpmYWxzZSwiQU1EIEVQWUMgNzUwMlAgblZNRSI6ZmFsc2UsIkFNRCBFUFlDIDc2NDIiOmZhbHNlLCJBTUQgRVBZQyA3NjQyLCA3LjIgVEIgTlZNIjpmYWxzZSwiQU1EIEVQWUMgNzY2MiI6ZmFsc2UsIkFNRCBFUFlDIDc3MDIiOmZhbHNlLCJBTUQgRVBZQyA3NzQyIjpmYWxzZSwiQU1EIFJ5emVuIDkgKDIwMjApIjpmYWxzZSwiQU1EIFJ5emVuIDkgKDIwMjEpIjpmYWxzZSwiQU1EIFJ5emVuIDkgKDIwMjIpIjpmYWxzZSwiQU1EIFJ5emVuIFRocmVhZHJpcHBlciBQUk8gMzk5NVdYIDY0LUNvcmVzIjp0cnVlLCJBU1VTIFozOTAtUGx1cyBTZXJ2ZXIiOmZhbHNlLCJBV1MgTGlnaHRzYWlsIDR2Q1BVIjpmYWxzZSwiQVdTIGExLjR4bGFyZ2UiOmZhbHNlLCJBV1MgYzUubWV0YWwgMTAwR0IiOmZhbHNlLCJBV1MgYzUubWV0YWwgMzAwR0IiOmZhbHNlLCJBV1MgYzVhLjI0eGxhcmdlIjpmYWxzZSwiQVdTIGM2Lm1ldGFsIChHcmF2aXRvbiAyKSI6ZmFsc2UsIkFXUyBjNmEubWV0YWwiOmZhbHNlLCJBV1MgYzZnLjE2eGxhcmdlIChHcmF2aXRvbiAyKSI6ZmFsc2UsIkFXUyBjNmcuMnhsYXJnZSAoR3Jhdml0b24gMikiOmZhbHNlLCJBV1MgYzZpLjMyeGxhcmdlIjpmYWxzZSwiQVdTIGM3Zy4xNnhsYXJnZSAoR3Jhdml0b24gMykiOmZhbHNlLCJBV1MgaTMuMnhsYXJnZSI6ZmFsc2UsIkFXUyBpMy44eGxhcmdlIjpmYWxzZSwiQVdTIGkzZW4uMjR4bGFyZ2UiOmZhbHNlLCJBV1MgaW00Z24uMTZ4bGFyZ2UiOmZhbHNlLCJBV1MgaW00Z24uNHhsYXJnZSI6ZmFsc2UsIkFXUyBpbTRnbi44eGxhcmdlIjpmYWxzZSwiQVdTIG01YS40eGxhcmdlIjpmYWxzZSwiQVdTIG01YS44eGxhcmdlIjpmYWxzZSwiQVdTIG01YWQuMjR4bGFyZ2UiOmZhbHNlLCJBV1MgbTVkLjI0eGxhcmdlIjpmYWxzZSwiQVdTIG02Zy4xNnhsYXJnZSAoR3Jhdml0b24gMikiOmZhbHNlLCJBc3VzIEExNSI6ZmFsc2UsIkF6dXJlIERTM3YyIFByZW1pdW0gU1NEIjpmYWxzZSwiQXp1cmUgRFMzdjIgU3RhbmRhcmQgU1NEIjpmYWxzZSwiQXp1cmUgRTMycyB2MyI6ZmFsc2UsIkNhdml1bSBBUk02NCBDUFUgKDQgQ29yZSwgMS41IEdIeiwgTlZNZSBTU0QpIjpmYWxzZSwiRE8gWGVvbiBFNS0yNjUwTHYzIjpmYWxzZSwiRGVsbCBQb3dlckVkZ2UgUjY0MCI6ZmFsc2UsIkRlbGwgUG93ZXJFZGdlIFI2NDE1IjpmYWxzZSwiRGVsbCBQb3dlckVkZ2UgUjczMHhkIjpmYWxzZSwiRGVsbCBQb3dlckVkZ2UgUjc0MHhkIjpmYWxzZSwiRGVsbCBSNTMwIjpmYWxzZSwiRGVsbCBYUFMgMTUiOmZhbHNlLCJEaWdpdGFsT2NlYW4gQ1BVLW9wdCA0IjpmYWxzZSwiRGlnaXRhbE9jZWFuIENQVS1vcHQsIDMyIjpmYWxzZSwiRGlnaXRhbE9jZWFuIEdlbmVyYWwgNDAiOmZhbHNlLCJEaWdpdGFsT2NlYW4gTWVtb3J5LW9wdCAzMiI6ZmFsc2UsIkRpZ2l0YWxPY2VhbiBTdG9yYWdlLW9wdCAxNiI6ZmFsc2UsIkRpZ2l0YWxPY2VhbiBTdG9yYWdlLW9wdCAyNCI6ZmFsc2UsIkRpZ2l0YWxPY2VhbiBTdG9yYWdlLW9wdCAzMiI6ZmFsc2UsIkRpZ2l0YWxPY2VhbiBTdG9yYWdlLW9wdCA4IjpmYWxzZSwiRVBZQyA3NzAyIG9uIFpGUyBtaXJyb3IgTlZNRSI6ZmFsc2UsIkVxdWluaXggbWV0YWwgbjMueGxhcmdlLng4NCI6ZmFsc2UsIkdDUCBjMi1zdGFuZGFyZC0zMCI6ZmFsc2UsIkdDUCBuMi1oaWdobWVtLTMyIjpmYWxzZSwiR0NQIG4yZC0xNi1oaWdobWVtIjpmYWxzZSwiR0NQIG4yZC1zdGFuZGFyZC04IjpmYWxzZSwiR29vZ2xlIFBpeGVsIDNhIjpmYWxzZSwiSGV0em5lciBDQ1gyMiI6ZmFsc2UsIkhldHpuZXIgQ0NYMzIiOmZhbHNlLCJIZXR6bmVyIEVYNjIiOmZhbHNlLCJIdWF3ZWkgQ2xvdWQgYzYueGxhcmdlLjQsIDR2Q1BVcywgMTYgR2lCIjpmYWxzZSwiSHVhd2VpIFRhaVNoYW4iOmZhbHNlLCJIdWF3ZWkgVGFpU2hhbiAoMikiOmZhbHNlLCJJbnRlbCA4MHZDUFUsIFFFTVUsIEFBcmNoNjQiOmZhbHNlLCJJbnRlbCBDTFggNjIzMFIiOmZhbHNlLCJJbnRlbCBOVUMiOmZhbHNlLCJJbnRlbCBYZW9uIEU1LTE2NTB2MyI6ZmFsc2UsIkludGVsKFIpIDExdGggR2VuIENvcmUgaTktMTE5MDBLRiI6ZmFsc2UsIkludGVsKFIpIENvcmUoVE0pIGk1LTQ0NDAgQ1BVIEAgMy4xMEdIeiI6ZmFsc2UsIkludGVsKFIpIFhlb24gU2lsdmVyIDQzMTQgd2l0aCBTY2FsZUZsdXggQ1NEMzAwMCI6ZmFsc2UsIkxlbm92byBCNTgwIjpmYWxzZSwiTGVub3ZvIFRoaW5rcGFkIFgxIENhcmJvbiI6ZmFsc2UsIkxpbm9kZSAxNkdCIjpmYWxzZSwiTWFjQm9vayBBaXIgTTEiOmZhbHNlLCJNYWNCb29rIFBybyAyMDE0IjpmYWxzZSwiTWFjQm9vayBQcm8gMjAxOCI6ZmFsc2UsIk1hY0Jvb2sgUHJvIDIwMjAiOmZhbHNlLCJNYWNCb29rIFBybyBNMSI6ZmFsc2UsIk9yYWNsZSBDbG91ZCBBUk0gNHZDUFUiOmZhbHNlLCJQT1dFUjkgeF9sYXJnZSBWTSI6ZmFsc2UsIlBpbmVib29rIFBybyI6ZmFsc2UsIlByb0xpYW50IERMMzgwIEc3ICgxIENQVSkiOmZhbHNlLCJQcm9MaWFudCBETDM4MCBHNyAoMiBDUFUpIjpmYWxzZSwiUklTQy1WIFNpRml2ZSBVNzQgKFJWc3BhY2UgVmlzaW9uRml2ZSkiOnRydWUsIlJhc3BiZXJyeSBQaSA0Ijp0cnVlLCJSb2NrIFBpIDQsIDRHaUIsIE5WTWUiOmZhbHNlLCJTU0ROb2RlcyBHNiI6ZmFsc2UsIlNjYWxld2F5IEdQMS1YUyI6ZmFsc2UsIlNlbGVjdGVsIENsb3VkICdiYXNpYyBkaXNrJyI6ZmFsc2UsIlNlbGVjdGVsIENsb3VkICdmYXN0IGRpc2snIjpmYWxzZSwiU2VsZWN0ZWwgQ2xvdWQgJ3VuaXZlcnNhbCBkaXNrJyI6ZmFsc2UsIlRoaW5rUGFkIFAxNSI6ZmFsc2UsIlRpbWU0dnBzLmV1IjpmYWxzZSwiVXBDbG91ZCA4Q1BVIDMyR2lCIjpmYWxzZSwiWGVvbiAyMTc2RyI6ZmFsc2UsIlhlb24gRTUtMjY1MCI6ZmFsc2UsIlhlb24gRTU2NDUiOmZhbHNlLCJYZW9uIEdvbGQgNjE0MCI6ZmFsc2UsIlhlb24gR29sZCA2MjMwIjpmYWxzZSwiWGVvbiBTaWx2ZXIgNDExNCI6ZmFsc2UsIllhbmRleCBDbG91ZCAzMnZDUFUiOmZhbHNlLCJZYW5kZXggQ2xvdWQgODB2Q1BVIjpmYWxzZSwiWWFuZGV4IENsb3VkIDh2Q1BVIjpmYWxzZSwiWWFuZGV4IENsb3VkIHMxLnNtYWxsIjpmYWxzZSwiWWFuZGV4IENsb3VkIHMyLjZ4bGFyZ2UiOmZhbHNlLCJZYW5kZXggQ2xvdWQgczIuNnhsYXJnZSA0VEIgU1NEIjpmYWxzZSwiWWFuZGV4IENsb3VkIHMyLnNtYWxsIjpmYWxzZSwic2NhbGV3YXkgR1AxLVMgOHggeDg2IjpmYWxzZSwidDMueGxhcmdlLCBFQlMiOmZhbHNlLCJ0My54bGFyZ2UsIEVGUyI6ZmFsc2V9LCJ0eXBlIjp7InNlcnZlciI6dHJ1ZSwiYW1kIjp0cnVlLCJkZXNrdG9wIjp0cnVlLCJsYXB0b3AiOnRydWUsImNsb3VkIjp0cnVlLCJhcm0iOnRydWUsImF3cyI6dHJ1ZSwiaW50ZWwiOnRydWUsImF6dXJlIjp0cnVlLCJkbyI6dHJ1ZSwiZ2NwIjp0cnVlLCJzY2FsZXdheSI6dHJ1ZSwiaGV0em5lciI6dHJ1ZSwiaWJtIjp0cnVlLCJsaW5vZGUiOnRydWUsImFwcGxlIjp0cnVlLCJvcmFjbGUiOnRydWUsInBob25lIjp0cnVlLCJwb3dlcnBjIjp0cnVlLCJxZW11Ijp0cnVlLCJyaXNjLXYiOnRydWUsInNlbGVjdGVsIjp0cnVlLCJ0aW1lNHZwcyI6dHJ1ZSwieWFuZGV4Ijp0cnVlfSwibWV0cmljIjoiaG90IiwicXVlcmllcyI6W3RydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWVdfQ==">链接</a></p>
+</section>
+
+<section class="slide">
+<h2>问答</h2>
+</section>
+<section class="slide" style="background: black; padding: 0;">
+<iframe style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;" src="https://www.youtube.com/embed/yob7AnaBJz0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</section>
+
+
+
+    <div class="progress"></div>
+    <script src="https://presentations.clickhouse.com/shower/shower.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="https://presentations.clickhouse.com/shower/shower-video.css">
+    <script src="https://presentations.clickhouse.com/shower/shower-video.js"></script>
+    <!--/Video plugin-->
+<footer class="badge">
+    <a href="https://presentations.clickhouse.com/">ClickHouse 演示厅</a>
+</footer>
+</body>
+</html>
