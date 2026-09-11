@@ -3,7 +3,7 @@ schema_version: 1
 software:
   slug: clickhouse
   display_name: ClickHouse
-  status: planned
+  status: active
   output_directory: clickhouse
 
 source:
@@ -98,7 +98,7 @@ summary:
     - bugfixes_and_security
 
 history:
-  initial_backfill_status: pending
+  initial_backfill_status: completed
   existing_versions_are_immutable: true
   metadata_verification_status: completed
 

@@ -14,5 +14,5 @@ software:
     status: active
     config: software/hyperdx.yaml
   - slug: clickhouse
-    status: planned
+    status: active
     config: software/clickhouse.yaml
