@@ -34,6 +34,9 @@ export default defineConfig({
   cleanUrls: true,
   markdown: {
     config(md) {
+      md.renderer.rules.code_inline = (tokens, index) =>
+        `<code v-pre>${md.utils.escapeHtml(tokens[index].content)}</code>`
+
       const renderLink = md.renderer.rules.link_open!
       md.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
         const href = tokens[index].attrGet('href')
