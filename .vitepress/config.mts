@@ -31,6 +31,7 @@ export default defineConfig({
   title: 'Release Monitor',
   description: '软件版本更新、原始 Changelog 与中文更新总结',
   base: '/release-subscriber/',
+  srcExclude: ['AGENTS.md'],
   cleanUrls: true,
   markdown: {
     config(md) {
@@ -81,6 +82,7 @@ export default defineConfig({
       { text: 'Paseo', link: '/paseo/' },
       { text: 'HyperDX', link: '/hyperdx/' },
       { text: 'ClickHouse', link: '/clickhouse/' },
+      { text: 'Gitea Runner', link: '/gitea-runner/' },
       { text: 'GitHub', link: repository }
     ],
     sidebar: {
@@ -103,6 +105,10 @@ export default defineConfig({
       '/clickhouse/': [
         { text: 'ClickHouse', link: '/clickhouse/' },
         ...releaseItems('clickhouse')
+      ],
+      '/gitea-runner/': [
+        { text: 'Gitea Runner', link: '/gitea-runner/' },
+        ...releaseItems('gitea-runner')
       ]
     },
     search: {

@@ -1,0 +1,40 @@
+schema_version: 1
+
+software:
+  slug: gitea-runner
+  display_name: Gitea Runner
+  status: active
+  output_directory: gitea-runner
+
+source:
+  type: gitea_release
+  repository: gitea/runner
+  repository_url: https://gitea.com/gitea/runner
+  releases_url: https://gitea.com/gitea/runner/releases
+  api_releases_url: https://gitea.com/api/v1/repos/gitea/runner/releases
+  documentation_url: https://docs.gitea.com/runner/
+
+selection:
+  minimum_version: 3.3.1
+  minimum_inclusive: true
+  include_drafts: false
+  include_prereleases: false
+  version_prefix: v
+
+processing:
+  release_unit: gitea_release
+  changelog_mode: preserve_upstream_release_body
+
+notes:
+  - 从 Gitea Release 而非 GitHub 镜像获取版本、发布时间和原始正文。
+  - 版本比较时去掉标签中的 v 前缀；版本目录使用不带前缀的版本号。
+  - 发布详情链接使用 Gitea Release 的原始 URL。
+
+history:
+  initial_backfill_status: completed
+  existing_versions_are_immutable: true
+  metadata_verification_status: completed
+
+theme:
+  strategy: pending
+  accent: null

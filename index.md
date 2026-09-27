@@ -31,3 +31,4 @@ features:
 | Paseo | 0.9.2 | [查看](./paseo/) |
 | HyperDX | 2.37.0 | [查看](./hyperdx/) |
 | ClickHouse | 26.8 | [查看](./clickhouse/) |
+| Gitea Runner | 4.0.0 | [查看](./gitea-runner/) |

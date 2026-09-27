@@ -16,3 +16,6 @@ software:
   - slug: clickhouse
     status: active
     config: software/clickhouse.yaml
+  - slug: gitea-runner
+    status: active
+    config: software/gitea-runner.yaml
