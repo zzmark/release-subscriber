@@ -28,7 +28,7 @@ features:
 | --- | --- | --- |
 | Vaultwarden | 1.37.3 | [查看](./vaultwarden/) |
 | Logto | 1.43.0 | [查看](./logto/) |
-| Paseo | 0.9.2 | [查看](./paseo/) |
+| Paseo | 0.10.0 | [查看](./paseo/) |
 | HyperDX | 2.39.1 | [查看](./hyperdx/) |
 | ClickHouse | 26.8 | [查看](./clickhouse/) |
 | Gitea Runner | 4.0.0 | [查看](./gitea-runner/) |
