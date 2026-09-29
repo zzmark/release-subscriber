@@ -11,7 +11,7 @@ function compareVersionsDescending(a: string, b: string): number {
 function releaseItems(software: string): DefaultTheme.SidebarItem[] {
   const directory = resolve(process.cwd(), software)
   const versions = readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && /^\d+\.\d+(?:\.\d+)?(?:[-+].+)?$/.test(entry.name))
+    .filter((entry) => entry.isDirectory() && /^\d+(?:\.\d+){0,2}(?:[-+].+)?$/.test(entry.name))
     .map((entry) => entry.name)
     .sort(compareVersionsDescending)
 
@@ -83,6 +83,7 @@ export default defineConfig({
       { text: 'HyperDX', link: '/hyperdx/' },
       { text: 'ClickHouse', link: '/clickhouse/' },
       { text: 'Gitea Runner', link: '/gitea-runner/' },
+      { text: 'Chrome', link: '/chrome/' },
       { text: 'GitHub', link: repository }
     ],
     sidebar: {
@@ -109,6 +110,10 @@ export default defineConfig({
       '/gitea-runner/': [
         { text: 'Gitea Runner', link: '/gitea-runner/' },
         ...releaseItems('gitea-runner')
+      ],
+      '/chrome/': [
+        { text: 'Chrome', link: '/chrome/' },
+        ...releaseItems('chrome')
       ]
     },
     search: {

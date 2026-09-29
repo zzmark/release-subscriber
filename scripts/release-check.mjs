@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const read = (path) => readFileSync(resolve(root, path), 'utf8')
-const versionPattern = /^\d+\.\d+(?:\.\d+)?(?:[-+].+)?$/
+const versionPattern = /^\d+(?:\.\d+){0,2}(?:[-+].+)?$/
 const compareVersions = (a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' })
 const errors = []
 

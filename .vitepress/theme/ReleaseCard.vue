@@ -2,6 +2,7 @@
 withDefaults(defineProps<{
   software: string
   version: string
+  versionPrefix?: string
   date: string
   repositoryUrl: string
   docsUrl: string
@@ -12,6 +13,7 @@ withDefaults(defineProps<{
   presentationZhUrl?: string
 }>(), {
   accent: '#2878d0',
+  versionPrefix: 'v',
   releaseLabel: '',
   presentationUrl: '',
   presentationZhUrl: ''
@@ -26,7 +28,7 @@ withDefaults(defineProps<{
         Release Summary
         <span v-if="releaseLabel" class="release-card__badge">{{ releaseLabel }}</span>
       </span>
-      <h1>{{ software }} <span>v{{ version }}</span></h1>
+      <h1>{{ software }} <span>{{ versionPrefix }}{{ version }}</span></h1>
     </div>
 
     <dl class="release-card__meta">

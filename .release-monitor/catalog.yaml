@@ -19,3 +19,6 @@ software:
   - slug: gitea-runner
     status: active
     config: software/gitea-runner.yaml
+  - slug: chrome
+    status: active
+    config: software/chrome.yaml

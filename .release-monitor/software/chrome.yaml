@@ -1,0 +1,43 @@
+schema_version: 1
+
+software:
+  slug: chrome
+  display_name: Chrome
+  status: active
+  output_directory: chrome
+
+source:
+  type: versioned_html_page
+  repository_url: https://www.google.com/chrome/
+  releases_url: https://developer.chrome.com/release-notes
+  release_url_template: https://developer.chrome.com/release-notes/{version}?hl=en
+  documentation_url: https://developer.chrome.com/docs/
+
+selection:
+  minimum_version: "140"
+  minimum_inclusive: true
+  version_format: major
+  version_pattern: '^\d+$'
+  channel: stable
+  include_prereleases: false
+
+processing:
+  release_unit: stable_major_version
+  changelog_mode: preserve_official_article_body_as_markdown
+  published_date_source: stable_release_date_in_article
+  source_locale: en
+
+notes:
+  - 仅收录 Chrome for Developers 的 Chrome 稳定版主版本说明；不把 Beta、Dev、Canary、DevTools 专题或补丁更新当作独立版本。
+  - 使用英文官方页面作为原文；网页中的 authuser 参数属于浏览器账号状态，不是来源标识。
+  - 若文章包含尚未进入稳定渠道的功能，原文照录，但中文总结不得将其描述为已稳定发布。
+  - 版本日期取文章明确标注的 Stable release date，不取网页最后更新时间或任务运行日期。
+
+history:
+  initial_backfill_status: completed
+  existing_versions_are_immutable: true
+  metadata_verification_status: completed
+
+theme:
+  strategy: pending
+  accent: null
