@@ -55,7 +55,7 @@
 ## 通用选择规则
 
 - 最低版本号为包含边界，除非软件级配置另有说明。
-- 忽略 GitHub Draft Release。
+- 忽略上游 Draft Release（包括 GitHub 与 Gitea）。
 - 默认只处理稳定版本；软件级配置可以覆盖预发布版本规则。
 - 发布时间优先取上游 Release 或 Changelog 明确给出的发布日期，页面显示 UTC 日期 `YYYY-MM-DD`。
 - 已生成的历史版本默认不可改写；只有用户明确要求时才更新。

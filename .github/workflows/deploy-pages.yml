@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-fund --no-audit
 
+      - name: Validate release content
+        run: npm run releases:check
+
       - name: Build with VitePress
         run: npm run docs:build
 

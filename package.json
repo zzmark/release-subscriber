@@ -5,7 +5,9 @@
   "scripts": {
     "docs:dev": "vitepress .",
     "docs:build": "vitepress build .",
-    "docs:preview": "vitepress preview ."
+    "docs:preview": "vitepress preview .",
+    "releases:check": "node scripts/release-check.mjs",
+    "releases:sync-home": "node scripts/release-check.mjs --sync-home"
   },
   "devDependencies": {
     "vitepress": "1.6.4"
