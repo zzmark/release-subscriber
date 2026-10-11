@@ -21,7 +21,10 @@ function releaseItems(software: string): DefaultTheme.SidebarItem[] {
       items: [
         { text: '更新总结', link: `/${software}/${version}/` },
         { text: '原始 Changelog', link: `/${software}/${version}/changelog` },
-        { text: '中文 Changelog', link: `/${software}/${version}/changelog.zh` }
+        { text: '中文 Changelog', link: `/${software}/${version}/changelog.zh` },
+        ...(existsSync(resolve(directory, version, 'blog.zh.md'))
+          ? [{ text: '中文发布博客', link: `/${software}/${version}/blog.zh` }]
+          : [])
       ]
     }))
 }

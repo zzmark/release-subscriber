@@ -60,6 +60,14 @@ for (const [, slug, status, configPath] of products) {
     }
     if (!files.every((file) => existsSync(resolve(root, base, file)))) continue
     const page = read(`${base}/index.md`)
+    const blogZhUrl = page.match(/release-blog-zh-url="([^"]+)"/)?.[1]
+    if (blogZhUrl || (page.includes('release-blog-url=') && field(config, 'processing', 'release_blog_mode') === 'translate_matching_official_post_when_available')) {
+      const blogPath = `${base}/blog.zh.md`
+      if (blogZhUrl !== './blog.zh' || !existsSync(resolve(root, blogPath)) || !read(blogPath).trim()) {
+        errors.push(`${base}: missing blog translation or incorrect card link`)
+      }
+      if (!landing.includes(`./${version}/blog.zh.md`)) errors.push(`${base}: missing landing blog translation link`)
+    }
     const date = page.match(/\bdate="(\d{4}-\d{2}-\d{2})"/)?.[1]
     if (!page.includes(`<ReleaseCard`) || !page.includes(`version="${version}"`) || !page.includes(`software="${display}"`) || !date || !page.includes('release-url="')) {
       errors.push(`${base}: incomplete Release Card`)

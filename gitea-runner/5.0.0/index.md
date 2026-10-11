@@ -11,6 +11,7 @@ description: Gitea Runner 5.0.0 的中文更新总结、原始 Changelog 与简�
   docs-url="https://docs.gitea.com/runner/"
   release-url="https://gitea.com/gitea/runner/releases/tag/v5.0.0"
   release-blog-url="https://blog.gitea.com/release-of-runner-5.0.0/"
+  release-blog-zh-url="./blog.zh"
 />
 
 ## 概览
