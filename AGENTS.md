@@ -15,3 +15,9 @@
 运行 `npm run releases:check` 和 `npm run docs:build`。检查失败时修复源数据或导航，不要放宽检查来掩盖内容缺失。CI 在部署前执行同样的检查。
 
 具体操作步骤见项目 skill：[release-monitor](.agents/skills/release-monitor/SKILL.md)。
+
+## Git 提交与推送授权
+
+用户已授权代理更新本仓库的远程 `origin/main`。对于用户要求的产品接入、版本资料更新、修复及文档维护，完成必要检查后，应提交相关变更并推送到 `origin/main`，无需再次请求推送确认；此授权包含推送触发的现有 CI 与站点部署流程。
+
+使用普通推送并保留远程已有提交。若远程有新提交，先同步并解决冲突；用户对具体任务另有提交或发布要求时，以该要求为准。
