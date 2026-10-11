@@ -1,6 +1,6 @@
 # Chrome
 
-[Chrome](https://www.google.com/chrome/) 是 Google 的浏览器。本页从 **140** 起按稳定版主版本收录面向开发者的更新说明，并提供英文原文、简体中文翻译与更新总结。140–154 以 [Chrome for Developers](https://developer.chrome.com/release-notes) 为主要来源；**155 起以 [ChromeStatus Release Notes](https://chromestatus.com/release-notes/155) 为主要来源**，旧站继续作为次要来源检查。预览或 Beta 页面须完成正式版状态与实际发布日期核验后才可收录。
+[Chrome](https://www.google.com/chrome/) 是 Google 的浏览器。本页从 **140** 起按稳定版主版本收录面向开发者的更新说明，并提供英文原文、简体中文翻译与更新总结。140–154 以 [Chrome for Developers](https://developer.chrome.com/release-notes) 为主要来源；**155 起以 [ChromeStatus Release Notes](https://chromestatus.com/release-notes/155) 为主要来源**，旧站继续作为次要来源检查。是否收录以官方实际 Stable 发布记录与发布日期核验为准；ChromeStatus 的通用 Preview 徽标不作为版本渠道判据。
 
 ## 已收录版本
 

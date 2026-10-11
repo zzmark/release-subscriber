@@ -33,11 +33,12 @@ processing:
   source_locale: en
 
 notes:
-  - 仅收录 Chrome 稳定版主版本说明；不把 Preview、Beta、Dev、Canary、DevTools 专题或补丁更新当作独立版本。
+  - 仅收录 Chrome 稳定版主版本说明；不把 Beta、Dev、Canary、DevTools 专题或补丁更新当作独立版本。
   - 140–154 以 Chrome for Developers 为主要正文来源；155 起以 ChromeStatus 为主要正文来源，旧站继续逐版本检查，作为次要补充来源。
   - ChromeStatus 页面存在、功能标为已实现或 Scheduled Stable Release 日期已过，均不能单独证明主版本已正式发布。
   - 核对 ChromiumDash 的实际 Stable 构建，要求 channel 为 Stable、milestone 和 version 主版本均匹配；分页或数量上限导致历史不完整时继续核对，不把最新补丁时间当首次发布日期。
-  - 页面仍标 Preview/Beta 而 API 已有 Stable 时，记录来源冲突并暂停收录，进一步核对官方 Stable 发布公告与正文适用渠道；不得静默忽略冲突。
+  - ChromeStatus 的通用 Preview 徽标也出现在已发布的历史版本中，不作为版本渠道或暂停收录的依据；正式版资格以匹配主版本的官方实际 Stable 发布记录为准。
+  - 若实际渠道记录仅有 Beta/Dev/Canary，或正文明确限定为其他主版本或非稳定渠道，则不收录；真正的版本或渠道证据冲突需进一步核对官方公告。
   - 使用英文官方页面作为原文；网页中的 authuser 参数属于浏览器账号状态，不是来源标识。
   - 若文章包含尚未进入稳定渠道的功能，原文照录，但中文总结不得将其描述为已稳定发布。
   - 版本日期取官方明确确认的实际 Stable 首发日期；旧站可取已核实的 Stable release date，新站须与实际 Stable 发布记录核对，不取 Scheduled 日期、最新补丁日期、网页最后更新时间或任务运行日期。
