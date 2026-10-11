@@ -33,4 +33,4 @@ features:
 | ClickHouse | 26.9 | [查看](./clickhouse/) |
 | Gitea | 28.1.0 | [查看](./gitea/) |
 | Gitea Runner | 5.0.0 | [查看](./gitea-runner/) |
-| Chrome | 154 | [查看](./chrome/) |
+| Chrome | 155 | [查看](./chrome/) |
