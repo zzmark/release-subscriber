@@ -7,6 +7,7 @@ withDefaults(defineProps<{
   repositoryUrl: string
   docsUrl: string
   releaseUrl: string
+  releaseBlogUrl?: string
   accent?: string
   releaseLabel?: string
   presentationUrl?: string
@@ -15,6 +16,7 @@ withDefaults(defineProps<{
   accent: '#2878d0',
   versionPrefix: 'v',
   releaseLabel: '',
+  releaseBlogUrl: '',
   presentationUrl: '',
   presentationZhUrl: ''
 })
@@ -46,6 +48,7 @@ withDefaults(defineProps<{
       <a :href="repositoryUrl" target="_blank" rel="noreferrer">项目主页 ↗</a>
       <a :href="docsUrl" target="_blank" rel="noreferrer">官方文档 ↗</a>
       <a :href="releaseUrl" target="_blank" rel="noreferrer">版本页面 ↗</a>
+      <a v-if="releaseBlogUrl" :href="releaseBlogUrl" target="_blank" rel="noreferrer">发布博客 ↗</a>
       <a href="./changelog">原始 Changelog</a>
       <a href="./changelog.zh">中文 Changelog</a>
       <a v-if="presentationUrl" :href="presentationUrl" target="_blank" rel="noreferrer">原始演示 ↗</a>

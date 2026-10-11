@@ -13,6 +13,8 @@ source:
   releases_url: https://gitea.com/gitea/runner/releases
   api_releases_url: https://gitea.com/api/v1/repos/gitea/runner/releases
   documentation_url: https://docs.gitea.com/runner/
+  release_blog_url: https://blog.gitea.com/
+  release_blog_index_url: https://blog.gitea.com/tags/runner/
 
 selection:
   minimum_version: 3.3.1
@@ -24,11 +26,16 @@ selection:
 processing:
   release_unit: gitea_release
   changelog_mode: preserve_upstream_release_body
+  release_blog_mode: link_matching_official_post_when_available
 
 notes:
   - 从 Gitea Release 而非 GitHub 镜像获取版本、发布时间和原始正文。
   - 版本比较时去掉标签中的 v 前缀；版本目录使用不带前缀的版本号。
   - 发布详情链接使用 Gitea Release 的原始 URL。
+  - 官方发布博客作为补充资料；核对文章标题、正文版本和 Release 链接后，在对应版本卡片与软件首页版本表加入链接。
+  - 博客中的历史 Changelog 不代表每个版本都有独立发布文章；没有对应文章时省略卡片链接，版本表填写 —。
+  - 版本、稳定版状态、发布时间和原始 Changelog 仍以 Gitea Release 为准；博客日期不覆盖 Release 日期。
+  - 后续监控同时检查已收录版本是否新增发布博客；只补充链接，不改写已有总结或 Changelog。
 
 history:
   initial_backfill_status: completed

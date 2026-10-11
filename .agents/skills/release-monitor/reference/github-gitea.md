@@ -2,6 +2,8 @@
 
 Use for software whose processing.release_unit is github_release or gitea_release. For HyperDX and ClickHouse, use their dedicated references.
 
+For Gitea Runner, also read [gitea-runner.md](gitea-runner.md) for supplementary official release blogs.
+
 ## Fetch
 
 - GitHub: GET https://api.github.com/repos/{owner}/{repo}/releases?per_page=100&page=N, using source.repository from the software config.

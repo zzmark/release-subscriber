@@ -10,6 +10,7 @@ description: Gitea Runner 4.0.0 的中文更新总结、原始 Changelog 与简�
   repository-url="https://gitea.com/gitea/runner"
   docs-url="https://docs.gitea.com/runner/"
   release-url="https://gitea.com/gitea/runner/releases/tag/v4.0.0"
+  release-blog-url="https://blog.gitea.com/release-of-runner-4.0.0/"
 />
 
 ## 概览
