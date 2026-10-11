@@ -9,8 +9,13 @@ software:
 source:
   type: versioned_html_page
   repository_url: https://www.google.com/chrome/
-  releases_url: https://developer.chrome.com/release-notes
-  release_url_template: https://developer.chrome.com/release-notes/{version}?hl=en
+  releases_url: https://chromestatus.com/roadmap
+  release_url_template: https://chromestatus.com/release-notes/{version}
+  primary_from_version: "155"
+  legacy_releases_url: https://developer.chrome.com/release-notes
+  legacy_release_url_template: https://developer.chrome.com/release-notes/{version}?hl=en
+  legacy_primary_through_version: "154"
+  stable_releases_api_url_template: https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Windows&milestone={version}&num=1000
   documentation_url: https://developer.chrome.com/docs/
 
 selection:
@@ -24,14 +29,18 @@ selection:
 processing:
   release_unit: stable_major_version
   changelog_mode: preserve_official_article_body_as_markdown
-  published_date_source: stable_release_date_in_article
+  published_date_source: confirmed_actual_stable_release_date
   source_locale: en
 
 notes:
-  - 仅收录 Chrome for Developers 的 Chrome 稳定版主版本说明；不把 Beta、Dev、Canary、DevTools 专题或补丁更新当作独立版本。
+  - 仅收录 Chrome 稳定版主版本说明；不把 Preview、Beta、Dev、Canary、DevTools 专题或补丁更新当作独立版本。
+  - 140–154 以 Chrome for Developers 为主要正文来源；155 起以 ChromeStatus 为主要正文来源，旧站继续逐版本检查，作为次要补充来源。
+  - ChromeStatus 页面存在、功能标为已实现或 Scheduled Stable Release 日期已过，均不能单独证明主版本已正式发布。
+  - 核对 ChromiumDash 的实际 Stable 构建，要求 channel 为 Stable、milestone 和 version 主版本均匹配；分页或数量上限导致历史不完整时继续核对，不把最新补丁时间当首次发布日期。
+  - 页面仍标 Preview/Beta 而 API 已有 Stable 时，记录来源冲突并暂停收录，进一步核对官方 Stable 发布公告与正文适用渠道；不得静默忽略冲突。
   - 使用英文官方页面作为原文；网页中的 authuser 参数属于浏览器账号状态，不是来源标识。
   - 若文章包含尚未进入稳定渠道的功能，原文照录，但中文总结不得将其描述为已稳定发布。
-  - 版本日期取文章明确标注的 Stable release date，不取网页最后更新时间或任务运行日期。
+  - 版本日期取官方明确确认的实际 Stable 首发日期；旧站可取已核实的 Stable release date，新站须与实际 Stable 发布记录核对，不取 Scheduled 日期、最新补丁日期、网页最后更新时间或任务运行日期。
 
 history:
   initial_backfill_status: completed
