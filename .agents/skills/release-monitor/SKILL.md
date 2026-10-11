@@ -12,6 +12,7 @@ Read AGENTS.md, .release-monitor/README.md, and .release-monitor/catalog.yaml. F
 | Check whether updates exist; report candidates only | [reference/scan.md](reference/scan.md), then the matching source reference below for selection details |
 | Add a new monitored product | [reference/new-product.md](reference/new-product.md), then its source reference; read report-format if publishing the first version |
 | Publish/backfill an ordinary GitHub or Gitea Release | [reference/github-gitea.md](reference/github-gitea.md) and [reference/report-format.md](reference/report-format.md) |
+| Publish/backfill Gitea server, or supplement its release blogs | [reference/gitea.md](reference/gitea.md), plus github-gitea and report-format when publishing |
 | Supplement Gitea Runner release blogs, or publish/backfill Gitea Runner | [reference/gitea-runner.md](reference/gitea-runner.md), plus github-gitea and report-format when publishing |
 | Publish/backfill a HyperDX app release cycle | [reference/hyperdx.md](reference/hyperdx.md) and [reference/report-format.md](reference/report-format.md) |
 | Publish/backfill a ClickHouse monthly OSS version | [reference/clickhouse.md](reference/clickhouse.md) and [reference/report-format.md](reference/report-format.md) |

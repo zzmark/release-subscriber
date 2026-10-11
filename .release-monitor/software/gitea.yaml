@@ -1,0 +1,53 @@
+schema_version: 1
+
+software:
+  slug: gitea
+  display_name: Gitea
+  status: active
+  output_directory: gitea
+
+source:
+  type: github_release
+  repository: go-gitea/gitea
+  repository_url: https://github.com/go-gitea/gitea
+  releases_url: https://github.com/go-gitea/gitea/releases
+  api_releases_url: https://api.github.com/repos/go-gitea/gitea/releases
+  documentation_url: https://docs.gitea.com/
+  release_blog_url: https://blog.gitea.com/
+  release_blog_source_directory: https://gitea.com/api/v1/repos/gitea/blog/contents/content/post/gitea?ref=main
+
+selection:
+  minimum_version: 1.26.0
+  minimum_inclusive: true
+  include_drafts: false
+  include_prereleases: false
+  version_prefix: v
+  legacy_format: 1.X.Y
+  current_format: X.Y.Z
+  first_current_version: 28.0.0
+
+processing:
+  release_unit: github_release
+  changelog_mode: preserve_upstream_release_body
+  release_blog_mode: translate_matching_official_post_when_available
+  release_blog_translation_file: blog.zh.md
+
+notes:
+  - 从官方 go-gitea/gitea GitHub Release 获取标签、正式版状态、发布时间和原始正文。
+  - 版本比较与目录仅去掉标签的 v 前缀；保留 1.26.x、1.27.x 和 28.x 的实际版本号，不把旧版本改写为 26.x、27.x。
+  - 官方自 28.0.0 起移除历史 1. 前缀；按数字版本元组排序，28.0.0 排在 1.27.x 之后。
+  - 官方发布博客为补充资料，匹配 Gitea 服务端文章，排除 Runner 发布文章；核对标题、开篇版本及 GitHub Release 链接。
+  - 完整翻译匹配的官方文章为 blog.zh.md，由 ChatGPT 翻译，保留历史 Changelog、结构、代码、链接、远程图片和署名，注明作者、博客 UTC 日期、原文来源与 Apache-2.0 许可。
+  - 一篇文章明确发布多个版本时，各对应版本均提供完整译文与相同原文链接；1.26.3 和 1.26.4 共用一篇文章，不拆分或省略正文。
+  - 版本、稳定版状态、发布时间和原始 Changelog 以 GitHub Release 为准；博客日期不覆盖 Release 日期。
+  - 在卡片、软件首页版本表和侧栏提供博客原文与中文入口；找不到匹配文章时省略卡片链接，表格填 —，源文不可访问时报告未完成。
+  - 后续监控也检查已收录版本是否新增博客，仅补充博客译文与链接，不改写历史总结或 Changelog。
+
+history:
+  initial_backfill_status: completed
+  existing_versions_are_immutable: true
+  metadata_verification_status: completed
+
+theme:
+  strategy: pending
+  accent: null

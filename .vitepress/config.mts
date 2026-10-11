@@ -41,6 +41,16 @@ export default defineConfig({
       md.renderer.rules.code_inline = (tokens, index) =>
         `<code v-pre>${md.utils.escapeHtml(tokens[index].content)}</code>`
 
+      const renderInlineHtml = md.renderer.rules.html_inline!
+      md.renderer.rules.html_inline = (tokens, index, options, env, renderer) => {
+        // Release titles mention literal HTML tags (for example <video>).
+        // Escape them when rendering Gitea Changelogs, preserving upstream source.
+        if (/^gitea\/[^/]+\/changelog(?:\.zh)?\.md$/.test(env.relativePath?.replace(/\\/g, '/') ?? '')) {
+          return md.utils.escapeHtml(tokens[index].content)
+        }
+        return renderInlineHtml(tokens, index, options, env, renderer)
+      }
+
       const renderLink = md.renderer.rules.link_open!
       md.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
         const href = tokens[index].attrGet('href')
@@ -85,6 +95,7 @@ export default defineConfig({
       { text: 'Paseo', link: '/paseo/' },
       { text: 'HyperDX', link: '/hyperdx/' },
       { text: 'ClickHouse', link: '/clickhouse/' },
+      { text: 'Gitea', link: '/gitea/' },
       { text: 'Gitea Runner', link: '/gitea-runner/' },
       { text: 'Chrome', link: '/chrome/' },
       { text: 'GitHub', link: repository }
@@ -109,6 +120,10 @@ export default defineConfig({
       '/clickhouse/': [
         { text: 'ClickHouse', link: '/clickhouse/' },
         ...releaseItems('clickhouse')
+      ],
+      '/gitea/': [
+        { text: 'Gitea', link: '/gitea/' },
+        ...releaseItems('gitea')
       ],
       '/gitea-runner/': [
         { text: 'Gitea Runner', link: '/gitea-runner/' },

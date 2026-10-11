@@ -22,3 +22,6 @@ software:
   - slug: chrome
     status: active
     config: software/chrome.yaml
+  - slug: gitea
+    status: active
+    config: software/gitea.yaml
