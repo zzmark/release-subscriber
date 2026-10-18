@@ -10,6 +10,8 @@ description: Gitea 28.2.0 的中文更新总结、原始 Changelog 与简体中�
   repository-url="https://github.com/go-gitea/gitea"
   docs-url="https://docs.gitea.com/"
   release-url="https://github.com/go-gitea/gitea/releases/tag/v28.2.0"
+  release-blog-url="https://blog.gitea.com/release-of-28.2.0/"
+  release-blog-zh-url="./blog.zh"
 />
 
 ## 概览
