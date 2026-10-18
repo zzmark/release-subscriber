@@ -8,6 +8,7 @@
 
 | 版本 | 发布时间（UTC） | 更新总结 | 原始 Changelog | 中文 Changelog | 发布博客 |
 | --- | --- | --- | --- | --- | --- |
+| 28.2.0 | 2026-10-18 | [查看](./28.2.0/) | [English](./28.2.0/changelog.md) | [简体中文](./28.2.0/changelog.zh.md) | — |
 | 28.1.0 | 2026-10-06 | [查看](./28.1.0/) | [English](./28.1.0/changelog.md) | [简体中文](./28.1.0/changelog.zh.md) | [原文](https://blog.gitea.com/release-of-28.1.0/) / [中文](./28.1.0/blog.zh.md) |
 | 28.0.0 | 2026-09-29 | [查看](./28.0.0/) | [English](./28.0.0/changelog.md) | [简体中文](./28.0.0/changelog.zh.md) | [原文](https://blog.gitea.com/release-of-28.0.0/) / [中文](./28.0.0/blog.zh.md) |
 | 1.27.3 | 2026-08-29 | [查看](./1.27.3/) | [English](./1.27.3/changelog.md) | [简体中文](./1.27.3/changelog.zh.md) | [原文](https://blog.gitea.com/release-of-1.27.3/) / [中文](./1.27.3/blog.zh.md) |

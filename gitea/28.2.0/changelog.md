@@ -1,0 +1,43 @@
+## [28.2.0] - 2026-10-18
+
+### Enhancements
+
+- *(oauth)* Pre-register a builtin OAuth2 application for gitea-vscode (#39785) (#39801)
+- Allow custom watches to bypass on-mention email restriction (#39652) (#39837)
+
+### Bug Fixes
+
+- Various bugs (#39661) (#39667)
+- *(markup)* Display MathML has no space below it (#39663) (#39668)
+- Correct websocket notification for change password page (#39671) (#39670)
+- *(webhook)* Keep line breaks in Telegram rich messages (#39650) (#39677)
+- Correct "go get" URL ssh scheme, fix form binding (#39674, #39528) (#39676)
+- OIDC discovery advertises unsupported id_token response_type (#39498) (#39689)
+- *(deps)* Update module golang.org/x/net to v0.60.0 [security] (#39695) (#39701)
+- *(git)* Leave reflog expiry to git's defaults (#39703) (#39711)
+- *(actions)* Settle cancelled reusable workflow runs stuck in cancelling (#39706) (#39717)
+- *(git)* Match git config values exactly when syncing (#39728) (#39729)
+- *(actions)* Harden log cursor, activity type and actor filter handling (#39721) (#39731)
+- *(packages)* Copy selected Debian installation values (#39718) (#39734)
+- *(auth)* Prevent competing remember-me token rotations (#39686) (#39688)
+- *(packages/npm)* Restore former tarball URLs (#39681) (#39749)
+- *(issues)* Allow selecting a tag in the issue Branch/Tag dropdown (#39747) (#39753)
+- Validate "state" for OpenID (#39642) (#39744)
+- Correct label deletion and release attachment load (#39743) (#39752)
+- *(markup)* Resolve and proxy srcset links of <source> elements (#39708) (#39756)
+- *(lfs)* Validate OID before building filesystem object path (#39762) (#39766)
+- *(markup)* Restore code copy newline strip and fix copying rendered blocks (#39755) (#39765)
+- *(user)* Don't match a commit with an empty author email to a user (#39777) (#39780)
+- *(gitdiff)* Unquote C-quoted paths from `git diff-tree --raw` (#39781) (#39783)
+- *(actions)* Fix schedule cleanup and default branch switch (#39740) (#39786)
+- Skip commit-graph write when fetching remote commits (#39798)
+- *(webauthn)* Accept unsolicited client extension outputs from WebKit clients (#39792) (#39806)
+- *(pull)* Fix code context of review comments on unchanged lines (#39799) (#39805)
+- *(pull)* Don't auto-detect empty pull requests as manually merged (#39807) (#39812)
+- *(actions)* Keep folded block scalars intact across serialization (#39787) (#39817)
+- *(actions)* Bound request body size in artifacts v4 twirp handlers (#39818) (#39822)
+- Prevent Gitea from crashing by notification panic (#39835)
+- *(pull)* Recover PRs whose recorded merge commit never reached the base repo (#39831) (#39840)
+- Use correct template variable on milestone page (#39834) (#39843)
+- *(mailer)* Reject incoming email tokens of users who cannot sign in (#39833) (#39841)
+- Add missing checks to several handlers and models (#39839) (#39847)
