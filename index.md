@@ -30,7 +30,7 @@ features:
 | Logto | 1.45.0 | [查看](./logto/) |
 | Paseo | 0.15.0 | [查看](./paseo/) |
 | HyperDX | 2.43.1 | [查看](./hyperdx/) |
-| ClickHouse | 26.9 | [查看](./clickhouse/) |
+| ClickHouse | 26.10 | [查看](./clickhouse/) |
 | Gitea | 28.3.0 | [查看](./gitea/) |
 | Gitea Runner | 5.3.0 | [查看](./gitea-runner/) |
 | Chrome | 157 | [查看](./chrome/) |
