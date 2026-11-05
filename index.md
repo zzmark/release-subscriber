@@ -27,7 +27,7 @@ features:
 | 软件 | 最新收录版本 | 版本资料 |
 | --- | --- | --- |
 | Vaultwarden | 1.37.5 | [查看](./vaultwarden/) |
-| Logto | 1.45.0 | [查看](./logto/) |
+| Logto | 1.46.0 | [查看](./logto/) |
 | Paseo | 0.15.1 | [查看](./paseo/) |
 | HyperDX | 2.43.1 | [查看](./hyperdx/) |
 | ClickHouse | 26.10 | [查看](./clickhouse/) |
