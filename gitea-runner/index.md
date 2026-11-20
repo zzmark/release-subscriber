@@ -6,6 +6,7 @@
 
 | 版本 | 发布时间 | 更新总结 | 原始 Changelog | 中文 Changelog | 发布博客 |
 | --- | --- | --- | --- | --- | --- |
+| 6.0.1 | 2026-11-20 | [查看](./6.0.1/) | [English](./6.0.1/changelog.md) | [简体中文](./6.0.1/changelog.zh.md) | — |
 | 6.0.0 | 2026-11-11 | [查看](./6.0.0/) | [English](./6.0.0/changelog.md) | [简体中文](./6.0.0/changelog.zh.md) | [原文](https://blog.gitea.com/release-of-runner-6.0.0/) / [中文](./6.0.0/blog.zh.md) |
 | 5.4.1 | 2026-11-05 | [查看](./5.4.1/) | [English](./5.4.1/changelog.md) | [简体中文](./5.4.1/changelog.zh.md) | — |
 | 5.4.0 | 2026-11-05 | [查看](./5.4.0/) | [English](./5.4.0/changelog.md) | [简体中文](./5.4.0/changelog.zh.md) | — |

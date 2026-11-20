@@ -32,5 +32,5 @@ features:
 | HyperDX | 2.46.0 | [查看](./hyperdx/) |
 | ClickHouse | 26.10 | [查看](./clickhouse/) |
 | Gitea | 28.4.0 | [查看](./gitea/) |
-| Gitea Runner | 6.0.0 | [查看](./gitea-runner/) |
+| Gitea Runner | 6.0.1 | [查看](./gitea-runner/) |
 | Chrome | 159 | [查看](./chrome/) |
