@@ -1,5 +1,20 @@
 # Release Monitor 配置规范
 
+## Windows 主机上的报告邮件
+
+部署成功后，将每个新版本的完整 UTF-8 HTML 报告保存到本机，再运行
+`./scripts/send-report.ps1 -Report <HTML路径> -Subject "Release Monitor | <slug> <version>"`。
+历史回填不发信。补发使用同一报告和主题，无需重新发布版本。
+
+脚本使用本机 Python 3 和 SMTP 隐式 TLS。配置位于当前用户的
+`%LOCALAPPDATA%/release-subscriber/smtp.json`，字段为 `EMAIL`（收件人）、
+`SMTP_HOST`、`SMTP_PORT`、`SMTP_FROM`（登录账号及发件人）和 `SMTP_FROM_NAME`。
+在相同目录使用 Windows PowerShell 的 `Get-Credential | Export-Clixml`
+保存凭据至 `smtp.credential.xml`。以同一用户运行 `./scripts/send-report.ps1 -CheckAuth` 可仅验证登录。
+
+同一收件人和主题共用一条本地投递记录。返回 `accepted` 表示 SMTP 服务器已接收；
+返回 `pending confirmation` 时先核实投递结果，再决定是否清除对应的 receipts 记录并补发。
+
 此目录保存 Release Monitor 的长期规则与软件级配置，供后续人工维护和自动任务读取。这里的文件不是发布报告，不应由 VitePress 作为内容页展示。
 
 ## 状态
